@@ -363,6 +363,12 @@ export default function OrganizationDetailPage() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
               <div className="space-y-2">
                 <Link
+                  href={`/organizations/${orgId}/candidates`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Candidates ({usage.total_candidates || 0})
+                </Link>
+                <Link
                   href={`/organizations/${orgId}/users`}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
                 >
@@ -481,10 +487,14 @@ function JourneyProgressSection({ orgId }: { orgId: string }) {
   return (
     <div className="space-y-3">
       {data.sessions.map((session: any) => (
-        <div key={session.id} className="border border-gray-200 rounded-lg p-4">
+        <Link
+          key={session.id}
+          href={`/candidate/${session.candidateId}`}
+          className="block border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:bg-blue-50/50 transition-colors cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-2">
             <div>
-              <h3 className="font-medium text-gray-900">{session.candidateName}</h3>
+              <h3 className="font-medium text-gray-900 hover:text-blue-600">{session.candidateName}</h3>
               <p className="text-sm text-gray-500">{session.journeyName || session.positionTitle}</p>
             </div>
             <span className="text-sm font-semibold text-blue-600">
@@ -500,7 +510,7 @@ function JourneyProgressSection({ orgId }: { orgId: string }) {
           <p className="text-xs text-gray-500 mt-2">
             Started {new Date(session.startedAt).toLocaleDateString()}
           </p>
-        </div>
+        </Link>
       ))}
     </div>
   );
