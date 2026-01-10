@@ -68,7 +68,7 @@ export function PlatformAdminNav() {
   const anomalyCount = healthData?.metrics?.locationAnomalies || 0;
   const totalAlerts = alertCount + anomalyCount;
 
-  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring'].some(
+  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring'].some(
     path => pathname === path || pathname?.startsWith(path + '/')
   );
 
@@ -77,6 +77,7 @@ export function PlatformAdminNav() {
     { name: 'Location Anomalies', href: '/anomalies', icon: MapPin, badge: anomalyCount, badgeColor: 'bg-amber-500' },
     { name: 'Background Jobs', href: '/background-jobs', icon: Activity },
     { name: 'API Health', href: '/api-monitoring', icon: BarChart3 },
+    { name: 'Email & Digests', href: '/email-monitoring', icon: Mail },
   ];
 
   return (
