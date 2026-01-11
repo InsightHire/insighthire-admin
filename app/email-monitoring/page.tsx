@@ -39,6 +39,11 @@ export default function EmailMonitoringPage() {
   const [expandedDigest, setExpandedDigest] = useState<string | null>(null);
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
 
+  // Trigger digest state
+  const [triggerOrgId, setTriggerOrgId] = useState<string>('');
+  const [triggerType, setTriggerType] = useState<'DAILY' | 'WEEKLY'>('DAILY');
+  const [triggerResult, setTriggerResult] = useState<{ success: boolean; message: string } | null>(null);
+
   // Organizations for filter
   const { data: orgsData } = trpc.platformAdmin.listOrganizations.useQuery(
     { page: 1 },
@@ -69,6 +74,16 @@ export default function EmailMonitoringPage() {
   });
   const cancelMutation = trpc.platformAdmin.cancelDigestNotification.useMutation({
     onSuccess: () => refetchDigest(),
+  });
+  const triggerDigestMutation = trpc.platformAdmin.triggerDigestNow.useMutation({
+    onSuccess: (data) => {
+      setTriggerResult({ success: data.success, message: data.message });
+      setTimeout(() => setTriggerResult(null), 5000);
+    },
+    onError: (err) => {
+      setTriggerResult({ success: false, message: err.message });
+      setTimeout(() => setTriggerResult(null), 5000);
+    },
   });
 
   const getStatusBadge = (status: string) => {
@@ -194,6 +209,56 @@ export default function EmailMonitoringPage() {
                     <div className="text-sm text-gray-500 mt-1">Total Sent</div>
                     <div className="text-xs text-gray-400">{statsData.period}</div>
                   </div>
+                </div>
+              </div>
+
+              {/* Trigger Digest Section */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">🚀 Manually Trigger Digest</h3>
+                <p className="text-sm text-gray-500 mb-4">Send a digest email to all admins/recruiters in an organization for testing.</p>
+                
+                {triggerResult && (
+                  <div className={`mb-4 p-3 rounded-lg ${triggerResult.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                    {triggerResult.message}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-4 items-end">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+                    <select
+                      value={triggerOrgId}
+                      onChange={(e) => setTriggerOrgId(e.target.value)}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white"
+                    >
+                      <option value="">Select organization...</option>
+                      {orgsData?.organizations?.map((org: any) => (
+                        <option key={org.id} value={org.id}>{org.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-40">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Digest Type</label>
+                    <select
+                      value={triggerType}
+                      onChange={(e) => setTriggerType(e.target.value as 'DAILY' | 'WEEKLY')}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white"
+                    >
+                      <option value="DAILY">Daily Digest</option>
+                      <option value="WEEKLY">Weekly Digest</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (triggerOrgId) {
+                        triggerDigestMutation.mutate({ organizationId: triggerOrgId, digestType: triggerType });
+                      }
+                    }}
+                    disabled={!triggerOrgId || triggerDigestMutation.isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {triggerDigestMutation.isPending ? 'Sending...' : 'Send Digest Now'}
+                  </button>
                 </div>
               </div>
             </>
