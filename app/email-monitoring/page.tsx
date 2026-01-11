@@ -44,9 +44,9 @@ export default function EmailMonitoringPage() {
   const [triggerType, setTriggerType] = useState<'DAILY' | 'WEEKLY'>('DAILY');
   const [triggerResult, setTriggerResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // Organizations for filter
+  // Organizations for filter (fetch up to 100)
   const { data: orgsData } = trpc.platformAdmin.listOrganizations.useQuery(
-    { page: 1 },
+    { page: 1, limit: 100 },
     { enabled: !authLoading, retry: false }
   );
 
