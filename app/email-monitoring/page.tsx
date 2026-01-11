@@ -215,7 +215,7 @@ export default function EmailMonitoringPage() {
             <select
               value={digestStatus}
               onChange={(e) => { setDigestStatus(e.target.value as DigestStatus); setDigestPage(1); }}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
             >
               <option value="ALL">All Status</option>
               <option value="PENDING">Pending</option>
@@ -226,7 +226,7 @@ export default function EmailMonitoringPage() {
             <select
               value={deliveryMethod}
               onChange={(e) => { setDeliveryMethod(e.target.value as DeliveryMethod); setDigestPage(1); }}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
             >
               <option value="ALL">All Methods</option>
               <option value="IMMEDIATE">Immediate</option>
@@ -400,7 +400,7 @@ export default function EmailMonitoringPage() {
             <select
               value={emailStatus}
               onChange={(e) => { setEmailStatus(e.target.value as EmailStatus); setEmailPage(1); }}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
             >
               <option value="ALL">All Emails</option>
               <option value="OPENED">Opened</option>
@@ -639,10 +639,10 @@ function MiniStat({ label, value, color, suffix }: { label: string; value: numbe
 
   return (
     <div className={`rounded-lg border p-3 ${colors[color]}`}>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg font-semibold">
+      <div className="text-xs text-gray-600">{label}</div>
+      <div className="text-lg font-semibold text-gray-900">
         {value.toLocaleString()}
-        {suffix && <span className="text-xs text-gray-400 ml-1">{suffix}</span>}
+        {suffix && <span className="text-xs text-gray-500 ml-1">{suffix}</span>}
       </div>
     </div>
   );
