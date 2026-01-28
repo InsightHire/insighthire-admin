@@ -11,6 +11,7 @@ import {
   BuildingOfficeIcon,
   UsersIcon,
   ChartBarIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 export default function PlatformAdminOrganizationsPage() {
@@ -52,6 +53,13 @@ export default function PlatformAdminOrganizationsPage() {
                 <p className="text-sm text-gray-600">Platform Administration</p>
               </div>
             </div>
+            <Link
+              href="/onboarding"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <PlusIcon className="h-5 w-5" />
+              Add Organization
+            </Link>
           </div>
         </div>
       </div>
