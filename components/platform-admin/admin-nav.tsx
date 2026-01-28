@@ -14,7 +14,8 @@ import {
   ChevronDown,
   Gauge,
   LogOut,
-  User
+  User,
+  UserPlus
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -104,6 +105,19 @@ export function PlatformAdminNav() {
               >
                 <Building2 className="h-4 w-4 mr-1.5" />
                 Organizations
+              </Link>
+
+              {/* Onboarding */}
+              <Link
+                href="/onboarding"
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/onboarding'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-blue-400 hover:bg-blue-600/20 hover:text-blue-300'
+                }`}
+              >
+                <UserPlus className="h-4 w-4 mr-1.5" />
+                Onboard
               </Link>
 
               {/* Monitoring Dropdown */}
