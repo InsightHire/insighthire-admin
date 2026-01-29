@@ -12,6 +12,7 @@ import {
   ChartBarIcon,
   CreditCardIcon,
   ClockIcon,
+  ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 
 export default function OrganizationDetailPage() {
@@ -31,6 +32,13 @@ export default function OrganizationDetailPage() {
     onSuccess: () => {
       setEditingSubscription(false);
       refetch();
+    },
+  });
+
+  const impersonateMutation = trpc.platformAdmin.impersonateOrganization.useMutation({
+    onSuccess: (data) => {
+      // Open the login URL in a new tab
+      window.open(data.loginUrl, '_blank');
     },
   });
 
@@ -81,7 +89,15 @@ export default function OrganizationDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
+                disabled={impersonateMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+              >
+                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                {impersonateMutation.isPending ? 'Opening...' : 'Login as Admin'}
+              </button>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(organization.subscriptionStatus)}`}>
                 {organization.subscriptionStatus}
               </span>
