@@ -85,7 +85,7 @@ export default function OrganizationJourneysPage() {
                   >
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-blue-600 hover:text-blue-800">{session.candidateName}</div>
-                      <div className="text-xs text-gray-500">{session.candidateId?.slice(0, 8)}...</div>
+                      <div className="text-xs text-gray-500">{session.candidateEmail || session.candidateId?.slice(0, 8) + '...'}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">{session.journeyName || 'N/A'}</div>
