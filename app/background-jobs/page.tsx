@@ -141,9 +141,7 @@ export default function BackgroundJobsAdmin() {
   const filteredPendingJobs = filterJobs(pendingData?.jobs as FailedJob[] | undefined);
 
   // DEBUG: Check what data we're getting
-  console.log('🔍 Failed Data:', failedData);
-  console.log('🔍 Jobs count:', failedData?.jobs?.length || 0);
-  console.log('🔍 First job sample:', failedData?.jobs?.[0]);
+
 
   // Get unique values for filter dropdowns with cascading logic
   const allJobs = (failedData?.jobs as FailedJob[] || []);

@@ -21,7 +21,7 @@ export default function PlatformAdminLoginPage() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
-      console.log('Login response:', data);
+
 
       // Verify this is a platform admin
       if (!data.user?.isPlatformAdmin || data.user.organizationId !== 'platform_00000000000000000') {
@@ -35,7 +35,7 @@ export default function PlatformAdminLoginPage() {
         localStorage.setItem('admin_user', JSON.stringify(data.user));
       }
 
-      console.log('✅ Platform admin logged in:', data.user.email);
+
 
       // Redirect to admin dashboard
       router.push('/organizations');

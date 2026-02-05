@@ -20,11 +20,9 @@ export default function OrganizationPositionsPage() {
     enabled: !authLoading,
     retry: 1,
     onError: (err) => console.error('Positions query error:', err),
-    onSuccess: (data) => console.log('Positions loaded:', data),
+
   });
 
-  // Debug logging
-  console.log('Positions page state:', { orgId, data, isLoading, error, authLoading });
 
   const { data: orgData } = trpc.platformAdmin.getOrganization.useQuery({ id: orgId }, {
     enabled: !authLoading,
