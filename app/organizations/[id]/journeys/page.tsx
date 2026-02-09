@@ -419,6 +419,11 @@ export default function OrganizationJourneysPage() {
                                 {Math.round(parseFloat(session.completionPercentage || '0'))}%
                               </span>
                             </div>
+                            {session.totalSteps > 0 && (
+                              <div className="text-[10px] text-gray-400 mt-0.5">
+                                {session.completedSteps}/{session.totalSteps} questions
+                              </div>
+                            )}
                           </td>
                           {/* Status */}
                           <td className="px-4 py-3">
