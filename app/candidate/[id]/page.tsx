@@ -31,9 +31,9 @@ export default function CandidateDetailPage() {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
 
   // Fetch journey breakdown
-  const { data: journeyData, isLoading: loadingJourney, refetch } = trpc.platformAdmin.getCandidateJourneyBreakdown.useQuery(
+  const { data: journeyData, isLoading: loadingJourney, error: journeyError, refetch } = trpc.platformAdmin.getCandidateJourneyBreakdown.useQuery(
     { candidateId },
-    { enabled: !authLoading && !!candidateId }
+    { enabled: !authLoading && !!candidateId, retry: false }
   );
 
   // Retry mutation
@@ -119,6 +119,31 @@ export default function CandidateDetailPage() {
       <AuthenticatedLayout>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </AuthenticatedLayout>
+    );
+  }
+
+  if (journeyError) {
+    return (
+      <AuthenticatedLayout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center max-w-lg">
+            <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900">Error Loading Candidate</h2>
+            <p className="text-gray-500 mt-2">Something went wrong fetching this candidate&apos;s data.</p>
+            <pre className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-left text-xs text-red-700 overflow-auto max-h-48">
+              {journeyError.message}
+            </pre>
+            <div className="mt-4 flex gap-3 justify-center">
+              <button onClick={() => refetch()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Retry
+              </button>
+              <button onClick={() => router.back()} className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">
+                Go Back
+              </button>
+            </div>
+          </div>
         </div>
       </AuthenticatedLayout>
     );
