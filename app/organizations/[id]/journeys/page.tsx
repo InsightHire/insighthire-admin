@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import {
   ArrowLeftIcon,
   MagnifyingGlassIcon,
@@ -182,29 +181,24 @@ export default function OrganizationJourneysPage() {
 
   if (authLoading || isLoading) {
     return (
-      <AuthenticatedLayout>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </AuthenticatedLayout>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <AuthenticatedLayout>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-xl font-bold text-gray-900">Error Loading Journeys</h2>
-            <pre className="mt-2 text-sm text-red-600 bg-red-50 p-3 rounded max-w-lg">{error.message}</pre>
-          </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-bold text-gray-900">Error Loading Journeys</h2>
+          <pre className="mt-2 text-sm text-red-600 bg-red-50 p-3 rounded max-w-lg">{error.message}</pre>
         </div>
-      </AuthenticatedLayout>
+      </div>
     );
   }
 
   return (
-    <AuthenticatedLayout>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
         <div className="bg-white border-b">
@@ -532,6 +526,5 @@ export default function OrganizationJourneysPage() {
           )}
         </div>
       </div>
-    </AuthenticatedLayout>
   );
 }
