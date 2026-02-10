@@ -208,7 +208,7 @@ export default function LeadsPage() {
                           <DropdownMenuItem
                             onClick={() => handleDelete(lead.id, lead.companyName || 'Unknown')}
                             disabled={deletingId === lead.id}
-                            className="text-red-700 hover:bg-red-50 focus:bg-red-50"
+                            className="text-gray-700 hover:bg-gray-100 hover:text-red-600"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete lead
