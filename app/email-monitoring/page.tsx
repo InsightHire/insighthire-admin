@@ -24,16 +24,21 @@ type EmailStatus = 'SENT' | 'OPENED' | 'CLICKED' | 'BOUNCED' | 'FAILED' | 'ALL';
 
 export default function EmailMonitoringPage() {
   const { isLoading: authLoading } = useAdminAuth();
-  const [activeTab, setActiveTab] = useState<'digest' | 'emails' | 'stats'>('stats');
+  const [activeTab, setActiveTab] = useState<'digest' | 'emails' | 'mailgun' | 'stats'>('stats');
   
   // Digest filters
   const [digestStatus, setDigestStatus] = useState<DigestStatus>('ALL');
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('ALL');
   const [digestPage, setDigestPage] = useState(1);
   
-  // Email filters
+  // Email filters: by account (org) and by position / Indeed email address
   const [emailStatus, setEmailStatus] = useState<EmailStatus>('ALL');
+  const [emailOrganizationId, setEmailOrganizationId] = useState<string>('');
+  const [emailPositionId, setEmailPositionId] = useState<string>('');
   const [emailPage, setEmailPage] = useState(1);
+  
+  // Mailgun tab
+  const [mailgunRecipient, setMailgunRecipient] = useState<string>('');
   
   // Expanded items
   const [expandedDigest, setExpandedDigest] = useState<string | null>(null);
@@ -62,10 +67,34 @@ export default function EmailMonitoringPage() {
     { enabled: !authLoading && activeTab === 'digest', retry: false }
   );
 
-  // Email sends query
+  // Positions for selected org (Indeed / inbound email filter)
+  const { data: positionsData } = trpc.platformAdmin.getOrganizationPositions.useQuery(
+    { organizationId: emailOrganizationId, limit: 100 },
+    { enabled: !authLoading && !!emailOrganizationId }
+  );
+
+  // Email sends query (filter by org and optional position = Indeed email address)
   const { data: emailData, isLoading: emailLoading, refetch: refetchEmails } = trpc.platformAdmin.getEmailSends.useQuery(
-    { status: emailStatus, page: emailPage, limit: 25 },
+    {
+      status: emailStatus,
+      organizationId: emailOrganizationId || undefined,
+      positionId: emailPositionId || undefined,
+      page: emailPage,
+      limit: 25,
+    },
     { enabled: !authLoading && activeTab === 'emails', retry: false }
+  );
+
+  // Full body for expanded email
+  const { data: emailBodyData } = trpc.platformAdmin.getEmailSendBody.useQuery(
+    { id: expandedEmail! },
+    { enabled: !authLoading && !!expandedEmail }
+  );
+
+  // Mailgun events (delivery logs from Mailgun)
+  const { data: mailgunData, isLoading: mailgunLoading, refetch: refetchMailgun } = trpc.platformAdmin.getMailgunEvents.useQuery(
+    { recipient: mailgunRecipient || undefined, limit: 50 },
+    { enabled: !authLoading && activeTab === 'mailgun', retry: false }
   );
 
   // Mutations
@@ -95,6 +124,13 @@ export default function EmailMonitoringPage() {
       OPENED: 'bg-blue-100 text-blue-800',
       CLICKED: 'bg-purple-100 text-purple-800',
       BOUNCED: 'bg-red-100 text-red-800',
+      accepted: 'bg-green-100 text-green-800',
+      delivered: 'bg-green-100 text-green-800',
+      opened: 'bg-blue-100 text-blue-800',
+      clicked: 'bg-purple-100 text-purple-800',
+      failed: 'bg-red-100 text-red-800',
+      rejected: 'bg-red-100 text-red-800',
+      stored: 'bg-gray-100 text-gray-800',
     };
     return styles[status] || 'bg-gray-100 text-gray-800';
   };
@@ -136,6 +172,7 @@ export default function EmailMonitoringPage() {
             { id: 'stats', label: 'Overview', icon: ChartIcon },
             { id: 'digest', label: 'Digest Queue', icon: ClockIcon },
             { id: 'emails', label: 'Sent Emails', icon: EnvelopeIcon },
+            { id: 'mailgun', label: 'Mailgun Events', icon: EnvelopeIcon },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -456,18 +493,41 @@ export default function EmailMonitoringPage() {
       {/* Sent Emails Tab */}
       {activeTab === 'emails' && (
         <div className="space-y-4">
-          {/* Filters */}
+          {/* Filters: by account (org), by position / Indeed email, by status */}
           <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-center">
             <div className="flex items-center gap-2">
               <FunnelIcon className="h-5 w-5 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">Filter by status:</span>
+              <span className="text-sm font-medium text-gray-700">Filters:</span>
             </div>
+            <select
+              value={emailOrganizationId}
+              onChange={(e) => { setEmailOrganizationId(e.target.value); setEmailPositionId(''); setEmailPage(1); }}
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
+            >
+              <option value="">All accounts</option>
+              {orgsData?.organizations?.map((org: any) => (
+                <option key={org.id} value={org.id}>{org.name}</option>
+              ))}
+            </select>
+            <select
+              value={emailPositionId}
+              onChange={(e) => { setEmailPositionId(e.target.value); setEmailPage(1); }}
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
+              disabled={!emailOrganizationId}
+            >
+              <option value="">All positions / Indeed addresses</option>
+              {positionsData?.positions?.map((p: any) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}{p.inboundEmailToken ? ` (${p.inboundEmailToken})` : ''}
+                </option>
+              ))}
+            </select>
             <select
               value={emailStatus}
               onChange={(e) => { setEmailStatus(e.target.value as EmailStatus); setEmailPage(1); }}
               className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
             >
-              <option value="ALL">All Emails</option>
+              <option value="ALL">All status</option>
               <option value="OPENED">Opened</option>
               <option value="CLICKED">Clicked</option>
               <option value="BOUNCED">Bounced</option>
@@ -507,6 +567,7 @@ export default function EmailMonitoringPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recipient</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Template</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position / Indeed</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sent</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Engagement</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -532,6 +593,16 @@ export default function EmailMonitoringPage() {
                           <div className="text-sm text-gray-700">{item.templateName}</div>
                           {item.templateCategory && (
                             <div className="text-xs text-gray-400">{item.templateCategory}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600">
+                          {item.positionTitle ? (
+                            <>
+                              <div>{item.positionTitle}</div>
+                              {item.inboundEmailToken && <div className="text-xs text-gray-500 font-mono">{item.inboundEmailToken}</div>}
+                            </>
+                          ) : (
+                            <span className="text-gray-400">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-500">
@@ -593,29 +664,52 @@ export default function EmailMonitoringPage() {
                       </tr>
                       {expandedEmail === item.id && (
                         <tr>
-                          <td colSpan={6} className="px-4 py-3 bg-gray-50">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <div className="font-medium mb-2">Tracking Details:</div>
-                                <div className="space-y-1 text-gray-600">
-                                  <div>Provider Message ID: <span className="font-mono text-xs">{item.providerMessageId || '-'}</span></div>
-                                  <div>Opened: {formatDate(item.openedAt)} ({item.openCount} times)</div>
-                                  <div>Clicked: {formatDate(item.clickedAt)} ({item.clickCount} times)</div>
-                                  {item.bouncedAt && <div className="text-red-600">Bounced: {formatDate(item.bouncedAt)}</div>}
-                                  {item.bounceReason && <div className="text-red-600">Reason: {item.bounceReason}</div>}
-                                  {item.unsubscribedAt && <div className="text-orange-600">Unsubscribed: {formatDate(item.unsubscribedAt)}</div>}
-                                </div>
-                              </div>
-                              {item.clickedLinks && Array.isArray(item.clickedLinks) && item.clickedLinks.length > 0 && (
+                          <td colSpan={7} className="px-4 py-3 bg-gray-50">
+                            <div className="space-y-4 text-sm">
+                              <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <div className="font-medium mb-2">Clicked Links:</div>
-                                  <ul className="text-xs text-gray-600 space-y-1">
-                                    {(item.clickedLinks as string[]).map((link, i) => (
-                                      <li key={i} className="truncate" title={link}>{link}</li>
-                                    ))}
-                                  </ul>
+                                  <div className="font-medium mb-2 text-gray-900">Tracking Details:</div>
+                                  <div className="space-y-1 text-gray-600">
+                                    <div>Provider Message ID: <span className="font-mono text-xs">{item.providerMessageId || '-'}</span></div>
+                                    <div>Opened: {formatDate(item.openedAt)} ({item.openCount} times)</div>
+                                    <div>Clicked: {formatDate(item.clickedAt)} ({item.clickCount} times)</div>
+                                    {item.bouncedAt && <div className="text-red-600">Bounced: {formatDate(item.bouncedAt)}</div>}
+                                    {item.bounceReason && <div className="text-red-600">Reason: {item.bounceReason}</div>}
+                                    {item.unsubscribedAt && <div className="text-orange-600">Unsubscribed: {formatDate(item.unsubscribedAt)}</div>}
+                                    {item.positionTitle && <div className="text-gray-500">Position: {item.positionTitle}{item.inboundEmailToken ? ` (${item.inboundEmailToken})` : ''}</div>}
+                                  </div>
                                 </div>
-                              )}
+                                {item.clickedLinks && Array.isArray(item.clickedLinks) && item.clickedLinks.length > 0 && (
+                                  <div>
+                                    <div className="font-medium mb-2 text-gray-900">Clicked Links:</div>
+                                    <ul className="text-xs text-gray-600 space-y-1">
+                                      {(item.clickedLinks as string[]).map((link: string, i: number) => (
+                                        <li key={i} className="truncate" title={link}>{link}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                              {/* Full body of sent email */}
+                              <div>
+                                <div className="font-medium mb-2 text-gray-900">Email body</div>
+                                {emailBodyData ? (
+                                  <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
+                                    {emailBodyData.bodyHtml ? (
+                                      <iframe
+                                        title="Email body"
+                                        srcDoc={emailBodyData.bodyHtml}
+                                        className="w-full min-h-[320px] max-h-[480px] border-0"
+                                        sandbox="allow-same-origin"
+                                      />
+                                    ) : (
+                                      <pre className="p-3 text-xs text-gray-700 whitespace-pre-wrap max-h-64 overflow-auto">{emailBodyData.bodyText || '(no body)'}</pre>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-500">Loading...</div>
+                                )}
+                              </div>
                             </div>
                           </td>
                         </tr>
@@ -649,6 +743,67 @@ export default function EmailMonitoringPage() {
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mailgun Events Tab – delivery logs from Mailgun API */}
+      {activeTab === 'mailgun' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-center">
+            <span className="text-sm font-medium text-gray-700">Mailgun domain:</span>
+            <span className="font-mono text-sm text-gray-900">{mailgunData?.domain ?? '—'}</span>
+            <label className="text-sm text-gray-600">Filter by recipient:</label>
+            <input
+              type="text"
+              value={mailgunRecipient}
+              onChange={(e) => setMailgunRecipient(e.target.value)}
+              placeholder="email@example.com"
+              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 w-56"
+            />
+            <button
+              onClick={() => refetchMailgun()}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800"
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            {mailgunLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : !mailgunData?.items?.length ? (
+              <div className="text-center text-gray-500 py-12">No Mailgun events or Mailgun not configured</div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recipient</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject / Message</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {mailgunData.items.map((ev: any) => (
+                    <tr key={ev.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(ev.event) || 'bg-gray-100 text-gray-800'}`}>
+                          {ev.event}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">{ev.recipient ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px] truncate" title={ev.message}>{ev.message ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{ev.timestamp ? formatDate(ev.timestamp) : '—'}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{ev.reason ?? ev.severity ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
