@@ -6,11 +6,27 @@ import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import Link from 'next/link';
-import { Mail, Phone, Building2, Calendar, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Mail, Phone, Building2, Calendar, MessageSquare, ArrowLeft, ChevronDown, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+
+const STATUS_OPTIONS = [
+  { value: 'new', label: 'New' },
+  { value: 'contacted', label: 'Contacted' },
+  { value: 'qualified', label: 'Qualified' },
+  { value: 'customer', label: 'Customer' },
+  { value: 'lost', label: 'Lost' },
+] as const;
 
 export default function LeadsPage() {
   const { isLoading: authLoading } = useAdminAuth();
   const [filter, setFilter] = useState<'all' | 'new' | 'contacted' | 'qualified'>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: leads, isLoading, refetch } = trpc.platformAdmin.getLeads.useQuery({
     status: filter === 'all' ? undefined : filter,
@@ -24,6 +40,17 @@ export default function LeadsPage() {
     },
   });
 
+  const deleteLead = trpc.platformAdmin.deleteLead.useMutation({
+    onSuccess: () => {
+      refetch();
+      setDeletingId(null);
+    },
+    onError: (err) => {
+      alert('Failed to delete lead: ' + err.message);
+      setDeletingId(null);
+    },
+  });
+
   const handleStatusChange = async (leadId: string, newStatus: string) => {
     try {
       await updateLeadStatus.mutateAsync({
@@ -32,6 +59,16 @@ export default function LeadsPage() {
       });
     } catch (error: any) {
       alert('Failed to update status: ' + error.message);
+    }
+  };
+
+  const handleDelete = async (leadId: string, companyName: string) => {
+    if (!confirm(`Delete lead "${companyName}"? This cannot be undone.`)) return;
+    setDeletingId(leadId);
+    try {
+      await deleteLead.mutateAsync({ leadId });
+    } catch (_) {
+      // error handled in onError
     }
   };
 
@@ -146,18 +183,38 @@ export default function LeadsPage() {
                     </div>
 
                     <div>
-                      <select
-                        value={lead.status}
-                        onChange={(e) => handleStatusChange(lead.id, e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        disabled={updateLeadStatus.isLoading}
-                      >
-                        <option value="new">New</option>
-                        <option value="contacted">Contacted</option>
-                        <option value="qualified">Qualified</option>
-                        <option value="customer">Customer</option>
-                        <option value="lost">Lost</option>
-                      </select>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={updateLeadStatus.isLoading}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-900 bg-white hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            <span>{STATUS_OPTIONS.find((s) => s.value === lead.status)?.label ?? lead.status}</span>
+                            <ChevronDown className="h-4 w-4 text-gray-700 shrink-0" aria-hidden />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {STATUS_OPTIONS.map((opt) => (
+                            <DropdownMenuItem
+                              key={opt.value}
+                              onClick={() => lead.status !== opt.value && handleStatusChange(lead.id, opt.value)}
+                              className="text-gray-900"
+                            >
+                              {opt.label}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(lead.id, lead.companyName || 'Unknown')}
+                            disabled={deletingId === lead.id}
+                            className="text-red-700 hover:bg-red-50 focus:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete lead
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </div>
