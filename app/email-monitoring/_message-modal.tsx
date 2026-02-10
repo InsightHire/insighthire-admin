@@ -6,9 +6,14 @@ type Props = {
   type: 'sent' | 'mailgun';
   sentEmailId: string | null;
   mailgunStorageKey: string | null;
-  mailgunMeta: { subject?: string; from?: string; to?: string; event?: string } | null;
+  mailgunMeta: { subject?: string; from?: string; to?: string; event?: string; timestamp?: string } | null;
   onClose: () => void;
 };
+
+function formatDate(date: string | Date | null) {
+  if (!date) return '—';
+  return new Date(date).toLocaleString();
+}
 
 export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgunMeta, onClose }: Props) {
   const { data: sentBody, isLoading: sentLoading } = trpc.platformAdmin.getEmailSendBody.useQuery(
@@ -20,10 +25,13 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
     { enabled: type === 'mailgun' && !!mailgunStorageKey }
   );
 
-  const isLoading = type === 'sent' ? sentLoading : mailgunLoading;
+  const isLoading = type === 'sent' ? sentLoading : (mailgunStorageKey ? mailgunLoading : false);
   const subject = type === 'sent' ? sentBody?.subject : (mailgunBody?.subject ?? mailgunMeta?.subject);
   const bodyHtml = type === 'sent' ? sentBody?.bodyHtml : mailgunBody?.bodyHtml;
   const bodyPlain = type === 'sent' ? sentBody?.bodyText : mailgunBody?.bodyPlain;
+  const hasMailgunBody = type === 'mailgun' && (bodyHtml || bodyPlain);
+  const noMailgunBody = type === 'mailgun' && !mailgunStorageKey;
+  const mailgunBodyFailed = type === 'mailgun' && mailgunStorageKey && !isLoading && (mailgunError || (!bodyHtml && !bodyPlain));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -38,7 +46,7 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
                 {mailgunMeta.event}
               </span>
             )}
-            {subject || 'Message'}
+            {subject || 'Event details'}
           </h3>
           <button
             type="button"
@@ -52,9 +60,13 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
           </button>
         </div>
         {type === 'mailgun' && mailgunMeta && (
-          <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 text-sm text-gray-600 flex flex-wrap gap-4">
-            {mailgunMeta.from && <span>From: {mailgunMeta.from}</span>}
-            {mailgunMeta.to && <span>To: {mailgunMeta.to}</span>}
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-700 space-y-1">
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              {mailgunMeta.from && <span><strong>From:</strong> {mailgunMeta.from}</span>}
+              {mailgunMeta.to && <span><strong>To:</strong> {mailgunMeta.to}</span>}
+              {mailgunMeta.timestamp && <span><strong>Time:</strong> {formatDate(mailgunMeta.timestamp)}</span>}
+            </div>
+            {mailgunMeta.subject && <div><strong>Subject:</strong> {mailgunMeta.subject}</div>}
           </div>
         )}
         <div className="flex-1 overflow-auto p-4 min-h-[200px]">
@@ -64,11 +76,19 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
             </div>
           )}
           {type === 'mailgun' && mailgunStorageKey && !isLoading && mailgunError && (
-            <div className="text-sm text-amber-700 bg-amber-50 p-4 rounded-lg">
-              {mailgunError.message}
+            <div className="space-y-3">
+              <div className="text-sm text-amber-700 bg-amber-50 p-4 rounded-lg">
+                {mailgunError.message}
+              </div>
+              <p className="text-sm text-gray-500">Event details are shown above. Mailgun only stores full message content for some events and typically keeps it for about 3 days.</p>
             </div>
           )}
-          {!isLoading && !mailgunError && (
+          {type === 'mailgun' && (noMailgunBody || mailgunBodyFailed) && !isLoading && (
+            <p className="text-sm text-gray-500">
+              Mailgun does not provide a stored message body for this event. Full body content is only available for some event types and is usually kept for about 3 days. The event details are shown above.
+            </p>
+          )}
+          {!isLoading && (type === 'sent' || hasMailgunBody) && (
             <>
               {bodyHtml ? (
                 <iframe
@@ -81,9 +101,9 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
                 <pre className="p-4 text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg overflow-auto max-h-[60vh]">
                   {bodyPlain}
                 </pre>
-              ) : (
+              ) : type === 'sent' ? (
                 <p className="text-gray-500">No message body available.</p>
-              )}
+              ) : null}
             </>
           )}
         </div>

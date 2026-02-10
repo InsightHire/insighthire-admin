@@ -10,7 +10,7 @@ import { EmailMessageModal } from '../_message-modal';
 export default function MailgunEventsPage() {
   const { isLoading: authLoading } = useAdminAuth();
   const [mailgunRecipient, setMailgunRecipient] = useState('');
-  const [messageModal, setMessageModal] = useState<{ storageKey: string; subject?: string; from?: string; to?: string; event?: string } | null>(null);
+  const [messageModal, setMessageModal] = useState<{ storageKey: string | null; subject?: string; from?: string; to?: string; recipient?: string; event?: string; timestamp?: string } | null>(null);
 
   const { data: mailgunData, isLoading: mailgunLoading, refetch: refetchMailgun } = trpc.platformAdmin.getMailgunEvents.useQuery(
     { recipient: mailgunRecipient || undefined, limit: 50 },
@@ -65,8 +65,16 @@ export default function MailgunEventsPage() {
               {mailgunData.items.map((ev: any) => (
                 <tr
                   key={ev.id}
-                  className={`hover:bg-gray-50 ${ev.storageKey ? 'cursor-pointer' : ''}`}
-                  onClick={() => ev.storageKey && setMessageModal({ storageKey: ev.storageKey, subject: ev.message, from: ev.from, to: ev.recipient, event: ev.event })}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => setMessageModal({
+                    storageKey: ev.storageKey ?? null,
+                    subject: ev.message,
+                    from: ev.from,
+                    to: ev.recipient,
+                    recipient: ev.recipient,
+                    event: ev.event,
+                    timestamp: ev.timestamp,
+                  })}
                 >
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(ev.event) || 'bg-gray-100 text-gray-800'}`}>
@@ -78,13 +86,7 @@ export default function MailgunEventsPage() {
                   <td className="px-4 py-3 text-sm text-gray-500">{ev.timestamp ? formatDate(ev.timestamp) : '—'}</td>
                   <td className="px-4 py-3 text-xs text-gray-500">{ev.reason ?? ev.severity ?? '—'}</td>
                   <td className="px-4 py-3 text-sm">
-                    {ev.storageKey ? (
-                      <button type="button" className="text-blue-600 hover:text-blue-800 font-medium" onClick={(e) => { e.stopPropagation(); setMessageModal({ storageKey: ev.storageKey, subject: ev.message, from: ev.from, to: ev.recipient, event: ev.event }); }}>
-                        View message
-                      </button>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
+                    <span className="text-blue-600 hover:text-blue-800 font-medium">View details</span>
                   </td>
                 </tr>
               ))}
@@ -96,8 +98,8 @@ export default function MailgunEventsPage() {
         <EmailMessageModal
           type="mailgun"
           sentEmailId={null}
-          mailgunStorageKey={messageModal.storageKey}
-          mailgunMeta={{ subject: messageModal.subject, from: messageModal.from, to: messageModal.to, event: messageModal.event }}
+          mailgunStorageKey={messageModal.storageKey ?? null}
+          mailgunMeta={{ subject: messageModal.subject, from: messageModal.from, to: messageModal.to ?? messageModal.recipient, event: messageModal.event, timestamp: messageModal.timestamp }}
           onClose={() => setMessageModal(null)}
         />
       )}
