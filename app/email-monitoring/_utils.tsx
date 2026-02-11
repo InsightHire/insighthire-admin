@@ -65,7 +65,7 @@ export function StatCard({ title, value, icon: Icon, color }: { title: string; v
   );
 }
 
-export function MiniStat({ label, value, color, suffix }: { label: string; value: number; color: string; suffix?: string }) {
+export function MiniStat({ label, value, color, suffix }: { label: string; value?: number | null; color: string; suffix?: string }) {
   const colors: Record<string, string> = {
     yellow: 'border-yellow-300 bg-yellow-50',
     green: 'border-green-300 bg-green-50',
@@ -78,7 +78,7 @@ export function MiniStat({ label, value, color, suffix }: { label: string; value
     <div className={`rounded-lg border p-3 ${colors[color]}`}>
       <div className="text-xs text-gray-600">{label}</div>
       <div className="text-lg font-semibold text-gray-900">
-        {value.toLocaleString()}
+        {(value ?? 0).toLocaleString()}
         {suffix && <span className="text-xs text-gray-500 ml-1">{suffix}</span>}
       </div>
     </div>

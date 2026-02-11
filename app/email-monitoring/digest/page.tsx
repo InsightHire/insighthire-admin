@@ -65,10 +65,10 @@ export default function DigestQueuePage() {
       </div>
       {digestData?.stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStat label="Pending" value={digestData.stats.byStatus.PENDING} color="yellow" />
-          <MiniStat label="Sent" value={digestData.stats.byStatus.SENT} color="green" />
-          <MiniStat label="Failed" value={digestData.stats.byStatus.FAILED} color="red" />
-          <MiniStat label="Cancelled" value={digestData.stats.byStatus.CANCELLED} color="gray" />
+          <MiniStat label="Pending" value={digestData.stats.byStatus?.PENDING} color="yellow" />
+          <MiniStat label="Sent" value={digestData.stats.byStatus?.SENT} color="green" />
+          <MiniStat label="Failed" value={digestData.stats.byStatus?.FAILED} color="red" />
+          <MiniStat label="Cancelled" value={digestData.stats.byStatus?.CANCELLED} color="gray" />
         </div>
       )}
       <div className="bg-white rounded-lg shadow overflow-hidden">
