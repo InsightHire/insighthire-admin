@@ -91,6 +91,11 @@ export default function BackgroundJobsAdmin() {
   });
 
   const retryMutation = trpc.platformAdmin.retryJob.useMutation();
+  
+  // AI Feedback Backfill
+  const [backfillRunning, setBackfillRunning] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<any>(null);
+  const backfillMutation = trpc.platformAdmin.backfillAssessmentAiFeedback.useMutation();
 
   const retryTranscription = async (jobId: string, jobType: 'transcription' | 'scoring') => {
     setRetrying(prev => new Set(prev).add(jobId));
@@ -216,6 +221,101 @@ export default function BackgroundJobsAdmin() {
           ))}
         </div>
       )}
+
+      {/* AI Feedback Backfill */}
+      <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-6 mb-8">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Assessment AI Feedback Backfill</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Re-score assessment TEXT/CODING responses with detailed AI feedback (strengths, improvements, feedback).
+          Responses already scored with rich feedback will be skipped.
+        </p>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={async () => {
+              // Dry run first
+              try {
+                const dryResult = await backfillMutation.mutateAsync({ dryRun: true, limit: 200 });
+                setBackfillResult(dryResult);
+              } catch (e: any) {
+                alert('Error: ' + e.message);
+              }
+            }}
+            disabled={backfillRunning}
+            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm font-medium"
+          >
+            Preview (Dry Run)
+          </button>
+          <button
+            onClick={async () => {
+              if (!confirm('This will call OpenAI for each response. Continue?')) return;
+              setBackfillRunning(true);
+              setBackfillResult(null);
+              try {
+                const result = await backfillMutation.mutateAsync({ dryRun: false, limit: 200 });
+                setBackfillResult(result);
+              } catch (e: any) {
+                alert('Error: ' + e.message);
+              } finally {
+                setBackfillRunning(false);
+              }
+            }}
+            disabled={backfillRunning}
+            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 ${
+              backfillRunning
+                ? 'bg-purple-300 text-purple-100 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700'
+            }`}
+          >
+            {backfillRunning && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+            <span>{backfillRunning ? 'Scoring...' : 'Run Backfill'}</span>
+          </button>
+        </div>
+        {backfillResult && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
+            <div className="font-medium mb-2">
+              {backfillResult.dryRun ? 'Preview Results' : 'Backfill Complete'}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="text-center p-2 bg-white rounded border">
+                <div className="text-xl font-bold">{backfillResult.totalFound}</div>
+                <div className="text-xs text-gray-500">Total TEXT/CODING</div>
+              </div>
+              <div className="text-center p-2 bg-white rounded border">
+                <div className="text-xl font-bold text-purple-600">{backfillResult.needsBackfill}</div>
+                <div className="text-xs text-gray-500">Need AI Feedback</div>
+              </div>
+              {!backfillResult.dryRun && (
+                <>
+                  <div className="text-center p-2 bg-green-50 rounded border border-green-200">
+                    <div className="text-xl font-bold text-green-700">{backfillResult.scored}</div>
+                    <div className="text-xs text-green-600">Scored</div>
+                  </div>
+                  <div className="text-center p-2 bg-red-50 rounded border border-red-200">
+                    <div className="text-xl font-bold text-red-700">{backfillResult.failed}</div>
+                    <div className="text-xs text-red-600">Failed</div>
+                  </div>
+                </>
+              )}
+            </div>
+            {!backfillResult.dryRun && backfillResult.results?.length > 0 && (
+              <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+                {backfillResult.results.map((r: any, i: number) => (
+                  <div key={i} className="text-xs text-gray-600 flex items-center space-x-2">
+                    <span className="font-mono">{r.responseId.slice(0, 12)}...</span>
+                    <span>{r.oldScore} → {r.newScore}</span>
+                    <span className={r.hasStrengths ? 'text-green-600' : 'text-red-600'}>
+                      {r.hasStrengths ? 'Has strengths' : 'No strengths'}
+                    </span>
+                    <span className={r.hasFeedback ? 'text-green-600' : 'text-red-600'}>
+                      {r.hasFeedback ? 'Has feedback' : 'No feedback'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Filters Section */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
