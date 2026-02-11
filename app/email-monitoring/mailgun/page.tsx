@@ -100,6 +100,11 @@ export default function MailgunEventsPage() {
           sentEmailId={null}
           mailgunStorageKey={messageModal.storageKey ?? null}
           mailgunMeta={{ subject: messageModal.subject, from: messageModal.from, to: messageModal.to ?? messageModal.recipient, event: messageModal.event, timestamp: messageModal.timestamp }}
+          mailgunEventLookup={
+            messageModal.recipient && messageModal.timestamp
+              ? { recipient: messageModal.recipient, subject: messageModal.subject ?? '', timestamp: messageModal.timestamp }
+              : null
+          }
           onClose={() => setMessageModal(null)}
         />
       )}
