@@ -22,8 +22,11 @@ export default function EmailMonitoringOverviewPage() {
   );
   const triggerDigestMutation = trpc.platformAdmin.triggerDigestNow.useMutation({
     onSuccess: (data) => {
-      setTriggerResult({ success: data.success, message: data.message });
-      setTimeout(() => setTriggerResult(null), 5000);
+      const msg = data.recipients?.length
+        ? `${data.message}\nRecipients: ${(data.recipients as string[]).join(', ')}`
+        : data.message;
+      setTriggerResult({ success: data.success, message: msg });
+      setTimeout(() => setTriggerResult(null), 8000);
     },
     onError: (err) => {
       setTriggerResult({ success: false, message: err.message });
@@ -77,7 +80,7 @@ export default function EmailMonitoringOverviewPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Manually Trigger Digest</h3>
             <p className="text-sm text-gray-500 mb-4">Send a digest email to all admins/recruiters in an organization for testing.</p>
             {triggerResult && (
-              <div className={`mb-4 p-3 rounded-lg ${triggerResult.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+              <div className={`mb-4 p-3 rounded-lg whitespace-pre-wrap ${triggerResult.success ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
                 {triggerResult.message}
               </div>
             )}
