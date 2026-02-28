@@ -15,7 +15,8 @@ import {
   Gauge,
   LogOut,
   User,
-  UserPlus
+  UserPlus,
+  Lock,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -196,6 +197,19 @@ export function PlatformAdminNav() {
               >
                 <Shield className="h-4 w-4 mr-1.5" />
                 Audit
+              </Link>
+
+              {/* GDPR / Privacy */}
+              <Link
+                href="/gdpr"
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/gdpr' || pathname?.startsWith('/gdpr/')
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Lock className="h-4 w-4 mr-1.5" />
+                GDPR
               </Link>
             </div>
           </div>
