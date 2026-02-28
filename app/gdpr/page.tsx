@@ -13,6 +13,8 @@ import {
   FileText,
   Users,
   Database,
+  ShieldAlert,
+  Settings,
 } from 'lucide-react';
 
 type RequestStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DENIED';
@@ -39,6 +41,18 @@ export default function GDPRDashboardPage() {
   const [newRequestEmail, setNewRequestEmail] = useState('');
   const [newRequestType, setNewRequestType] = useState<RequestType>('ACCESS');
   const [showNewForm, setShowNewForm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'requests' | 'breach' | 'retention'>('requests');
+
+  // Breach form state
+  const [breachForm, setBreachForm] = useState({
+    title: '',
+    description: '',
+    affectedDataCategories: '' as string,
+    estimatedAffectedCount: 0,
+    severity: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    containmentActions: '' as string,
+  });
+  const [breachSubmitted, setBreachSubmitted] = useState(false);
 
   const requestsQuery = trpc.gdpr.listAllRequests.useQuery(
     statusFilter ? { status: statusFilter as RequestStatus } : undefined,
@@ -47,6 +61,18 @@ export default function GDPRDashboardPage() {
 
   const fulfillMutation = trpc.gdpr.fulfillRequest.useMutation({
     onSuccess: () => requestsQuery.refetch(),
+  });
+
+  const breachMutation = trpc.gdpr.reportBreach.useMutation({
+    onSuccess: () => {
+      setBreachSubmitted(true);
+      setBreachForm({ title: '', description: '', affectedDataCategories: '', estimatedAffectedCount: 0, severity: 'MEDIUM', containmentActions: '' });
+    },
+  });
+
+  const retentionQuery = trpc.gdpr.getRetentionPolicies.useQuery(undefined, { retry: false });
+  const seedRetention = trpc.gdpr.seedRetentionDefaults.useMutation({
+    onSuccess: () => retentionQuery.refetch(),
   });
 
   const requests = requestsQuery.data || [];
@@ -76,6 +102,31 @@ export default function GDPRDashboardPage() {
           <StatCard label="Overdue" value={stats.overdue} icon={AlertTriangle} color="red" />
           <StatCard label="Completed" value={stats.completed} icon={CheckCircle} color="green" />
         </div>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
+          {([
+            { key: 'requests' as const, label: 'Data Requests', icon: FileText },
+            { key: 'breach' as const, label: 'Breach Reporting', icon: ShieldAlert },
+            { key: 'retention' as const, label: 'Retention Policies', icon: Settings },
+          ]).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeTab === tab.key
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ──────── Data Requests Tab ──────── */}
+        {activeTab === 'requests' && (<>
 
         {/* Filters */}
         <div className="flex items-center justify-between mb-6">
@@ -220,6 +271,192 @@ export default function GDPRDashboardPage() {
           </table>
         </div>
 
+        </>)}
+
+        {/* ──────── Breach Reporting Tab ──────── */}
+        {activeTab === 'breach' && (
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <ShieldAlert className="h-5 w-5 text-red-600" />
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Report Data Breach (GDPR Art. 33–34)</h2>
+                <p className="text-sm text-gray-500">
+                  Breaches must be reported to the supervisory authority within 72 hours of discovery.
+                </p>
+              </div>
+            </div>
+
+            {breachSubmitted ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Breach Report Filed</h3>
+                <p className="text-gray-600 mb-4">
+                  The breach has been logged and affected users will be notified according to GDPR Art. 34.
+                </p>
+                <button
+                  onClick={() => setBreachSubmitted(false)}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                >
+                  File Another Report
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Breach Title</label>
+                  <input
+                    value={breachForm.title}
+                    onChange={e => setBreachForm(f => ({ ...f, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
+                    placeholder="e.g. Unauthorized access to candidate database"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={breachForm.description}
+                    onChange={e => setBreachForm(f => ({ ...f, description: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
+                    placeholder="Describe the nature of the breach, how it was discovered, and what data was affected..."
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Affected Data Categories</label>
+                    <input
+                      value={breachForm.affectedDataCategories}
+                      onChange={e => setBreachForm(f => ({ ...f, affectedDataCategories: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="e.g. Names, Emails, Video recordings (comma-separated)"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Affected Count</label>
+                    <input
+                      type="number"
+                      value={breachForm.estimatedAffectedCount}
+                      onChange={e => setBreachForm(f => ({ ...f, estimatedAffectedCount: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                    <select
+                      value={breachForm.severity}
+                      onChange={e => setBreachForm(f => ({ ...f, severity: e.target.value as typeof f.severity }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    >
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                      <option value="CRITICAL">Critical</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Containment Actions Taken</label>
+                    <input
+                      value={breachForm.containmentActions}
+                      onChange={e => setBreachForm(f => ({ ...f, containmentActions: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      placeholder="e.g. Revoked access, Reset credentials (comma-separated)"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={() => breachMutation.mutate({
+                      ...breachForm,
+                      affectedDataCategories: breachForm.affectedDataCategories.split(',').map(s => s.trim()).filter(Boolean),
+                      containmentActions: breachForm.containmentActions.split(',').map(s => s.trim()).filter(Boolean),
+                    })}
+                    disabled={breachMutation.isPending || !breachForm.title || !breachForm.description}
+                    className="px-6 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  >
+                    {breachMutation.isPending ? 'Submitting...' : 'File Breach Report'}
+                  </button>
+                </div>
+                {breachMutation.isError && (
+                  <p className="text-sm text-red-600">Error: {breachMutation.error.message}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ──────── Retention Policies Tab ──────── */}
+        {activeTab === 'retention' && (
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Settings className="h-5 w-5 text-gray-600" />
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">Data Retention Policies (GDPR Art. 5(1)(e))</h2>
+                  <p className="text-sm text-gray-500">
+                    Automated enforcement runs daily at 3 AM UTC. Data past retention is deleted or anonymized.
+                  </p>
+                </div>
+              </div>
+              {(!retentionQuery.data || retentionQuery.data.length === 0) && (
+                <button
+                  onClick={() => seedRetention.mutate()}
+                  disabled={seedRetention.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {seedRetention.isPending ? 'Seeding...' : 'Initialize Defaults'}
+                </button>
+              )}
+            </div>
+
+            {retentionQuery.data && retentionQuery.data.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Category</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Retention</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Action</th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {(retentionQuery.data as any[]).map((policy: any) => (
+                      <tr key={policy.id}>
+                        <td className="px-6 py-4 text-sm font-medium text-gray-900">{policy.dataCategory}</td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {policy.retentionDays} days ({Math.round(policy.retentionDays / 30)} months)
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            policy.action === 'DELETE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {policy.action}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            policy.isDefault ? 'bg-gray-100 text-gray-600' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {policy.isDefault ? 'Default' : 'Custom'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-gray-500">
+                <Database className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No retention policies configured. Click &quot;Initialize Defaults&quot; to set up standard policies.</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Compliance Checklist */}
         <div className="mt-8 bg-white border border-gray-200 rounded-xl p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">GDPR Compliance Checklist</h2>
@@ -232,9 +469,14 @@ export default function GDPRDashboardPage() {
             <CheckItem done label="Data Subject Request system built" />
             <CheckItem done label="Right to Erasure (hard delete) implemented" />
             <CheckItem done label="Data export / portability endpoint" />
+            <CheckItem done label="Field-level PII encryption (opt-in)" />
+            <CheckItem done label="Log sanitization (PII redaction)" />
+            <CheckItem done label="Email unsubscribe enforcement" />
+            <CheckItem done label="Candidate self-service data portal" />
+            <CheckItem done label="Data breach reporting workflow" />
+            <CheckItem done label="Data retention automation" />
             <CheckItem done={false} label="DPAs signed with all sub-processors" />
             <CheckItem done={false} label="DPIA for AI scoring completed" />
-            <CheckItem done={false} label="Data breach notification procedure tested" />
             <CheckItem done={false} label="Staff GDPR training completed" />
           </div>
         </div>
