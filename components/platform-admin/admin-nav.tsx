@@ -17,6 +17,7 @@ import {
   User,
   UserPlus,
   Lock,
+  Puzzle,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -197,6 +198,19 @@ export function PlatformAdminNav() {
               >
                 <Shield className="h-4 w-4 mr-1.5" />
                 Audit
+              </Link>
+
+              {/* Integrations */}
+              <Link
+                href="/integrations"
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/integrations' || pathname?.startsWith('/integrations/')
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <Puzzle className="h-4 w-4 mr-1.5" />
+                Integrations
               </Link>
 
               {/* GDPR / Privacy */}
