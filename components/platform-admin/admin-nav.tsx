@@ -200,6 +200,19 @@ export function PlatformAdminNav() {
                 Audit
               </Link>
 
+              {/* AI Scoring */}
+              <Link
+                href="/scoring"
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/scoring' || pathname?.startsWith('/scoring/')
+                    ? 'bg-purple-600 text-white'
+                    : 'text-purple-400 hover:bg-purple-600/20 hover:text-purple-300'
+                }`}
+              >
+                <BarChart3 className="h-4 w-4 mr-1.5" />
+                AI Scoring
+              </Link>
+
               {/* Integrations */}
               <Link
                 href="/integrations"
