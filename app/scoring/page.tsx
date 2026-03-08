@@ -57,8 +57,8 @@ export default function ScoringObservabilityPage() {
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900"
         >
           <option value="">All Organizations</option>
-          {(Array.isArray(orgList) ? orgList : []).map((org: any) => (
-            <option key={org.id} value={org.id}>{org.name || org.id}</option>
+          {(Array.isArray(orgList) ? orgList : []).filter((org: any) => org?.id && org?.name).map((org: any) => (
+            <option key={org.id} value={org.id}>{org.name}</option>
           ))}
         </select>
       </div>
