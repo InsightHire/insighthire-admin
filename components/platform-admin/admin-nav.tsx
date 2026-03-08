@@ -71,7 +71,7 @@ export function PlatformAdminNav() {
   const anomalyCount = healthData?.metrics?.locationAnomalies || 0;
   const totalAlerts = alertCount + anomalyCount;
 
-  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring'].some(
+  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring', '/scoring'].some(
     path => pathname === path || pathname?.startsWith(path + '/')
   );
 
@@ -81,6 +81,7 @@ export function PlatformAdminNav() {
     { name: 'Background Jobs', href: '/background-jobs', icon: Activity },
     { name: 'API Health', href: '/api-monitoring', icon: BarChart3 },
     { name: 'Email & Digests', href: '/email-monitoring', icon: Mail },
+    { name: 'AI Scoring', href: '/scoring', icon: BarChart3 },
   ];
 
   return (
@@ -198,19 +199,6 @@ export function PlatformAdminNav() {
               >
                 <Shield className="h-4 w-4 mr-1.5" />
                 Audit
-              </Link>
-
-              {/* AI Scoring */}
-              <Link
-                href="/scoring"
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/scoring' || pathname?.startsWith('/scoring/')
-                    ? 'bg-purple-600 text-white'
-                    : 'text-purple-400 hover:bg-purple-600/20 hover:text-purple-300'
-                }`}
-              >
-                <BarChart3 className="h-4 w-4 mr-1.5" />
-                AI Scoring
               </Link>
 
               {/* Integrations */}
