@@ -256,7 +256,7 @@ export default function StuckCandidatesPage() {
           <select
             value={stuckTypeFilter}
             onChange={(e) => setStuckTypeFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
           >
             <option value="all">All Issues</option>
             <option value="failed_processing">Failed Processing Only</option>
