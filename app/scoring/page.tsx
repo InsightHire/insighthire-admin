@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import {
   ArrowPathIcon,
   ChartBarIcon,
@@ -40,6 +41,7 @@ export default function ScoringObservabilityPage() {
   const orgList = orgs?.organizations || orgs || [];
 
   return (
+    <AuthenticatedLayout>
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -291,5 +293,6 @@ export default function ScoringObservabilityPage() {
         </div>
       </div>
     </div>
+    </AuthenticatedLayout>
   );
 }
