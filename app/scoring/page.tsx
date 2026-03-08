@@ -54,7 +54,7 @@ export default function ScoringObservabilityPage() {
         <select
           value={selectedOrgId}
           onChange={(e) => setSelectedOrgId(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900"
         >
           <option value="">All Organizations</option>
           {(Array.isArray(orgList) ? orgList : []).map((org: any) => (
