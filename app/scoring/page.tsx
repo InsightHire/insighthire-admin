@@ -20,19 +20,24 @@ export default function ScoringObservabilityPage() {
   const [calibratingOrg, setCalibratingOrg] = useState<string | null>(null);
 
   const { data: orgs } = trpc.platformAdmin.listOrganizations.useQuery({ page: 1, limit: 200 });
-  const { data: overview, refetch: refetchOverview } = trpc.platformAdmin.getScoringOverview.useQuery(
+  const { data: overview, refetch: refetchOverview, error: overviewErr } = trpc.platformAdmin.getScoringOverview.useQuery(
     { organizationId: selectedOrgId || undefined, days: 30 },
-    { refetchInterval: 30000 }
+    { refetchInterval: 30000, retry: 1 }
   );
-  const { data: rescores } = trpc.platformAdmin.getRescoringHistory.useQuery(
-    { organizationId: selectedOrgId || undefined, limit: 30 }
+  const { data: rescores, error: rescoresErr } = trpc.platformAdmin.getRescoringHistory.useQuery(
+    { organizationId: selectedOrgId || undefined, limit: 30 },
+    { retry: 1 }
   );
-  const { data: events } = trpc.platformAdmin.getScoringEvents.useQuery(
-    { organizationId: selectedOrgId || undefined, limit: 50 }
+  const { data: events, error: eventsErr } = trpc.platformAdmin.getScoringEvents.useQuery(
+    { organizationId: selectedOrgId || undefined, limit: 50 },
+    { retry: 1 }
   );
-  const { data: calibrations, refetch: refetchCalibrations } = trpc.platformAdmin.getCalibrationHistory.useQuery(
-    { organizationId: selectedOrgId || undefined }
+  const { data: calibrations, refetch: refetchCalibrations, error: calibErr } = trpc.platformAdmin.getCalibrationHistory.useQuery(
+    { organizationId: selectedOrgId || undefined },
+    { retry: 1 }
   );
+
+  const queryErrors = [overviewErr, rescoresErr, eventsErr, calibErr].filter(Boolean);
 
   const generateSnapshotMutation = trpc.platformAdmin.generateCalibrationSnapshot.useMutation({
     onSuccess: () => { refetchCalibrations(); refetchOverview(); },
@@ -62,6 +67,15 @@ export default function ScoringObservabilityPage() {
           ))}
         </select>
       </div>
+
+      {queryErrors.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="font-semibold text-red-800 mb-1">Data loading errors</h3>
+          {queryErrors.map((err: any, i) => (
+            <p key={i} className="text-sm text-red-700">{err?.message || 'Unknown query error'}</p>
+          ))}
+        </div>
+      )}
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
