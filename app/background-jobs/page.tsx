@@ -608,35 +608,91 @@ export default function BackgroundJobsAdmin() {
 
       {/* Completed Jobs */}
       {activeTab === 'completed' && (
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium">Recently Completed</h2>
-            <p className="text-sm text-gray-500">Last 50 successfully processed jobs</p>
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-medium">Recently Completed</h2>
+              <p className="text-sm text-gray-500">Last 100 successfully processed jobs</p>
+            </div>
+            <button onClick={() => refetchCompleted()} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+              <ArrowPathIcon className="h-4 w-4" /> Refresh
+            </button>
           </div>
-          <div className="px-6 py-8">
-            {loadingCompleted ? (
-              <p className="text-center text-gray-500">Loading completed jobs...</p>
-            ) : completedData?.jobs && completedData.jobs.length > 0 ? (
-              <div className="space-y-4">
-                {completedData.jobs.map((job: any) => (
-                  <div key={job.id} className="border-l-4 border-green-400 bg-green-50 p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{job.candidateName}</p>
-                        <p className="text-sm text-gray-600">{job.questionText?.substring(0, 80)}...</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Completed: {new Date(job.completedAt).toLocaleString()}
-                        </p>
-                      </div>
-                      <span className="text-green-600 text-xl">✅</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-gray-500">No recently completed jobs</p>
-            )}
-          </div>
+          {loadingCompleted ? (
+            <div className="px-6 py-8 text-center text-gray-500">Loading completed jobs...</div>
+          ) : completedData?.jobs && completedData.jobs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Journey</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Completed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {completedData.jobs.map((job: any) => {
+                    const score = (() => {
+                      try {
+                        if (job.metadata?.aiAnalysis) {
+                          const ai = typeof job.metadata.aiAnalysis === 'string' ? JSON.parse(job.metadata.aiAnalysis) : job.metadata.aiAnalysis;
+                          return ai?.overallScore || ai?.score;
+                        }
+                        return job.metadata?.score;
+                      } catch { return null; }
+                    })();
+                    return (
+                      <tr key={job.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="text-sm font-medium text-gray-900">{job.candidateName || 'Unknown'}</div>
+                          {job.candidateEmail && <div className="text-xs text-gray-500">{job.candidateEmail}</div>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            job.type === 'transcription' ? 'bg-purple-100 text-purple-800' :
+                            job.type === 'scoring' ? 'bg-blue-100 text-blue-800' :
+                            job.type === 'video_generation' ? 'bg-orange-100 text-orange-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {job.type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {job.journeyName || job.assessmentName || '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-sm text-gray-700 max-w-xs truncate" title={job.questionText}>
+                            {job.questionText?.substring(0, 60) || '—'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {score != null ? (
+                            <span className={`px-2 py-1 text-xs font-bold rounded-full ${
+                              score >= 80 ? 'bg-green-100 text-green-800' :
+                              score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {Math.round(score)}%
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                          {job.failedAt ? new Date(job.failedAt).toLocaleString() : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center text-gray-500">No recently completed jobs</div>
+          )}
         </div>
       )}
     </div>
