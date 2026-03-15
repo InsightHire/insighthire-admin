@@ -57,7 +57,7 @@ export function AlertBanner() {
             )}
             {hasWarning && (
               <>
-                <strong>{alerts.warning}</strong> candidate{alerts.warning !== 1 ? 's' : ''} inactive for 24+ hours
+                <strong>{alerts.warning}</strong> location anomal{alerts.warning !== 1 ? 'ies' : 'y'} detected
               </>
             )}
             {!hasCritical && !hasWarning && alerts.info > 0 && (

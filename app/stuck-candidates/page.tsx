@@ -230,7 +230,7 @@ export default function StuckCandidatesPage() {
           </div>
         </div>
 
-        {/* Warning */}
+        {/* Warning - location anomalies only (inactive candidates not a platform admin concern) */}
         <div className={`rounded-lg p-4 ${alerts.warning > 0 ? 'bg-yellow-50 border-2 border-yellow-200' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-center space-x-3">
             <ExclamationTriangleIcon className={`h-8 w-8 ${alerts.warning > 0 ? 'text-yellow-600' : 'text-gray-400'}`} />
@@ -239,7 +239,7 @@ export default function StuckCandidatesPage() {
               <p className={`text-2xl font-bold ${alerts.warning > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>
                 {alerts.warning}
               </p>
-              <p className="text-xs text-gray-500">Inactive 24h+</p>
+              <p className="text-xs text-gray-500">Location anomalies</p>
             </div>
           </div>
         </div>
