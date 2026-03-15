@@ -15,6 +15,7 @@ import {
   XCircleIcon,
   ClockIcon,
   UserGroupIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 
 type StuckReason = 'failed_processing' | 'inactive_24h' | 'pending_too_long' | 'stuck_at_gate';
@@ -59,6 +60,7 @@ export default function StuckCandidatesPage() {
   const { isLoading: authLoading } = useAdminAuth();
   const [expandedCandidate, setExpandedCandidate] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
+  const [dismissing, setDismissing] = useState<Set<string>>(new Set());
   const [stuckTypeFilter, setStuckTypeFilter] = useState<'all' | 'failed_processing' | 'inactive' | 'pending_too_long'>('all');
 
   // Fetch journey health summary
@@ -76,6 +78,7 @@ export default function StuckCandidatesPage() {
   // Retry mutation
   const retryMutation = trpc.platformAdmin.retryStuckCandidate.useMutation();
   const bulkRetryMutation = trpc.platformAdmin.bulkRetryStuckCandidates.useMutation();
+  const dismissMutation = trpc.platformAdmin.dismissStuckCandidate.useMutation();
 
   // Pipeline query (only when expanded)
   const { data: pipelineData, isLoading: loadingPipeline } = trpc.platformAdmin.getProcessingPipelineStatus.useQuery(
@@ -97,6 +100,25 @@ export default function StuckCandidatesPage() {
         const newSet = new Set(prev);
         newSet.delete(candidateId);
         return newSet;
+      });
+    }
+  };
+
+  const handleDismiss = async (sessionId: string) => {
+    if (!confirm('Remove this candidate from the stuck queue? They will reappear if they become stuck again.')) return;
+    setDismissing(prev => new Set(prev).add(sessionId));
+    try {
+      await dismissMutation.mutateAsync({ sessionId });
+      await refetchStuck();
+      await refetchHealth();
+    } catch (error) {
+      console.error('Dismiss failed:', error);
+      alert('Remove failed: ' + (error as Error).message);
+    } finally {
+      setDismissing(prev => {
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
       });
     }
   };
@@ -381,6 +403,19 @@ export default function StuckCandidatesPage() {
                             <span>View Pipeline</span>
                           </>
                         )}
+                      </button>
+                      <button
+                        onClick={() => handleDismiss(candidate.id)}
+                        disabled={dismissing.has(candidate.id)}
+                        title="Remove from queue"
+                        className={`px-3 py-2 rounded-md text-sm font-medium flex items-center space-x-2 ${
+                          dismissing.has(candidate.id)
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                      >
+                        <TrashIcon className={`h-4 w-4 ${dismissing.has(candidate.id) ? 'animate-pulse' : ''}`} />
+                        <span>{dismissing.has(candidate.id) ? 'Removing...' : 'Remove from queue'}</span>
                       </button>
                       <button
                         onClick={() => handleRetryCandidate(candidate.candidateId)}
