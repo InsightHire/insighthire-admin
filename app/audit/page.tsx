@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
@@ -49,7 +49,7 @@ const getDefaultDates = () => {
   };
 };
 
-export default function AuditLogsPage() {
+function AuditLogsContent() {
   const searchParams = useSearchParams();
   const orgId = searchParams.get('org') || undefined;
   const [page, setPage] = useState(1);
@@ -415,5 +415,20 @@ export default function AuditLogsPage() {
           )}
         </div>
       </div>
+  );
+}
+
+export default function AuditLogsPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
+          <span className="ml-3 text-gray-500">Loading audit logs...</span>
+        </div>
+      </div>
+    }>
+      <AuditLogsContent />
+    </Suspense>
   );
 }
