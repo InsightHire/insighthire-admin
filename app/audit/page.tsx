@@ -152,7 +152,7 @@ export default function AuditLogsPage() {
                 <select
                   value={adminUserId}
                   onChange={(e) => { setAdminUserId(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">All admins</option>
                   {admins.map((a: { id: string; email: string; name: string }) => (
@@ -165,7 +165,7 @@ export default function AuditLogsPage() {
                 <select
                   value={adminRole}
                   onChange={(e) => { setAdminRole(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">All roles</option>
                   <option value="PLATFORM_ADMIN">Platform Admin</option>
@@ -177,7 +177,7 @@ export default function AuditLogsPage() {
                 <select
                   value={actionFilter}
                   onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">All actions</option>
                   {actionTypes.map((a: string) => (
@@ -191,7 +191,7 @@ export default function AuditLogsPage() {
                   type="date"
                   value={startDate}
                   onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div>
@@ -200,7 +200,7 @@ export default function AuditLogsPage() {
                   type="date"
                   value={endDate}
                   onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
               <div className="flex items-end gap-2">
@@ -373,7 +373,7 @@ export default function AuditLogsPage() {
                     <select
                       value={limit}
                       onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
-                      className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                      className="px-2 py-1 text-sm text-gray-900 bg-white border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
                     >
                       {[10, 20, 50, 100].map(n => (
                         <option key={n} value={n}>{n}</option>
