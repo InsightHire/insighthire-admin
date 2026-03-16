@@ -10,12 +10,12 @@ import {
   ShieldCheckIcon, 
   MagnifyingGlassIcon,
   UserCircleIcon,
-  BuildingOfficeIcon,
   ComputerDesktopIcon,
   GlobeAltIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  XMarkIcon
+  XMarkIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 
 // Action type badges
@@ -38,21 +38,45 @@ const getActionBadge = (action: string) => {
   return { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Action' };
 };
 
+// Default date range for reset: last 30 days
+const getDefaultDates = () => {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+};
+
 export default function AuditLogsPage() {
   const searchParams = useSearchParams();
   const orgId = searchParams.get('org') || undefined;
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [adminUserId, setAdminUserId] = useState('');
+  const [adminRole, setAdminRole] = useState('');
   const [actionFilter, setActionFilter] = useState('');
-  const limit = 20;
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(true); // Expanded by default for discoverability
 
   const { data, isLoading, error } = trpc.platformAdmin.getAuditLogs.useQuery({
     page,
     limit,
     orgId,
+    adminUserId: adminUserId || undefined,
+    adminRole: (adminRole as 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT') || undefined,
     action: actionFilter || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
   });
 
+  const { data: admins = [] } = trpc.platformAdmin.listPlatformAdmins.useQuery();
+  const { data: actionTypes = [] } = trpc.platformAdmin.getAuditActionTypes.useQuery({ orgId });
+
   const totalPages = data?.total ? Math.ceil(data.total / limit) : 0;
+  const hasFilters = adminUserId || adminRole || actionFilter || startDate || endDate;
 
   return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -104,32 +128,99 @@ export default function AuditLogsPage() {
           </div>
         </div>
 
-        {/* Filter */}
-        <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-          <div className="flex items-center space-x-4">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Filter by action (e.g., create, update, delete, login)..."
-              value={actionFilter}
-              onChange={(e) => {
-                setActionFilter(e.target.value);
-                setPage(1);
-              }}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-            {actionFilter && (
-              <button
-                onClick={() => {
-                  setActionFilter('');
-                  setPage(1);
-                }}
-                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
-              >
-                Clear
-              </button>
-            )}
-          </div>
+        {/* Filters */}
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-6">
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-2">
+              <FunnelIcon className="h-5 w-5 text-gray-500" />
+              <span className="font-medium text-gray-900">Filters</span>
+              {hasFilters && (
+                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                  Active
+                </span>
+              )}
+            </div>
+            <span className="text-gray-400 text-sm">{showFilters ? 'Hide' : 'Show'}</span>
+          </button>
+          {showFilters && (
+            <div className="px-4 pb-4 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 border-t">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Admin User</label>
+                <select
+                  value={adminUserId}
+                  onChange={(e) => { setAdminUserId(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All admins</option>
+                  {admins.map((a: { id: string; email: string; name: string }) => (
+                    <option key={a.id} value={a.id}>{a.name || a.email}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Admin Role</label>
+                <select
+                  value={adminRole}
+                  onChange={(e) => { setAdminRole(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All roles</option>
+                  <option value="PLATFORM_ADMIN">Platform Admin</option>
+                  <option value="PLATFORM_SUPPORT">Platform Support</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Action Type</label>
+                <select
+                  value={actionFilter}
+                  onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">All actions</option>
+                  {actionTypes.map((a: string) => (
+                    <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">From Date</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">To Date</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex items-end gap-2">
+                <button
+                  onClick={() => {
+                    setAdminUserId('');
+                    setAdminRole('');
+                    setActionFilter('');
+                    const { startDate: s, endDate: e } = getDefaultDates();
+                    setStartDate(s);
+                    setEndDate(e);
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                >
+                  Reset
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Logs Table */}
@@ -160,6 +251,11 @@ export default function AuditLogsPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Resource
                     </th>
+                    {!orgId && (
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Target Org
+                      </th>
+                    )}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Details
                     </th>
@@ -215,6 +311,20 @@ export default function AuditLogsPage() {
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
+                        {!orgId && (
+                          <td className="px-4 py-4">
+                            {log.targetOrgId ? (
+                              <Link
+                                href={`/audit?org=${log.targetOrgId}`}
+                                className="text-sm text-indigo-600 hover:text-indigo-800 font-mono"
+                              >
+                                {log.targetOrgId.slice(0, 12)}…
+                              </Link>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-4 py-4">
                           <div className="space-y-1">
                             {log.ipAddress && (
@@ -252,40 +362,52 @@ export default function AuditLogsPage() {
                 </tbody>
               </table>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t">
-                  <div className="text-sm text-gray-500">
-                    Showing {((page - 1) * limit) + 1} to {Math.min(page * limit, data.total)} of {data.total} logs
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
-                      className="p-2 rounded-lg border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              {/* Pagination - always show */}
+              <div className="bg-gray-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3 border-t">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-500">
+                    Showing {data.total === 0 ? 0 : ((page - 1) * limit) + 1} to {Math.min(page * limit, data.total)} of {data.total} logs
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Per page:</span>
+                    <select
+                      value={limit}
+                      onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}
+                      className="px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
                     >
-                      <ChevronLeftIcon className="h-5 w-5" />
-                    </button>
-                    <span className="px-4 py-2 text-sm">
-                      Page {page} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                      className="p-2 rounded-lg border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRightIcon className="h-5 w-5" />
-                    </button>
+                      {[10, 20, 50, 100].map(n => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-              )}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1 || data.total === 0}
+                    className="p-2 rounded-lg border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeftIcon className="h-5 w-5" />
+                  </button>
+                  <span className="px-4 py-2 text-sm">
+                    Page {page} of {Math.max(1, totalPages)}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages || data.total === 0}
+                    className="p-2 rounded-lg border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRightIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
             </>
           ) : (
             <div className="p-12 text-center">
               <ShieldCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">No audit logs found</p>
               <p className="text-sm text-gray-400 mt-1">
-                {actionFilter ? 'Try a different filter' : orgId
+                {hasFilters ? 'Try adjusting your filters or date range' : orgId
                   ? 'No platform admin actions on this org yet (e.g. view, update subscription, invite user)'
                   : 'Platform admin actions will appear here when admins create orgs, update subscriptions, invite users, etc.'}
               </p>
