@@ -54,29 +54,56 @@ function AuditLogsContent() {
   const orgId = searchParams.get('org') || undefined;
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [adminUserId, setAdminUserId] = useState('');
+  const [userId, setUserId] = useState('');
   const [adminRole, setAdminRole] = useState('');
+  const [sourceType, setSourceType] = useState<'all' | 'platform_admin' | 'org_user'>('all');
   const [actionFilter, setActionFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(true); // Expanded by default for discoverability
 
-  const { data, isLoading, error } = trpc.platformAdmin.getAuditLogs.useQuery({
-    page,
-    limit,
+  const orgAuditQuery = trpc.platformAdmin.getOrgAuditLogs.useQuery(
+    {
+      orgId: orgId!,
+      page,
+      limit,
+      sourceType,
+      userId: userId || undefined,
+      action: actionFilter || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    },
+    { enabled: !!orgId }
+  );
+
+  const platformAuditQuery = trpc.platformAdmin.getAuditLogs.useQuery(
+    {
+      page,
+      limit,
+      orgId,
+      adminUserId: userId || undefined,
+      adminRole: (adminRole as 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT') || undefined,
+      action: actionFilter || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    },
+    { enabled: !orgId }
+  );
+
+  const data = orgId ? orgAuditQuery.data : platformAuditQuery.data;
+  const isLoading = orgId ? orgAuditQuery.isLoading : platformAuditQuery.isLoading;
+  const error = orgId ? orgAuditQuery.error : platformAuditQuery.error;
+
+  const { data: platformAdmins = [] } = trpc.platformAdmin.listPlatformAdmins.useQuery(undefined, { enabled: !orgId });
+  const { data: orgUsers = [] } = trpc.platformAdmin.listOrgUsers.useQuery({ orgId: orgId! }, { enabled: !!orgId });
+  const { data: actionTypes = [] } = trpc.platformAdmin.getAuditActionTypes.useQuery({
     orgId,
-    adminUserId: adminUserId || undefined,
-    adminRole: (adminRole as 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT') || undefined,
-    action: actionFilter || undefined,
-    startDate: startDate || undefined,
-    endDate: endDate || undefined,
+    includeOrgActivity: !!orgId,
   });
 
-  const { data: admins = [] } = trpc.platformAdmin.listPlatformAdmins.useQuery();
-  const { data: actionTypes = [] } = trpc.platformAdmin.getAuditActionTypes.useQuery({ orgId });
-
+  const userOptions = orgId ? orgUsers : platformAdmins;
   const totalPages = data?.total ? Math.ceil(data.total / limit) : 0;
-  const hasFilters = adminUserId || adminRole || actionFilter || startDate || endDate;
+  const hasFilters = userId || adminRole || sourceType !== 'all' || actionFilter || startDate || endDate;
 
   return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -87,7 +114,7 @@ function AuditLogsContent() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
               <p className="text-sm text-gray-500">
-                {orgId ? 'Platform admin actions for this organization' : 'Track all platform admin actions and changes'}
+                {orgId ? 'Platform admin actions + org user activity for this organization' : 'Track all platform admin actions and changes'}
               </p>
             </div>
           </div>
@@ -148,30 +175,48 @@ function AuditLogsContent() {
           {showFilters && (
             <div className="px-4 pb-4 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 border-t">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Admin User</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  {orgId ? 'User' : 'Admin User'}
+                </label>
                 <select
-                  value={adminUserId}
-                  onChange={(e) => { setAdminUserId(e.target.value); setPage(1); }}
+                  value={userId}
+                  onChange={(e) => { setUserId(e.target.value); setPage(1); }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="">All admins</option>
-                  {admins.map((a: { id: string; email: string; name: string }) => (
+                  <option value="">All {orgId ? 'users' : 'admins'}</option>
+                  {userOptions.map((a: { id: string; email: string; name: string }) => (
                     <option key={a.id} value={a.id}>{a.name || a.email}</option>
                   ))}
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Admin Role</label>
-                <select
-                  value={adminRole}
-                  onChange={(e) => { setAdminRole(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">All roles</option>
-                  <option value="PLATFORM_ADMIN">Platform Admin</option>
-                  <option value="PLATFORM_SUPPORT">Platform Support</option>
-                </select>
-              </div>
+              {orgId && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Source</label>
+                  <select
+                    value={sourceType}
+                    onChange={(e) => { setSourceType(e.target.value as any); setPage(1); }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="all">All (Admin + Org Users)</option>
+                    <option value="platform_admin">Platform Admin only</option>
+                    <option value="org_user">Org Users only</option>
+                  </select>
+                </div>
+              )}
+              {!orgId && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Admin Role</label>
+                  <select
+                    value={adminRole}
+                    onChange={(e) => { setAdminRole(e.target.value); setPage(1); }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">All roles</option>
+                    <option value="PLATFORM_ADMIN">Platform Admin</option>
+                    <option value="PLATFORM_SUPPORT">Platform Support</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Action Type</label>
                 <select
@@ -206,8 +251,9 @@ function AuditLogsContent() {
               <div className="flex items-end gap-2">
                 <button
                   onClick={() => {
-                    setAdminUserId('');
+                    setUserId('');
                     setAdminRole('');
+                    setSourceType('all');
                     setActionFilter('');
                     const { startDate: s, endDate: e } = getDefaultDates();
                     setStartDate(s);
@@ -251,6 +297,11 @@ function AuditLogsContent() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Resource
                     </th>
+                    {orgId && (
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Source
+                      </th>
+                    )}
                     {!orgId && (
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Target Org
@@ -300,10 +351,10 @@ function AuditLogsContent() {
                         <td className="px-4 py-4">
                           {log.resource ? (
                             <div>
-                              <span className="text-sm text-gray-900 capitalize">{log.resource.replace(/_/g, ' ')}</span>
+                              <span className="text-sm text-gray-900 capitalize">{(log.resource || '').replace(/_/g, ' ')}</span>
                               {log.resourceId && (
                                 <div className="text-xs text-gray-500 font-mono mt-1">
-                                  {log.resourceId.slice(0, 12)}...
+                                  {String(log.resourceId).slice(0, 12)}…
                                 </div>
                               )}
                             </div>
@@ -311,6 +362,15 @@ function AuditLogsContent() {
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
+                        {orgId && (
+                          <td className="px-4 py-4">
+                            <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                              log.sourceType === 'platform_admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              {log.sourceType === 'platform_admin' ? 'Platform Admin' : 'Org User'}
+                            </span>
+                          </td>
+                        )}
                         {!orgId && (
                           <td className="px-4 py-4">
                             {log.targetOrgId ? (
