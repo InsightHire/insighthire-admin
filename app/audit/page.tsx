@@ -3,7 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
+import Link from 'next/link';
 import { 
   ShieldCheckIcon, 
   MagnifyingGlassIcon,
@@ -12,7 +14,8 @@ import {
   ComputerDesktopIcon,
   GlobeAltIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 // Action type badges
@@ -36,6 +39,8 @@ const getActionBadge = (action: string) => {
 };
 
 export default function AuditLogsPage() {
+  const searchParams = useSearchParams();
+  const orgId = searchParams.get('org') || undefined;
   const [page, setPage] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
   const limit = 20;
@@ -43,6 +48,7 @@ export default function AuditLogsPage() {
   const { data, isLoading, error } = trpc.platformAdmin.getAuditLogs.useQuery({
     page,
     limit,
+    orgId,
     action: actionFilter || undefined,
   });
 
@@ -51,14 +57,25 @@ export default function AuditLogsPage() {
   return (
       <div className="p-6 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-start justify-between">
           <div className="flex items-center space-x-3">
             <ShieldCheckIcon className="h-8 w-8 text-indigo-600" />
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
-              <p className="text-sm text-gray-500">Track all platform admin actions and changes</p>
+              <p className="text-sm text-gray-500">
+                {orgId ? 'Platform admin actions for this organization' : 'Track all platform admin actions and changes'}
+              </p>
             </div>
           </div>
+          {orgId && (
+            <Link
+              href="/audit"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            >
+              <XMarkIcon className="h-4 w-4" />
+              View all logs
+            </Link>
+          )}
         </div>
 
         {/* Stats */}
@@ -268,7 +285,9 @@ export default function AuditLogsPage() {
               <ShieldCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">No audit logs found</p>
               <p className="text-sm text-gray-400 mt-1">
-                {actionFilter ? 'Try a different filter' : 'Admin actions will appear here'}
+                {actionFilter ? 'Try a different filter' : orgId
+                  ? 'No platform admin actions on this org yet (e.g. view, update subscription, invite user)'
+                  : 'Platform admin actions will appear here when admins create orgs, update subscriptions, invite users, etc.'}
               </p>
             </div>
           )}
