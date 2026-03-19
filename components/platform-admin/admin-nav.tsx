@@ -29,18 +29,19 @@ export function PlatformAdminNav() {
   const [monitoringOpen, setMonitoringOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [adminEmail, setAdminEmail] = useState<string>('');
+  const [adminDisplayName, setAdminDisplayName] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load admin email
+  // Load admin display name (prefer name over email)
   useEffect(() => {
     const user = localStorage.getItem('admin_user');
     if (user) {
       try {
         const parsed = JSON.parse(user);
-        setAdminEmail(parsed.email || '');
+        const name = [parsed.firstName, parsed.lastName].filter(Boolean).join(' ').trim();
+        setAdminDisplayName(name || parsed.email || 'Admin');
       } catch (e) {}
     }
   }, []);
@@ -275,7 +276,7 @@ export function PlatformAdminNav() {
               className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
             >
               <User className="h-4 w-4 mr-1.5" />
-              <span className="max-w-[150px] truncate">{adminEmail || 'Admin'}</span>
+              <span className="max-w-[150px] truncate">{adminDisplayName}</span>
               <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -283,7 +284,7 @@ export function PlatformAdminNav() {
               <div className="absolute right-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-1 z-50">
                 <div className="px-4 py-2 border-b border-gray-700">
                   <p className="text-xs text-gray-400">Signed in as</p>
-                  <p className="text-sm text-white truncate">{adminEmail}</p>
+                  <p className="text-sm text-white truncate">{adminDisplayName}</p>
                 </div>
                 <button
                   onClick={handleLogout}
