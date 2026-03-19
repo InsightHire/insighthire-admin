@@ -143,38 +143,36 @@ export default function BillingDashboardPage() {
             <div className="animate-spin h-8 w-8 border-2 border-indigo-600 border-t-transparent rounded-full" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-hidden">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Organization</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Plan</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">ARR</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">MRR</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Paid</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Pending</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Positions</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-600">Months</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Trial</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-600">Last paid</th>
-                  <th className="w-10" />
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 w-[20%] min-w-0">Organization</th>
+                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-[10%]">Plan</th>
+                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-[8%]">Status</th>
+                  <th className="px-2 py-2 text-right font-semibold text-gray-600 w-[7%]">MRR</th>
+                  <th className="px-2 py-2 text-right font-semibold text-gray-600 w-[8%]" title="Paid / Pending">Invoices</th>
+                  <th className="px-2 py-2 text-right font-semibold text-gray-600 w-[6%]" title="Positions">Pos</th>
+                  <th className="px-2 py-2 text-right font-semibold text-gray-600 w-[6%]" title="Months active">Mo</th>
+                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-[12%]">Trial</th>
+                  <th className="px-2 py-2 text-left font-semibold text-gray-600 w-[8%]">Last paid</th>
+                  <th className="px-2 py-2 w-[4%]" />
                 </tr>
               </thead>
               <tbody>
                 {tableData?.rows?.map((row) => (
                   <tr key={row.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                    <td className="px-4 py-3">
-                      <Link href={`/organizations/${row.id}`} className="font-medium text-indigo-600 hover:underline">
+                    <td className="px-3 py-2 min-w-0">
+                      <Link href={`/organizations/${row.id}`} className="font-medium text-indigo-600 hover:underline block truncate" title={row.name || row.domain || row.id}>
                         {row.name || row.domain || row.id}
                       </Link>
-                      {row.domain && <p className="text-xs text-gray-500">{row.domain}</p>}
+                      {row.domain && <p className="text-xs text-gray-500 truncate">{row.domain}</p>}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="font-medium text-gray-700">{row.plan || '—'}</span>
+                    <td className="px-2 py-2">
+                      <span className="font-medium text-gray-700 truncate block">{row.plan || '—'}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                    <td className="px-2 py-2">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
                         row.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' :
                         row.status === 'TRIAL' ? 'bg-cyan-100 text-cyan-800' :
                         row.status === 'PAST_DUE' ? 'bg-amber-100 text-amber-800' :
@@ -183,27 +181,22 @@ export default function BillingDashboardPage() {
                         {row.status || '—'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">
-                      {row.arr > 0 ? `$${row.arr.toLocaleString()}` : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">
+                    <td className="px-2 py-2 text-right font-mono text-xs">
                       {row.mrr > 0 ? `$${row.mrr}` : '—'}
                     </td>
-                    <td className="px-4 py-3 text-right">{row.invoicesPaid}</td>
-                    <td className="px-4 py-3 text-right">
-                      {row.invoicesOpen > 0 ? (
-                        <span className="text-amber-600 font-medium">{row.invoicesOpen}</span>
-                      ) : (
-                        '0'
+                    <td className="px-2 py-2 text-right text-xs">
+                      <span>{row.invoicesPaid}</span>
+                      {row.invoicesOpen > 0 && (
+                        <span className="text-amber-600 font-medium"> / {row.invoicesOpen}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">{row.positionsCount}</td>
-                    <td className="px-4 py-3 text-right">{row.monthsActive}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2 text-right">{row.positionsCount}</td>
+                    <td className="px-2 py-2 text-right">{row.monthsActive}</td>
+                    <td className="px-2 py-2 min-w-0">
                       {row.isTrial ? (
                         row.trialExpiresAt ? (
-                          <span className="text-xs text-cyan-700">
-                            Expires {new Date(row.trialExpiresAt).toLocaleDateString()}
+                          <span className="text-xs text-cyan-700 truncate block" title={new Date(row.trialExpiresAt).toLocaleDateString()}>
+                            {new Date(row.trialExpiresAt).toLocaleDateString()}
                           </span>
                         ) : (
                           <span className="text-xs text-cyan-600">Yes</span>
@@ -212,16 +205,16 @@ export default function BillingDashboardPage() {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500">
+                    <td className="px-2 py-2 text-xs text-gray-500">
                       {row.lastPaidAt ? new Date(row.lastPaidAt).toLocaleDateString() : '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-2 py-2">
                       {row.stripeCustomerId && (
                         <a
                           href={`https://dashboard.stripe.com/customers/${row.stripeCustomerId}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-gray-400 hover:text-indigo-600"
+                          className="text-gray-400 hover:text-indigo-600 inline-block"
                           title="Stripe"
                         >
                           <ExternalLink className="h-4 w-4" />
