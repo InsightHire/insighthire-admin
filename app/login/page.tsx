@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
@@ -18,6 +18,13 @@ export default function PlatformAdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [acceptedMsg, setAcceptedMsg] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('accepted') === '1') {
+      setAcceptedMsg(true);
+    }
+  }, []);
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
@@ -105,6 +112,11 @@ export default function PlatformAdminLoginPage() {
               />
             </div>
 
+            {acceptedMsg && (
+              <div className="bg-emerald-900/50 border border-emerald-700 text-emerald-200 px-4 py-3 rounded-lg">
+                Password set successfully. You can now log in.
+              </div>
+            )}
             {error && (
               <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg">
                 {error}

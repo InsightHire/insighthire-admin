@@ -19,6 +19,8 @@ import {
   Lock,
   Puzzle,
   CreditCard,
+  Settings,
+  Users,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -26,9 +28,11 @@ export function PlatformAdminNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [monitoringOpen, setMonitoringOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [adminEmail, setAdminEmail] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Load admin email
@@ -47,6 +51,9 @@ export function PlatformAdminNav() {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setMonitoringOpen(false);
+      }
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setSettingsOpen(false);
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
@@ -214,6 +221,38 @@ export function PlatformAdminNav() {
                 <Puzzle className="h-4 w-4 mr-1.5" />
                 Integrations
               </Link>
+
+              {/* Settings Dropdown */}
+              <div className="relative" ref={settingsRef}>
+                <button
+                  onClick={() => setSettingsOpen(!settingsOpen)}
+                  className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    pathname === '/settings/admins' || pathname?.startsWith('/settings/')
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }`}
+                >
+                  <Settings className="h-4 w-4 mr-1.5" />
+                  Settings
+                  <ChevronDown className={`h-4 w-4 ml-1 transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {settingsOpen && (
+                  <div className="absolute left-0 mt-1 w-56 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-1 z-50">
+                    <Link
+                      href="/settings/admins"
+                      onClick={() => setSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                        pathname === '/settings/admins'
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Admin Users
+                    </Link>
+                  </div>
+                )}
+              </div>
 
               {/* Billing */}
               <Link

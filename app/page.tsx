@@ -252,6 +252,18 @@ export default function DashboardPage() {
           </div>
         </Link>
 
+        <Link href="/settings/admins" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-violet-100 rounded-full">
+              <UsersIcon className="h-6 w-6 text-violet-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Admin Users</h3>
+              <p className="text-sm text-gray-500">Invite and manage platform admins</p>
+            </div>
+          </div>
+        </Link>
+
         <Link href="/billing" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
           <div className="flex items-center space-x-4">
             <div className="p-3 bg-indigo-100 rounded-full">
