@@ -182,7 +182,7 @@ export default function AdminUsersPage() {
         </div>
 
         {showInvite && (
-          <div className="mb-8 bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="mb-8 bg-white text-gray-900 rounded-xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Invite new admin</h2>
             <form onSubmit={handleInvite} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
@@ -191,7 +191,7 @@ export default function AdminUsersPage() {
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500"
                   required
                   placeholder="admin@example.com"
                 />
@@ -202,7 +202,7 @@ export default function AdminUsersPage() {
                   type="text"
                   value={inviteFirstName}
                   onChange={(e) => setInviteFirstName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500"
                   required
                 />
               </div>
@@ -212,7 +212,7 @@ export default function AdminUsersPage() {
                   type="text"
                   value={inviteLastName}
                   onChange={(e) => setInviteLastName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500"
                   required
                 />
               </div>
@@ -221,7 +221,7 @@ export default function AdminUsersPage() {
                 <select
                   value={invitePlatformRoleId}
                   onChange={(e) => setInvitePlatformRoleId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
                 >
                   {platformRoles?.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -247,7 +247,7 @@ export default function AdminUsersPage() {
                 <button
                   type="button"
                   onClick={() => setShowInvite(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
@@ -521,7 +521,7 @@ export default function AdminUsersPage() {
           <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="fixed inset-0 bg-black/50" onClick={() => setEditingAdmin(null)} />
             <div className="relative min-h-screen flex items-center justify-center p-4">
-              <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+              <div className="relative bg-white text-gray-900 rounded-xl shadow-xl max-w-md w-full p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">
                   {editingAdmin.id === currentUserId ? 'Edit your profile' : 'Edit Admin'}
                 </h2>
@@ -532,7 +532,7 @@ export default function AdminUsersPage() {
                       name="firstName"
                       type="text"
                       defaultValue={editingAdmin.firstName ?? ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   <div>
@@ -541,7 +541,7 @@ export default function AdminUsersPage() {
                       name="lastName"
                       type="text"
                       defaultValue={editingAdmin.lastName ?? ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500"
                     />
                   </div>
                   {editingAdmin.id !== currentUserId && (
@@ -552,7 +552,7 @@ export default function AdminUsersPage() {
                           name="email"
                           type="email"
                           defaultValue={editingAdmin.email}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder:text-gray-500"
                           required
                         />
                       </div>
@@ -561,7 +561,7 @@ export default function AdminUsersPage() {
                         <select
                           name="platform_role_id"
                           defaultValue={editingAdmin.platform_role_id ?? 'platform_role_admin'}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
                         >
                           {platformRoles?.map((r) => (
                             <option key={r.id} value={r.id}>
@@ -589,7 +589,7 @@ export default function AdminUsersPage() {
                     <button
                       type="button"
                       onClick={() => setEditingAdmin(null)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                      className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 hover:bg-gray-50"
                     >
                       Cancel
                     </button>
