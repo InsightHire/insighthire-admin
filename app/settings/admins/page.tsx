@@ -16,6 +16,7 @@ import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
+  EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 
 // Fallback labels for legacy enum values
@@ -47,6 +48,7 @@ export default function AdminUsersPage() {
     platform_role_id: string | null;
   } | null>(null);
   const [auditUserId, setAuditUserId] = useState<string | null>(null);
+  const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFirstName, setInviteFirstName] = useState('');
   const [inviteLastName, setInviteLastName] = useState('');
@@ -144,15 +146,18 @@ export default function AdminUsersPage() {
     const form = e.target as HTMLFormElement;
     const firstName = (form.elements.namedItem('firstName') as HTMLInputElement)?.value;
     const lastName = (form.elements.namedItem('lastName') as HTMLInputElement)?.value;
-    const email = (form.elements.namedItem('email') as HTMLInputElement)?.value;
-    const platform_role_id = (form.elements.namedItem('platform_role_id') as HTMLSelectElement)?.value;
-    updateMutation.mutate({
+    const emailEl = form.elements.namedItem('email') as HTMLInputElement | null;
+    const roleEl = form.elements.namedItem('platform_role_id') as HTMLSelectElement | null;
+    const payload: { userId: string; firstName?: string; lastName?: string; email?: string; platform_role_id?: string } = {
       userId: editingAdmin.id,
       firstName: firstName || undefined,
       lastName: lastName || undefined,
-      email: email || undefined,
-      platform_role_id: platform_role_id || undefined,
-    });
+    };
+    if (editingAdmin.id !== currentUserId) {
+      if (emailEl) payload.email = emailEl.value || undefined;
+      if (roleEl) payload.platform_role_id = roleEl.value || undefined;
+    }
+    updateMutation.mutate(payload);
   };
 
   if (!isAuthed) return null;
@@ -328,79 +333,104 @@ export default function AdminUsersPage() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-1 flex-wrap">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => setAuditUserId(auditUserId === admin.id ? null : admin.id)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
                             title="View audit log"
                           >
                             <DocumentTextIcon className="h-4 w-4" />
                             Audit
                           </button>
-                          {admin.status === 'pending' && (
+                          <div className="relative">
                             <button
-                              onClick={() => resendMutation.mutate({ userId: admin.id })}
-                              disabled={resendMutation.isPending}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                              onClick={() => setActionsOpenId(actionsOpenId === admin.id ? null : admin.id)}
+                              className="inline-flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                              title="Actions"
                             >
-                              <EnvelopeIcon className="h-4 w-4" />
-                              Resend
+                              <EllipsisVerticalIcon className="h-5 w-5" />
                             </button>
-                          )}
-                          {(admin.status === 'active' || admin.status === 'suspended') && admin.id !== currentUserId && (
-                            <>
-                              <button
-                                onClick={() => setEditingAdmin({
-                                  id: admin.id,
-                                  email: admin.email,
-                                  firstName: admin.firstName,
-                                  lastName: admin.lastName,
-                                  role: admin.role,
-                                  platformRole: admin.platformRole,
-                                  platform_role_id: admin.platform_role_id,
-                                })}
-                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                                Edit
-                              </button>
-                              {admin.status === 'active' ? (
-                                <button
-                                  onClick={() => {
-                                    if (confirm(`Suspend ${admin.name || admin.email}? They will not be able to log in until reactivated.`)) {
-                                      suspendMutation.mutate({ userId: admin.id });
-                                    }
-                                  }}
-                                  disabled={suspendMutation.isPending}
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-600 hover:bg-amber-50 rounded-lg"
-                                >
-                                  <NoSymbolIcon className="h-4 w-4" />
-                                  Suspend
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => reactivateMutation.mutate({ userId: admin.id })}
-                                  disabled={reactivateMutation.isPending}
-                                  className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg"
-                                >
-                                  <PlayIcon className="h-4 w-4" />
-                                  Reactivate
-                                </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  if (confirm(`Permanently remove ${admin.name || admin.email} from platform admins? This cannot be undone.`)) {
-                                    deleteMutation.mutate({ userId: admin.id });
-                                  }
-                                }}
-                                disabled={deleteMutation.isPending}
-                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                                Delete
-                              </button>
-                            </>
-                          )}
+                            {actionsOpenId === admin.id && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setActionsOpenId(null)} />
+                                <div className="absolute right-0 top-full mt-1 z-20 w-48 py-1 bg-white rounded-lg shadow-lg border border-gray-200">
+                                  {admin.status === 'pending' && (
+                                    <button
+                                      onClick={() => { resendMutation.mutate({ userId: admin.id }); setActionsOpenId(null); }}
+                                      disabled={resendMutation.isPending}
+                                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-indigo-600 hover:bg-indigo-50"
+                                    >
+                                      <EnvelopeIcon className="h-4 w-4" />
+                                      Resend invite
+                                    </button>
+                                  )}
+                                  {(admin.status === 'active' || admin.status === 'suspended') && (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditingAdmin({
+                                            id: admin.id,
+                                            email: admin.email,
+                                            firstName: admin.firstName,
+                                            lastName: admin.lastName,
+                                            role: admin.role,
+                                            platformRole: admin.platformRole,
+                                            platform_role_id: admin.platform_role_id,
+                                          });
+                                          setActionsOpenId(null);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                      >
+                                        <PencilIcon className="h-4 w-4" />
+                                        Edit
+                                      </button>
+                                      {admin.id !== currentUserId && (
+                                        <>
+                                          {admin.status === 'active' ? (
+                                            <button
+                                              onClick={() => {
+                                                if (confirm(`Suspend ${admin.name || admin.email}? They will not be able to log in until reactivated.`)) {
+                                                  suspendMutation.mutate({ userId: admin.id });
+                                                  setActionsOpenId(null);
+                                                }
+                                              }}
+                                              disabled={suspendMutation.isPending}
+                                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-amber-700 hover:bg-amber-50"
+                                            >
+                                              <NoSymbolIcon className="h-4 w-4" />
+                                              Suspend
+                                            </button>
+                                          ) : (
+                                            <button
+                                              onClick={() => { reactivateMutation.mutate({ userId: admin.id }); setActionsOpenId(null); }}
+                                              disabled={reactivateMutation.isPending}
+                                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+                                            >
+                                              <PlayIcon className="h-4 w-4" />
+                                              Reactivate
+                                            </button>
+                                          )}
+                                          <button
+                                            onClick={() => {
+                                              if (confirm(`Permanently remove ${admin.name || admin.email} from platform admins? This cannot be undone.`)) {
+                                                deleteMutation.mutate({ userId: admin.id });
+                                                setActionsOpenId(null);
+                                              }
+                                            }}
+                                            disabled={deleteMutation.isPending}
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                                          >
+                                            <TrashIcon className="h-4 w-4" />
+                                            Delete
+                                          </button>
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -477,7 +507,9 @@ export default function AdminUsersPage() {
             <div className="fixed inset-0 bg-black/50" onClick={() => setEditingAdmin(null)} />
             <div className="relative min-h-screen flex items-center justify-center p-4">
               <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit Admin</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  {editingAdmin.id === currentUserId ? 'Edit your profile' : 'Edit Admin'}
+                </h2>
                 <form onSubmit={handleUpdate} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
@@ -497,37 +529,40 @@ export default function AdminUsersPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      name="email"
-                      type="email"
-                      defaultValue={editingAdmin.email}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select
-                      name="platform_role_id"
-                      defaultValue={editingAdmin.platform_role_id ?? 'platform_role_admin'}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      {platformRoles?.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {r.displayName}
-
-                        </option>
-                      ))}
-                      {(!platformRoles || platformRoles.length === 0) && (
-                        <>
-                          <option value="platform_role_support">Platform Support</option>
-                          <option value="platform_role_admin">Platform Admin</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
+                  {editingAdmin.id !== currentUserId && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                          name="email"
+                          type="email"
+                          defaultValue={editingAdmin.email}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                        <select
+                          name="platform_role_id"
+                          defaultValue={editingAdmin.platform_role_id ?? 'platform_role_admin'}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          {platformRoles?.map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.displayName}
+                            </option>
+                          ))}
+                          {(!platformRoles || platformRoles.length === 0) && (
+                            <>
+                              <option value="platform_role_support">Platform Support</option>
+                              <option value="platform_role_admin">Platform Admin</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                    </>
+                  )}
                   <div className="flex gap-2 pt-2">
                     <button
                       type="submit"
