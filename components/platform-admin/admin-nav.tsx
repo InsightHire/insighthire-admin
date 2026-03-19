@@ -34,17 +34,25 @@ export function PlatformAdminNav() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load admin display name (prefer name over email)
+  // Load admin display name from API (fresh) or localStorage fallback
+  const { data: admins } = trpc.platformAdmin.listPlatformAdmins.useQuery(undefined, {
+    retry: false,
+    staleTime: 60_000,
+  });
   useEffect(() => {
     const user = localStorage.getItem('admin_user');
-    if (user) {
-      try {
-        const parsed = JSON.parse(user);
+    if (!user) return;
+    try {
+      const parsed = JSON.parse(user);
+      const currentAdmin = admins?.find((a: { id: string }) => a.id === parsed.id);
+      if (currentAdmin?.name) {
+        setAdminDisplayName(currentAdmin.name);
+      } else {
         const name = [parsed.firstName, parsed.lastName].filter(Boolean).join(' ').trim();
         setAdminDisplayName(name || parsed.email || 'Admin');
-      } catch (e) {}
-    }
-  }, []);
+      }
+    } catch (e) {}
+  }, [admins]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
