@@ -549,7 +549,7 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
                         <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Visited">
                           <EyeIcon className="h-4 w-4 inline-block" />
                         </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Nodes</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Step</th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">AI Scored</th>
                         <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Report complete">
                           <DocumentChartBarIcon className="h-4 w-4 inline-block" />
@@ -602,6 +602,11 @@ function CandidateRow({
     applicationStatus: string;
     lastActivityAt: Date | null;
     startedAt: Date | null;
+    videosRecorded?: number;
+    videosTotal?: number;
+    currentStepLabel?: string | null;
+    currentStepIndex?: number | null;
+    derivedStatus?: string;
   };
   orgId: string;
   expanded: boolean;
@@ -659,9 +664,25 @@ function CandidateRow({
           )}
         </td>
         <td className="px-4 py-3">
-          <span className="font-mono text-gray-700">
-            {candidate.nodesDone}/{candidate.nodesTotal}
-          </span>
+          <div className="space-y-0.5">
+            {(candidate.videosTotal ?? 0) > 0 ? (
+              <p className="text-gray-700">
+                {candidate.videosRecorded ?? 0} of {candidate.videosTotal} videos recorded
+              </p>
+            ) : (
+              <p className="text-gray-700">
+                {candidate.nodesDone}/{candidate.nodesTotal} steps
+              </p>
+            )}
+            {candidate.currentStepLabel && candidate.currentStepIndex != null && (
+              <p className="text-xs text-gray-500 truncate max-w-[180px]" title={candidate.currentStepLabel}>
+                On step {candidate.currentStepIndex}: {candidate.currentStepLabel}
+              </p>
+            )}
+            {!candidate.currentStepLabel && candidate.nodesDone > 0 && candidate.nodesDone >= (candidate.nodesTotal || 1) && (
+              <p className="text-xs text-emerald-600">All steps complete</p>
+            )}
+          </div>
         </td>
         <td className="px-4 py-3">
           <span className="font-mono text-gray-700">
@@ -676,8 +697,8 @@ function CandidateRow({
           )}
         </td>
         <td className="px-4 py-3">
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getApplicationStatusBadge(candidate.applicationStatus)}`}>
-            {candidate.applicationStatus}
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getDerivedStatusBadge(candidate.derivedStatus ?? candidate.applicationStatus)}`}>
+            {getDerivedStatusLabel(candidate.derivedStatus ?? candidate.applicationStatus)}
           </span>
           {candidate.overallScore != null && (
             <span className="ml-2 text-xs text-gray-500">Score: {Math.round(candidate.overallScore)}</span>
@@ -689,7 +710,7 @@ function CandidateRow({
         <tr className="bg-indigo-50/30 border-b border-gray-100">
           <td colSpan={8} className="px-4 py-4">
             <div className="ml-7 pl-4 border-l-2 border-indigo-200">
-              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Node-level progress</h4>
+              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Step-level progress</h4>
               {loadingNodes ? (
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent" />
@@ -822,14 +843,36 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
   );
 }
 
-function getApplicationStatusBadge(status: string) {
+function getDerivedStatusLabel(status: string): string {
   switch ((status || '').toUpperCase()) {
+    case 'REPORT_COMPLETE': return 'Report Complete';
+    case 'STUCK_IN_SCORING': return 'Stuck in Scoring';
+    case 'IN_INTERVIEW': return 'In Interview';
+    case 'NOT_STARTED': return 'Not Started';
+    case 'INVITED': return 'Invited';
+    case 'NEW': return 'New';
+    case 'SCORED':
+    case 'COMPLETED': return 'Scored';
+    case 'IN_PROGRESS':
+    case 'IN_PROG': return 'In Progress';
+    case 'REJECTED': return 'Rejected';
+    case 'HIRED': return 'Hired';
+    default: return status || 'New';
+  }
+}
+
+function getDerivedStatusBadge(status: string) {
+  switch ((status || '').toUpperCase()) {
+    case 'REPORT_COMPLETE':
     case 'SCORED':
     case 'COMPLETED': return 'bg-emerald-100 text-emerald-800';
+    case 'STUCK_IN_SCORING': return 'bg-amber-100 text-amber-800';
+    case 'IN_INTERVIEW':
     case 'IN_PROGRESS':
     case 'IN_PROG': return 'bg-blue-100 text-blue-800';
-    case 'NEW':
+    case 'NOT_STARTED':
     case 'INVITED': return 'bg-gray-100 text-gray-700';
+    case 'NEW': return 'bg-slate-100 text-slate-600';
     case 'REJECTED': return 'bg-red-100 text-red-800';
     case 'HIRED': return 'bg-purple-100 text-purple-800';
     default: return 'bg-gray-100 text-gray-700';
