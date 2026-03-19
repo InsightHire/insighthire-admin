@@ -20,6 +20,7 @@ import {
   ExclamationTriangleIcon,
   DocumentChartBarIcon,
   SparklesIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 
 export default function OrganizationDetailPage() {
@@ -135,7 +136,9 @@ export default function OrganizationDetailPage() {
                     View All Positions →
                   </Link>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Email sent, visited, nodes done, AI scoring, report status</p>
+                <p className="text-sm text-gray-500 mt-1">
+                  Email sent, visited, steps, AI scoring, report. Status: where they are in the journey (invited, recording, stuck, or done).
+                </p>
               </div>
               <PositionCandidatesTrackingSection orgId={orgId} />
             </div>
@@ -554,7 +557,14 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
                         <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Report complete">
                           <DocumentChartBarIcon className="h-4 w-4 inline-block" />
                         </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          <span className="inline-flex items-center gap-1">
+                            Status
+                            <span title="Report Complete = all done, report ready · In Interview = recording videos · Stuck in Scoring = AI scoring pending/failed · Invited = email sent, waiting for visit · Not invited = not sent yet" className="text-gray-400 cursor-help">
+                              <QuestionMarkCircleIcon className="h-4 w-4" />
+                            </span>
+                          </span>
+                        </th>
                         <th className="w-8" />
                       </tr>
                     </thead>
@@ -697,8 +707,8 @@ function CandidateRow({
           )}
         </td>
         <td className="px-4 py-3">
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getDerivedStatusBadge(candidate.derivedStatus ?? candidate.applicationStatus)}`}>
-            {getDerivedStatusLabel(candidate.derivedStatus ?? candidate.applicationStatus)}
+          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getDerivedStatusBadge(resolveStatus(candidate))}`}>
+            {getDerivedStatusLabel(resolveStatus(candidate))}
           </span>
           {candidate.overallScore != null && (
             <span className="ml-2 text-xs text-gray-500">Score: {Math.round(candidate.overallScore)}</span>
@@ -843,21 +853,38 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
   );
 }
 
+function resolveStatus(c: {
+  derivedStatus?: string;
+  applicationStatus: string;
+  visited: boolean;
+  emailSent: boolean;
+  nodesDone: number;
+  nodesTotal: number;
+  reportComplete: boolean;
+}): string {
+  if (c.derivedStatus) return c.derivedStatus;
+  if (c.reportComplete) return 'REPORT_COMPLETE';
+  if (c.visited && c.nodesDone > 0 && c.nodesDone < c.nodesTotal) return 'IN_INTERVIEW';
+  if (c.visited && c.nodesDone === 0) return 'NOT_STARTED';
+  if (!c.visited && c.emailSent) return 'INVITED';
+  return 'NEW';
+}
+
 function getDerivedStatusLabel(status: string): string {
   switch ((status || '').toUpperCase()) {
-    case 'REPORT_COMPLETE': return 'Report Complete';
-    case 'STUCK_IN_SCORING': return 'Stuck in Scoring';
-    case 'IN_INTERVIEW': return 'In Interview';
-    case 'NOT_STARTED': return 'Not Started';
-    case 'INVITED': return 'Invited';
-    case 'NEW': return 'New';
+    case 'REPORT_COMPLETE': return 'Report ready';
+    case 'STUCK_IN_SCORING': return 'Stuck in scoring';
+    case 'IN_INTERVIEW': return 'Recording videos';
+    case 'NOT_STARTED': return 'Opened link, not started';
+    case 'INVITED': return 'Invited, awaiting visit';
+    case 'NEW': return 'Not invited yet';
     case 'SCORED':
     case 'COMPLETED': return 'Scored';
     case 'IN_PROGRESS':
-    case 'IN_PROG': return 'In Progress';
+    case 'IN_PROG': return 'In progress';
     case 'REJECTED': return 'Rejected';
     case 'HIRED': return 'Hired';
-    default: return status || 'New';
+    default: return status ? String(status) : 'Not invited yet';
   }
 }
 
