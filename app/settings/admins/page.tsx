@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
@@ -49,6 +50,7 @@ export default function AdminUsersPage() {
   } | null>(null);
   const [auditUserId, setAuditUserId] = useState<string | null>(null);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFirstName, setInviteFirstName] = useState('');
   const [inviteLastName, setInviteLastName] = useState('');
@@ -344,16 +346,28 @@ export default function AdminUsersPage() {
                           </button>
                           <div className="relative">
                             <button
-                              onClick={() => setActionsOpenId(actionsOpenId === admin.id ? null : admin.id)}
+                              onClick={(e) => {
+                                if (actionsOpenId === admin.id) {
+                                  setActionsOpenId(null);
+                                  setDropdownPosition(null);
+                                } else {
+                                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                  setDropdownPosition({ top: rect.bottom + 4, left: rect.right - 192 });
+                                  setActionsOpenId(admin.id);
+                                }
+                              }}
                               className="inline-flex items-center justify-center p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                               title="Actions"
                             >
                               <EllipsisVerticalIcon className="h-5 w-5" />
                             </button>
-                            {actionsOpenId === admin.id && (
+                            {actionsOpenId === admin.id && dropdownPosition && typeof document !== 'undefined' && createPortal(
                               <>
-                                <div className="fixed inset-0 z-10" onClick={() => setActionsOpenId(null)} />
-                                <div className="absolute right-0 top-full mt-1 z-20 w-48 py-1 bg-white rounded-lg shadow-lg border border-gray-200">
+                                <div className="fixed inset-0 z-10" onClick={() => { setActionsOpenId(null); setDropdownPosition(null); }} />
+                                <div
+                                  className="fixed z-20 w-48 py-1 bg-white rounded-lg shadow-lg border border-gray-200"
+                                  style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+                                >
                                   {admin.status === 'pending' && (
                                     <button
                                       onClick={() => { resendMutation.mutate({ userId: admin.id }); setActionsOpenId(null); }}
@@ -428,7 +442,8 @@ export default function AdminUsersPage() {
                                     </>
                                   )}
                                 </div>
-                              </>
+                              </>,
+                              document.body
                             )}
                           </div>
                         </div>
