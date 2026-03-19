@@ -15,7 +15,6 @@ import {
   Gauge,
   LogOut,
   User,
-  UserPlus,
   Lock,
   Puzzle,
   CreditCard,
@@ -118,19 +117,6 @@ export function PlatformAdminNav() {
                 Organizations
               </Link>
 
-              {/* Onboarding */}
-              <Link
-                href="/onboarding"
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/onboarding'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-blue-400 hover:bg-blue-600/20 hover:text-blue-300'
-                }`}
-              >
-                <UserPlus className="h-4 w-4 mr-1.5" />
-                Onboard
-              </Link>
-
               {/* Monitoring Dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <button
@@ -209,25 +195,14 @@ export function PlatformAdminNav() {
                 Audit
               </Link>
 
-              {/* Integrations */}
-              <Link
-                href="/integrations"
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/integrations' || pathname?.startsWith('/integrations/')
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <Puzzle className="h-4 w-4 mr-1.5" />
-                Integrations
-              </Link>
-
               {/* Settings Dropdown */}
               <div className="relative" ref={settingsRef}>
                 <button
                   onClick={() => setSettingsOpen(!settingsOpen)}
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    pathname === '/settings/admins' || pathname?.startsWith('/settings/')
+                    pathname === '/settings/admins' || pathname?.startsWith('/settings/') ||
+                    pathname === '/integrations' || pathname?.startsWith('/integrations/') ||
+                    pathname === '/gdpr' || pathname?.startsWith('/gdpr/')
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }`}
@@ -250,6 +225,30 @@ export function PlatformAdminNav() {
                       <Users className="h-4 w-4 mr-2" />
                       Admin Users
                     </Link>
+                    <Link
+                      href="/integrations"
+                      onClick={() => setSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                        pathname === '/integrations' || pathname?.startsWith('/integrations/')
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Puzzle className="h-4 w-4 mr-2" />
+                      Integrations
+                    </Link>
+                    <Link
+                      href="/gdpr"
+                      onClick={() => setSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                        pathname === '/gdpr' || pathname?.startsWith('/gdpr/')
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Lock className="h-4 w-4 mr-2" />
+                      GDPR
+                    </Link>
                   </div>
                 )}
               </div>
@@ -265,19 +264,6 @@ export function PlatformAdminNav() {
               >
                 <CreditCard className="h-4 w-4 mr-1.5" />
                 Billing
-              </Link>
-
-              {/* GDPR / Privacy */}
-              <Link
-                href="/gdpr"
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/gdpr' || pathname?.startsWith('/gdpr/')
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <Lock className="h-4 w-4 mr-1.5" />
-                GDPR
               </Link>
             </div>
           </div>
