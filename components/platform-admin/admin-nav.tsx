@@ -18,6 +18,7 @@ import {
   UserPlus,
   Lock,
   Puzzle,
+  CreditCard,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -212,6 +213,19 @@ export function PlatformAdminNav() {
               >
                 <Puzzle className="h-4 w-4 mr-1.5" />
                 Integrations
+              </Link>
+
+              {/* Billing */}
+              <Link
+                href="/billing"
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/billing' || pathname?.startsWith('/billing/')
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <CreditCard className="h-4 w-4 mr-1.5" />
+                Billing
               </Link>
 
               {/* GDPR / Privacy */}

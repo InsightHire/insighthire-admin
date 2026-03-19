@@ -15,6 +15,7 @@ import {
   CheckCircleIcon,
   ArrowRightIcon,
   ClockIcon,
+  CreditCardIcon,
 } from '@heroicons/react/24/outline';
 
 export default function DashboardPage() {
@@ -247,6 +248,18 @@ export default function DashboardPage() {
             <div>
               <h3 className="font-semibold text-gray-900">Background Jobs</h3>
               <p className="text-sm text-gray-500">Monitor job queues</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/billing" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-indigo-100 rounded-full">
+              <CreditCardIcon className="h-6 w-6 text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Billing</h3>
+              <p className="text-sm text-gray-500">Subscriptions, collections, Stripe</p>
             </div>
           </div>
         </Link>
