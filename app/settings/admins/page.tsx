@@ -18,6 +18,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 
+// Fallback labels for legacy enum values
 const ROLE_LABELS: Record<string, string> = {
   PLATFORM_ADMIN: 'Admin',
   PLATFORM_SUPPORT: 'Support',
@@ -25,6 +26,11 @@ const ROLE_LABELS: Record<string, string> = {
   SUPPORT: 'Support',
   BILLING_ADMIN: 'Billing',
   ANALYTICS: 'Analytics',
+  platform_admin: 'Platform Admin',
+  platform_support: 'Platform Support',
+  platform_super_admin: 'Super Admin',
+  platform_billing_admin: 'Billing Admin',
+  platform_analytics: 'Analytics',
 };
 
 export default function AdminUsersPage() {
@@ -38,12 +44,13 @@ export default function AdminUsersPage() {
     lastName: string | null;
     role: string;
     platformRole: string | null;
+    platform_role_id: string | null;
   } | null>(null);
   const [auditUserId, setAuditUserId] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFirstName, setInviteFirstName] = useState('');
   const [inviteLastName, setInviteLastName] = useState('');
-  const [inviteRole, setInviteRole] = useState<'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT'>('PLATFORM_SUPPORT');
+  const [invitePlatformRoleId, setInvitePlatformRoleId] = useState<string>('platform_role_support');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,6 +68,11 @@ export default function AdminUsersPage() {
   const { data: admins, isLoading, refetch } = trpc.platformAdmin.listPlatformAdmins.useQuery(
     undefined,
     { enabled: isAuthed, refetchInterval: 30000 }
+  );
+
+  const { data: platformRoles } = trpc.platformAdmin.listPlatformRoles.useQuery(
+    undefined,
+    { enabled: isAuthed && (showInvite || !!editingAdmin) }
   );
 
   const { data: auditLogs, isLoading: auditLoading } = trpc.platformAdmin.getPlatformAdminAuditLogs.useQuery(
@@ -122,7 +134,7 @@ export default function AdminUsersPage() {
       email: inviteEmail,
       firstName: inviteFirstName,
       lastName: inviteLastName,
-      role: inviteRole,
+      platform_role_id: invitePlatformRoleId,
     });
   };
 
@@ -133,15 +145,13 @@ export default function AdminUsersPage() {
     const firstName = (form.elements.namedItem('firstName') as HTMLInputElement)?.value;
     const lastName = (form.elements.namedItem('lastName') as HTMLInputElement)?.value;
     const email = (form.elements.namedItem('email') as HTMLInputElement)?.value;
-    const role = (form.elements.namedItem('role') as HTMLSelectElement)?.value;
-    const platformRole = (form.elements.namedItem('platformRole') as HTMLSelectElement)?.value;
+    const platform_role_id = (form.elements.namedItem('platform_role_id') as HTMLSelectElement)?.value;
     updateMutation.mutate({
       userId: editingAdmin.id,
       firstName: firstName || undefined,
       lastName: lastName || undefined,
       email: email || undefined,
-      role: role as 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT',
-      platformRole: platformRole ? (platformRole as 'SUPER_ADMIN' | 'SUPPORT' | 'BILLING_ADMIN' | 'ANALYTICS') : undefined,
+      platform_role_id: platform_role_id || undefined,
     });
   };
 
@@ -202,12 +212,21 @@ export default function AdminUsersPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                 <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT')}
+                  value={invitePlatformRoleId}
+                  onChange={(e) => setInvitePlatformRoleId(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                 >
-                  <option value="PLATFORM_SUPPORT">Platform Support</option>
-                  <option value="PLATFORM_ADMIN">Platform Admin</option>
+                  {platformRoles?.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.displayName} {r.description ? ` (${r.description})` : ''}
+                    </option>
+                  ))}
+                  {(!platformRoles || platformRoles.length === 0) && (
+                    <>
+                      <option value="platform_role_support">Platform Support</option>
+                      <option value="platform_role_admin">Platform Admin</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div className="sm:col-span-2 lg:col-span-4 flex gap-2">
@@ -262,20 +281,13 @@ export default function AdminUsersPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-1">
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                              admin.role === 'PLATFORM_ADMIN' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {ROLE_LABELS[admin.role] ?? admin.role}
-                          </span>
-                          {admin.platformRole && (
-                            <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
-                              {ROLE_LABELS[admin.platformRole] ?? admin.platformRole}
-                            </span>
-                          )}
-                        </div>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                            (admin.platformRoleName ?? admin.role) === 'platform_support' ? 'bg-gray-100 text-gray-700' : 'bg-indigo-100 text-indigo-800'
+                          }`}
+                        >
+                          {ROLE_LABELS[admin.platformRoleName ?? admin.role] ?? admin.platformRole ?? admin.role}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         {admin.status === 'pending' ? (
@@ -345,6 +357,7 @@ export default function AdminUsersPage() {
                                   lastName: admin.lastName,
                                   role: admin.role,
                                   platformRole: admin.platformRole,
+                                  platform_role_id: admin.platform_role_id,
                                 })}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-lg"
                               >
@@ -497,26 +510,22 @@ export default function AdminUsersPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                     <select
-                      name="role"
-                      defaultValue={editingAdmin.role}
+                      name="platform_role_id"
+                      defaultValue={editingAdmin.platform_role_id ?? 'platform_role_admin'}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     >
-                      <option value="PLATFORM_SUPPORT">Platform Support</option>
-                      <option value="PLATFORM_ADMIN">Platform Admin</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Platform role (optional)</label>
-                    <select
-                      name="platformRole"
-                      defaultValue={editingAdmin.platformRole ?? ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">— None —</option>
-                      <option value="SUPER_ADMIN">Super Admin</option>
-                      <option value="SUPPORT">Support</option>
-                      <option value="BILLING_ADMIN">Billing Admin</option>
-                      <option value="ANALYTICS">Analytics</option>
+                      {platformRoles?.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.displayName}
+
+                        </option>
+                      ))}
+                      {(!platformRoles || platformRoles.length === 0) && (
+                        <>
+                          <option value="platform_role_support">Platform Support</option>
+                          <option value="platform_role_admin">Platform Admin</option>
+                        </>
+                      )}
                     </select>
                   </div>
                   <div className="flex gap-2 pt-2">
