@@ -63,10 +63,12 @@ export default function BillingPricingPage() {
   const backfillMutation = trpc.platformAdmin.backfillStripeCustomers.useMutation({
     onSuccess: (data) => {
       if (data.dryRun) {
-        setActionMessage(`Dry run: would create customers for ${data.wouldProcess} org(s).`);
+        setActionMessage(`Dry run: would sync customers for ${data.wouldProcess} org(s) (verifies existing cus_ ids in Stripe).`);
         return;
       }
-      setActionMessage(`Created Stripe customers for ${data.processed} organization(s).`);
+      setActionMessage(
+        `Stripe customers: ${data.created} created, ${data.repaired} repaired (stale/wrong-mode id cleared), ${data.skippedValid} already valid.${data.failed ? ` ${data.failed} failed — check API logs.` : ''}`
+      );
     },
     onError: (e) => setActionMessage(`Error: ${e.message}`),
   });
