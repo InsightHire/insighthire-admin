@@ -19,12 +19,14 @@ export default function PlatformAdminOrganizationsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [planFilter, setPlanFilter] = useState<string>('');
+  const [includeArchived, setIncludeArchived] = useState(false);
 
   const { data, isLoading, error } = trpc.platformAdmin.listOrganizations.useQuery({
     page: 1,
     search: search || undefined,
     status: statusFilter as any || undefined,
     plan: planFilter as any || undefined,
+    includeArchived,
   }, {
     enabled: !authLoading,
     context: {
@@ -67,7 +69,7 @@ export default function PlatformAdminOrganizationsPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div className="relative">
               <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
@@ -100,6 +102,15 @@ export default function PlatformAdminOrganizationsPage() {
               <option value="PROFESSIONAL">Professional</option>
               <option value="ENTERPRISE">Enterprise</option>
             </select>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer md:col-span-4">
+              <input
+                type="checkbox"
+                checked={includeArchived}
+                onChange={(e) => setIncludeArchived(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Show archived organizations
+            </label>
           </div>
         </div>
 
@@ -145,8 +156,15 @@ export default function PlatformAdminOrganizationsPage() {
                   <tr key={org.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {org.name || '(Onboarding incomplete)'}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {org.name || '(Onboarding incomplete)'}
+                          </span>
+                          {org.deletedAt && (
+                            <span className="px-2 py-0.5 text-xs font-semibold rounded bg-gray-800 text-white uppercase">
+                              Archived
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-gray-500">{org.domain}</div>
                       </div>

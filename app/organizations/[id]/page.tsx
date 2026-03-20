@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
@@ -23,14 +23,23 @@ import {
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 
+type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
+
 export default function OrganizationDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { isLoading: authLoading } = useAdminAuth();
   const orgId = params.id as string;
 
   const [editingSubscription, setEditingSubscription] = useState(false);
   const [newPlan, setNewPlan] = useState('');
   const [newStatus, setNewStatus] = useState('');
+  const [newExpiresAt, setNewExpiresAt] = useState(''); // datetime-local value
+  const [dangerModal, setDangerModal] = useState<DangerModal>('none');
+  const [dangerReason, setDangerReason] = useState('');
+  const [permanentConfirmName, setPermanentConfirmName] = useState('');
+  const [reactivateAs, setReactivateAs] = useState<'ACTIVE' | 'TRIAL'>('ACTIVE');
+  const [actionMessage, setActionMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const { data, isLoading, refetch } = trpc.platformAdmin.getOrganization.useQuery({ id: orgId }, {
     enabled: !authLoading,
@@ -45,10 +54,65 @@ export default function OrganizationDetailPage() {
 
   const impersonateMutation = trpc.platformAdmin.impersonateOrganization.useMutation({
     onSuccess: (data) => {
-      // Open the login URL in a new tab
       window.open(data.loginUrl, '_blank');
     },
   });
+
+  const suspendMutation = trpc.platformAdmin.suspendOrganization.useMutation({
+    onSuccess: () => {
+      setDangerModal('none');
+      setDangerReason('');
+      setActionMessage({ type: 'ok', text: 'Organization suspended. Subscription canceled; users deactivated.' });
+      refetch();
+    },
+    onError: (e) => setActionMessage({ type: 'err', text: e.message }),
+  });
+
+  const archiveMutation = trpc.platformAdmin.archiveOrganization.useMutation({
+    onSuccess: () => {
+      setDangerModal('none');
+      setDangerReason('');
+      setActionMessage({ type: 'ok', text: 'Organization archived (hidden from directory). Restore with Reactivate.' });
+      refetch();
+    },
+    onError: (e) => setActionMessage({ type: 'err', text: e.message }),
+  });
+
+  const reactivateMutation = trpc.platformAdmin.reactivateOrganization.useMutation({
+    onSuccess: () => {
+      setDangerModal('none');
+      setActionMessage({ type: 'ok', text: 'Organization reactivated.' });
+      refetch();
+    },
+    onError: (e) => setActionMessage({ type: 'err', text: e.message }),
+  });
+
+  const permanentDeleteMutation = trpc.platformAdmin.permanentDeleteOrganization.useMutation({
+    onSuccess: () => {
+      setDangerModal('none');
+      setPermanentConfirmName('');
+      router.push('/organizations');
+    },
+    onError: (e) => setActionMessage({ type: 'err', text: e.message }),
+  });
+
+  useEffect(() => {
+    if (!actionMessage) return;
+    const t = setTimeout(() => setActionMessage(null), 10000);
+    return () => clearTimeout(t);
+  }, [actionMessage]);
+
+  const closeDangerModal = () => {
+    setDangerModal('none');
+    setDangerReason('');
+    setPermanentConfirmName('');
+  };
+
+  const openDangerModal = (kind: Exclude<DangerModal, 'none'>) => {
+    setDangerModal(kind);
+    setDangerReason('');
+    setPermanentConfirmName('');
+  };
 
   const handleUpdateSubscription = async () => {
     if (!newPlan || !newStatus) return;
@@ -57,6 +121,7 @@ export default function OrganizationDetailPage() {
       organizationId: orgId,
       plan: newPlan as any,
       status: newStatus as any,
+      expiresAt: newExpiresAt ? new Date(newExpiresAt) : undefined,
     });
   };
 
@@ -73,6 +138,9 @@ export default function OrganizationDetailPage() {
   }
 
   const { organization, usage } = data;
+  const isArchived = Boolean(organization.deletedAt);
+  const permanentDeleteConfirmHint =
+    (organization.name || organization.domain || '').trim() || '(organization has no name or domain — set one before permanent delete)';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -90,17 +158,26 @@ export default function OrganizationDetailPage() {
               <div className="flex items-center space-x-3">
                 <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {organization.name || '(Onboarding Incomplete)'}
-                  </h1>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {organization.name || '(Onboarding Incomplete)'}
+                    </h1>
+                    {isArchived && (
+                      <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-white uppercase tracking-wide">
+                        Archived
+                      </span>
+                    )}
+                  </div>
                   <p className="text-sm text-gray-600">{organization.domain}</p>
                 </div>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <button
+                type="button"
                 onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
-                disabled={impersonateMutation.isPending}
+                disabled={impersonateMutation.isPending || isArchived}
+                title={isArchived ? 'Archived organizations cannot be opened via Login as Admin' : undefined}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
                 <ArrowTopRightOnSquareIcon className="h-4 w-4" />
@@ -117,7 +194,29 @@ export default function OrganizationDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {actionMessage && (
+          <div
+            className={`rounded-lg px-4 py-3 text-sm ${
+              actionMessage.type === 'ok'
+                ? 'bg-green-50 border border-green-200 text-green-900'
+                : 'bg-red-50 border border-red-200 text-red-900'
+            }`}
+            role="alert"
+          >
+            {actionMessage.text}
+            <button
+              type="button"
+              onClick={() => setActionMessage(null)}
+              className="ml-3 underline font-medium"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -278,6 +377,11 @@ export default function OrganizationDetailPage() {
                       setEditingSubscription(true);
                       setNewPlan(organization.subscriptionPlan);
                       setNewStatus(organization.subscriptionStatus);
+                      setNewExpiresAt(
+                        organization.subscriptionExpiresAt
+                          ? new Date(organization.subscriptionExpiresAt).toISOString().slice(0, 16)
+                          : ''
+                      );
                     }}
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium"
                   >
@@ -320,6 +424,19 @@ export default function OrganizationDetailPage() {
                       <option value="CANCELED">Canceled</option>
                       <option value="EXPIRED">Expired</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subscription expires (optional)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={newExpiresAt}
+                      onChange={(e) => setNewExpiresAt(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Leave blank to keep current expiry unchanged when saving.</p>
                   </div>
 
                   <div className="flex space-x-3">
@@ -434,26 +551,198 @@ export default function OrganizationDetailPage() {
                 >
                   View Audit Logs
                 </Link>
-                <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
+                <button type="button" className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
                   Export Metadata
                 </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow border border-red-100 p-6">
+              <h2 className="text-lg font-semibold text-red-900 mb-1 flex items-center gap-2">
+                <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
+                Account control
+              </h2>
+              <p className="text-xs text-gray-600 mb-4">
+                Suspend, archive, reactivate, or permanently delete. All actions are audited.
+              </p>
+              <div className="space-y-2">
+                {!isArchived ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => openDangerModal('suspend')}
+                      className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                    >
+                      Suspend organization
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openDangerModal('archive')}
+                      className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                    >
+                      Archive (soft-delete)
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openDangerModal('reactivate')}
+                    className="w-full text-left px-4 py-2 text-sm text-green-800 hover:bg-green-50 rounded-lg border border-green-200"
+                  >
+                    Reactivate organization
+                  </button>
+                )}
                 <button
-                  onClick={() => {
-                    const reason = prompt('Reason for suspension:');
-                    if (reason) {
-                      // TODO: Call suspend mutation
-                      alert('Organization suspended');
-                    }
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+                  type="button"
+                  onClick={() => openDangerModal('permanent')}
+                  className="w-full text-left px-4 py-2 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg"
                 >
-                  Suspend Organization
+                  Delete permanently…
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {dangerModal !== 'none' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.target === e.currentTarget && closeDangerModal()}
+        >
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
+            {dangerModal === 'suspend' && (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Suspend organization</h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  Cancels subscription, deactivates all users, and records an audit entry. The org remains visible unless you archive it.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mt-4">Reason (required)</label>
+                <textarea
+                  value={dangerReason}
+                  onChange={(e) => setDangerReason(e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="e.g. Chargeback / ToS violation / customer request"
+                />
+                <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!dangerReason.trim() || suspendMutation.isPending}
+                    onClick={() => suspendMutation.mutate({ organizationId: orgId, reason: dangerReason.trim() })}
+                    className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {suspendMutation.isPending ? 'Suspending…' : 'Suspend'}
+                  </button>
+                </div>
+              </>
+            )}
+            {dangerModal === 'archive' && (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Archive organization</h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  Hides the org from the default directory, cancels subscription, and deactivates users. You can reactivate later.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mt-4">Reason (required)</label>
+                <textarea
+                  value={dangerReason}
+                  onChange={(e) => setDangerReason(e.target.value)}
+                  rows={3}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder="e.g. Churned — keep data for 90 days"
+                />
+                <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!dangerReason.trim() || archiveMutation.isPending}
+                    onClick={() => archiveMutation.mutate({ organizationId: orgId, reason: dangerReason.trim() })}
+                    className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {archiveMutation.isPending ? 'Archiving…' : 'Archive'}
+                  </button>
+                </div>
+              </>
+            )}
+            {dangerModal === 'reactivate' && (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Reactivate organization</h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  Clears archive status, sets subscription status, and reactivates users.
+                </p>
+                <label className="block text-sm font-medium text-gray-700 mt-4">Subscription status after reactivate</label>
+                <select
+                  value={reactivateAs}
+                  onChange={(e) => setReactivateAs(e.target.value as 'ACTIVE' | 'TRIAL')}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="TRIAL">TRIAL</option>
+                </select>
+                <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={reactivateMutation.isPending}
+                    onClick={() =>
+                      reactivateMutation.mutate({ organizationId: orgId, subscriptionStatus: reactivateAs })
+                    }
+                    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {reactivateMutation.isPending ? 'Reactivating…' : 'Reactivate'}
+                  </button>
+                </div>
+              </>
+            )}
+            {dangerModal === 'permanent' && (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900">Delete organization permanently</h3>
+                <p className="text-sm text-gray-600 mt-2">
+                  This removes the organization record from the database. This may fail if related data still exists (foreign keys). Type the exact{' '}
+                  <strong>organization name</strong>, or if the name is empty, the <strong>domain</strong>, to confirm.
+                </p>
+                <p className="text-xs font-mono bg-gray-100 rounded px-2 py-1 mt-3 break-all">{permanentDeleteConfirmHint}</p>
+                <label className="block text-sm font-medium text-gray-700 mt-4">Confirmation</label>
+                <input
+                  type="text"
+                  value={permanentConfirmName}
+                  onChange={(e) => setPermanentConfirmName(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  placeholder={permanentDeleteConfirmHint}
+                  autoComplete="off"
+                />
+                <div className="flex justify-end gap-2 mt-6">
+                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={permanentConfirmName.trim().length < 2 || permanentDeleteMutation.isPending}
+                    onClick={() =>
+                      permanentDeleteMutation.mutate({
+                        organizationId: orgId,
+                        confirmationName: permanentConfirmName.trim(),
+                      })
+                    }
+                    className="px-4 py-2 text-sm bg-red-800 text-white rounded-lg hover:bg-red-900 disabled:opacity-50"
+                  >
+                    {permanentDeleteMutation.isPending ? 'Deleting…' : 'Delete permanently'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
