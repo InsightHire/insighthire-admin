@@ -54,6 +54,7 @@ export default function AdminUsersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteFirstName, setInviteFirstName] = useState('');
   const [inviteLastName, setInviteLastName] = useState('');
+  const [inviteSuccessMessage, setInviteSuccessMessage] = useState<string | null>(null);
   const [invitePlatformRoleId, setInvitePlatformRoleId] = useState<string>('platform_role_support');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -79,13 +80,21 @@ export default function AdminUsersPage() {
     { enabled: isAuthed && (showInvite || !!editingAdmin) }
   );
 
+  const { data: emailHealth } = trpc.platformAdmin.getTransactionalEmailHealth.useQuery(undefined, {
+    enabled: isAuthed,
+    refetchOnMount: 'always',
+  });
+
   const { data: auditLogs, isLoading: auditLoading } = trpc.platformAdmin.getPlatformAdminAuditLogs.useQuery(
     { userId: auditUserId!, page: 1, limit: 50 },
     { enabled: !!auditUserId }
   );
 
   const inviteMutation = trpc.platformAdmin.invitePlatformAdmin.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      setInviteSuccessMessage(
+        `Invitation email was sent to ${variables.email}. If nothing arrives within a few minutes, check spam/junk (common with att.net / Yahoo) or click Resend on their row.`
+      );
       setShowInvite(false);
       setInviteEmail('');
       setInviteFirstName('');
@@ -104,7 +113,12 @@ export default function AdminUsersPage() {
   });
 
   const resendMutation = trpc.platformAdmin.resendPlatformAdminInvite.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => {
+      setInviteSuccessMessage(
+        'Invite email was resent. Ask the recipient to check spam/junk; verify Mailgun domain SPF/DKIM if delivery still fails.'
+      );
+      refetch();
+    },
     onError: (e) => alert(e.message),
   });
 
@@ -167,6 +181,44 @@ export default function AdminUsersPage() {
   return (
     <AuthenticatedLayout>
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {inviteSuccessMessage && (
+          <div
+            className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+            role="status"
+          >
+            <span>{inviteSuccessMessage}</span>
+            <button
+              type="button"
+              onClick={() => setInviteSuccessMessage(null)}
+              className="shrink-0 text-emerald-800 underline font-medium"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {emailHealth && !emailHealth.ready && (
+          <div
+            className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+            role="alert"
+          >
+            <p className="font-semibold flex items-center gap-2">
+              <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
+              Transactional email is not configured on the API
+            </p>
+            <p className="mt-1 text-amber-900">
+              Set <code className="bg-amber-100/80 px-1 rounded">MAILGUN_API_KEY</code> (and{' '}
+              <code className="bg-amber-100/80 px-1 rounded">MAILGUN_API_URL=https://api.eu.mailgun.net</code> for EU
+              accounts). Until then, platform admin invites cannot be delivered.
+            </p>
+            <ul className="mt-2 list-disc list-inside text-amber-900 space-y-0.5">
+              {emailHealth.checklist.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Admin Users</h1>
