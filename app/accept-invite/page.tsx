@@ -1,24 +1,9 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
-
-function BrandMark() {
-  return (
-    <div className="flex justify-center mb-6">
-      <Image
-        src="/logo-insighthire-white.png"
-        alt="InsightHire"
-        width={320}
-        height={88}
-        className="h-11 sm:h-12 md:h-14 w-auto max-w-[min(100%,280px)] object-contain object-center"
-        priority
-      />
-    </div>
-  );
-}
+import { InsighthireAuthLogo, AuthPageLayout, AuthPageSuspenseFallback } from '@/components/auth/auth-shell';
 
 function AcceptInviteContent() {
   const router = useRouter();
@@ -60,42 +45,34 @@ function AcceptInviteContent() {
   };
 
   const shell = (children: React.ReactNode) => (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 sm:p-6">
-      <div className="max-w-md w-full">
-        <BrandMark />
-        {children}
-      </div>
-    </div>
+    <AuthPageLayout>
+      <InsighthireAuthLogo />
+      {children}
+    </AuthPageLayout>
   );
 
   if (!token) {
     return shell(
-      <>
-        <div className="text-center mb-2">
-          <p className="text-[11px] font-semibold tracking-[0.2em] text-indigo-300/90 uppercase">Platform Admin</p>
+      <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800 shadow-2xl">
+        <div className="text-center text-red-400">
+          <p className="font-medium text-lg">Invalid invitation link</p>
+          <p className="text-sm mt-3 text-zinc-400 leading-relaxed">
+            This link may be expired or invalid. Ask an admin to resend your invitation.
+          </p>
         </div>
-        <div className="bg-zinc-900 rounded-2xl p-8 border border-zinc-800 shadow-2xl">
-          <div className="text-center text-red-400">
-            <p className="font-medium text-lg">Invalid invitation link</p>
-            <p className="text-sm mt-3 text-zinc-400 leading-relaxed">
-              This link may be expired or invalid. Ask an admin to resend your invitation.
-            </p>
-          </div>
-          <a
-            href="/login"
-            className="block mt-8 text-center text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
-          >
-            Back to login
-          </a>
-        </div>
-      </>
+        <a
+          href="/login"
+          className="block mt-8 text-center text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
+        >
+          Back to sign in
+        </a>
+      </div>
     );
   }
 
   return shell(
     <>
       <div className="text-center mb-8">
-        <p className="text-[11px] font-semibold tracking-[0.2em] text-indigo-300/90 uppercase mb-3">Platform Admin</p>
         <h1 className="text-2xl font-bold text-white tracking-tight">Accept invitation</h1>
         <p className="text-zinc-400 mt-2 text-sm leading-relaxed">Create a password</p>
       </div>
@@ -137,9 +114,7 @@ function AcceptInviteContent() {
           </div>
 
           {error && (
-            <div className="bg-red-950/60 border border-red-800/80 text-red-200 px-4 py-3 rounded-lg text-sm">
-              {error}
-            </div>
+            <div className="bg-red-950/60 border border-red-800/80 text-red-200 px-4 py-3 rounded-lg text-sm">{error}</div>
           )}
 
           <button
@@ -157,21 +132,7 @@ function AcceptInviteContent() {
 
 export default function AcceptInvitePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6 p-6">
-          <Image
-            src="/logo-insighthire-white.png"
-            alt="InsightHire"
-            width={240}
-            height={66}
-            className="h-10 w-auto object-contain opacity-90"
-            priority
-          />
-          <div className="animate-spin h-10 w-10 border-2 border-zinc-600 border-t-indigo-500 rounded-full" />
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthPageSuspenseFallback />}>
       <AcceptInviteContent />
     </Suspense>
   );
