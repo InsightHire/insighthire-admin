@@ -103,7 +103,7 @@ export function PlatformAdminNav() {
   return (
     <nav className="bg-gray-900 border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-14">
+        <div className="flex h-14 items-center justify-between gap-4">
           <div className="flex items-center space-x-6">
             {/* Logo */}
             <Link href="/" className="flex items-center">
@@ -277,9 +277,10 @@ export function PlatformAdminNav() {
             </div>
           </div>
 
-          {/* User Menu */}
-          <div className="relative" ref={userMenuRef}>
+          {/* User Menu — parent row uses items-center so this block aligns with nav links */}
+          <div className="relative shrink-0" ref={userMenuRef}>
             <button
+              type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
             >
