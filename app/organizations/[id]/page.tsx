@@ -35,6 +35,7 @@ export default function OrganizationDetailPage() {
   const [newPlan, setNewPlan] = useState('');
   const [newStatus, setNewStatus] = useState('');
   const [newExpiresAt, setNewExpiresAt] = useState(''); // datetime-local value
+  const [newBillingComped, setNewBillingComped] = useState(false);
   const [dangerModal, setDangerModal] = useState<DangerModal>('none');
   const [dangerReason, setDangerReason] = useState('');
   const [permanentConfirmName, setPermanentConfirmName] = useState('');
@@ -122,6 +123,7 @@ export default function OrganizationDetailPage() {
       plan: newPlan as any,
       status: newStatus as any,
       expiresAt: newExpiresAt ? new Date(newExpiresAt) : undefined,
+      billingComped: newBillingComped,
     });
   };
 
@@ -377,6 +379,7 @@ export default function OrganizationDetailPage() {
                       setEditingSubscription(true);
                       setNewPlan(organization.subscriptionPlan);
                       setNewStatus(organization.subscriptionStatus);
+                      setNewBillingComped(Boolean((organization as { billingComped?: boolean }).billingComped));
                       setNewExpiresAt(
                         organization.subscriptionExpiresAt
                           ? new Date(organization.subscriptionExpiresAt).toISOString().slice(0, 16)
@@ -439,6 +442,24 @@ export default function OrganizationDetailPage() {
                     <p className="text-xs text-gray-500 mt-1">Leave blank to keep current expiry unchanged when saving.</p>
                   </div>
 
+                  <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newBillingComped}
+                        onChange={(e) => setNewBillingComped(e.target.checked)}
+                        className="mt-1 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-900">Complimentary (comped) billing</span>
+                        <span className="block text-xs text-gray-600 mt-1">
+                          Plan is granted without Stripe. Paid MRR on the billing dashboard excludes this org. Use for pilots,
+                          partners, and legacy accounts before Stripe checkout.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+
                   <div className="flex space-x-3">
                     <button
                       onClick={handleUpdateSubscription}
@@ -473,6 +494,18 @@ export default function OrganizationDetailPage() {
                       </span>
                     </div>
                   )}
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                    <span className="text-sm text-gray-600">Billing</span>
+                    {(organization as { billingComped?: boolean }).billingComped ? (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-violet-100 text-violet-900">
+                        Comped
+                      </span>
+                    ) : organization.stripeCustomerId ? (
+                      <span className="text-xs font-medium text-indigo-800">Stripe</span>
+                    ) : (
+                      <span className="text-xs text-gray-500">No Stripe customer</span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
