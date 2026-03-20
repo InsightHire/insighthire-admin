@@ -204,12 +204,12 @@ export default function AdminUsersPage() {
           >
             <p className="font-semibold flex items-center gap-2">
               <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
-              Transactional email is not configured on the API
+              Platform admin invite email is not configured
             </p>
             <p className="mt-1 text-amber-900">
-              Set <code className="bg-amber-100/80 px-1 rounded">MAILGUN_API_KEY</code> (and{' '}
-              <code className="bg-amber-100/80 px-1 rounded">MAILGUN_API_URL=https://api.eu.mailgun.net</code> for EU
-              accounts). Until then, platform admin invites cannot be delivered.
+              Admin invites use <strong>Resend</strong> (account mail), not Mailgun{' '}
+              <code className="bg-amber-100/80 px-1 rounded">in.insighthire.com</code> (journey/candidate pipeline). Set{' '}
+              <code className="bg-amber-100/80 px-1 rounded">RESEND_API_KEY</code> on the API.
             </p>
             <ul className="mt-2 list-disc list-inside text-amber-900 space-y-0.5">
               {emailHealth.checklist.map((line) => (
