@@ -97,9 +97,7 @@ function AcceptInviteContent() {
       <div className="text-center mb-8">
         <p className="text-[11px] font-semibold tracking-[0.2em] text-indigo-300/90 uppercase mb-3">Platform Admin</p>
         <h1 className="text-2xl font-bold text-white tracking-tight">Accept invitation</h1>
-        <p className="text-zinc-400 mt-2 text-sm leading-relaxed">
-          Set your password to join the Platform Admin team
-        </p>
+        <p className="text-zinc-400 mt-2 text-sm leading-relaxed">Create a password</p>
       </div>
 
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-zinc-800">
