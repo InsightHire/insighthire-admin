@@ -97,6 +97,23 @@ export default function OrganizationDetailPage() {
     onError: (e) => setActionMessage({ type: 'err', text: e.message }),
   });
 
+  const backfillOrgDefaultsMutation = trpc.platformAdmin.backfillOrgDefaultSeeds.useMutation({
+    onSuccess: (res) => {
+      const r = res.results[0];
+      const detail =
+        r && 'seeded' in r && r.seeded
+          ? ` templates +${r.seeded.emailTemplates}, reasons +${r.seeded.rejectionReasons}, ratings +${r.seeded.ratingCategories}`
+          : res.backfilledOrganizations === 0
+            ? ' (nothing missing)'
+            : '';
+      setActionMessage({
+        type: 'ok',
+        text: `Org defaults: scanned ${res.organizationsScanned}, backfilled ${res.backfilledOrganizations}${detail}`,
+      });
+    },
+    onError: (e) => setActionMessage({ type: 'err', text: e.message }),
+  });
+
   useEffect(() => {
     if (!actionMessage) return;
     const t = setTimeout(() => setActionMessage(null), 10000);
@@ -174,7 +191,22 @@ export default function OrganizationDetailPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  backfillOrgDefaultsMutation.mutate({
+                    organizationId: orgId,
+                    dryRun: false,
+                  })
+                }
+                disabled={backfillOrgDefaultsMutation.isPending || isArchived}
+                title="Adds missing default email templates, rejection reasons, and rating categories (idempotent)"
+                className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+              >
+                <SparklesIcon className="h-4 w-4 text-amber-500" />
+                {backfillOrgDefaultsMutation.isPending ? 'Seeding…' : 'Seed org defaults'}
+              </button>
               <button
                 type="button"
                 onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
