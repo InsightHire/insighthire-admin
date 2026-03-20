@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
     }
   }, []);
 
-  const loginMutation = trpc.auth.login.useMutation({
+  const loginMutation = trpc.auth.adminLogin.useMutation({
     onSuccess: (data) => {
       if (!data.user?.isPlatformAdmin || data.user.organizationId !== 'platform_00000000000000000') {
         setError('Not a platform administrator');
