@@ -254,7 +254,9 @@ export default function AdminUsersPage() {
               </div>
             </form>
             <p className="text-sm text-gray-500 mt-2">
-              An invite email will be sent with a link to set their password. Link expires in 7 days.
+              An invite email will be sent with a link to set their password (or confirm access if they already have one).
+              Link expires in 7 days. If the email already belongs to a customer-org user, they are granted platform admin on
+              that same account — no duplicate login.
             </p>
           </div>
         )}
