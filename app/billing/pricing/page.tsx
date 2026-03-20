@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { Check, X, Pencil, Save, Sparkles, Users, Loader2 } from 'lucide-react';
+import { Check, X, Pencil, Save, Sparkles, Users, Loader2, ExternalLink, AlertTriangle } from 'lucide-react';
 
 type Plan = {
   id: string;
@@ -35,6 +35,11 @@ export default function BillingPricingPage() {
     enabled: queryEnabled,
   });
 
+  const { data: stripeDx, isLoading: dxLoading } = trpc.platformAdmin.getStripeBillingDiagnostics.useQuery(
+    undefined,
+    { enabled: queryEnabled, refetchOnWindowFocus: true }
+  );
+
   const updateMutation = trpc.platformAdmin.updateBillingPlan.useMutation({
     onSuccess: () => {
       setEditingPlan(null);
@@ -46,6 +51,7 @@ export default function BillingPricingPage() {
   const syncMutation = trpc.platformAdmin.syncStripeCatalogFromDatabase.useMutation({
     onSuccess: (data) => {
       utils.platformAdmin.getBillingPlans.invalidate();
+      utils.platformAdmin.getStripeBillingDiagnostics.invalidate();
       const created = data.results.filter((r) => r.created).length;
       setActionMessage(
         `Synced Stripe: ${data.results.length} plan(s). ${created ? `${created} new price(s) created.` : 'Reused existing prices where amounts match.'}`
@@ -136,6 +142,92 @@ export default function BillingPricingPage() {
           </button>
         </div>
       </div>
+
+      {queryEnabled && dxLoading && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+          Checking Stripe connection…
+        </div>
+      )}
+
+      {/* Stripe visibility: test vs live mode */}
+      {queryEnabled && !dxLoading && stripeDx && (
+        <div
+          className={`rounded-xl border p-4 ${
+            !stripeDx.keyPresent
+              ? 'border-red-200 bg-red-50'
+              : !stripeDx.apiReachable
+                ? 'border-red-200 bg-red-50'
+                : stripeDx.insightHireProducts.length === 0
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-emerald-200 bg-emerald-50'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <AlertTriangle
+              className={`h-5 w-5 shrink-0 mt-0.5 ${
+                !stripeDx.keyPresent || !stripeDx.apiReachable
+                  ? 'text-red-600'
+                  : stripeDx.insightHireProducts.length === 0
+                    ? 'text-amber-600'
+                    : 'text-emerald-600'
+              }`}
+            />
+            <div className="min-w-0 flex-1 text-sm">
+              <p className="font-semibold text-gray-900">Stripe connection (from API server env)</p>
+              {!stripeDx.keyPresent && (
+                <p className="text-red-800 mt-1">No STRIPE_SECRET_KEY on the API — sync cannot create products.</p>
+              )}
+              {stripeDx.keyPresent && (
+                <p className="text-gray-700 mt-1">
+                  Key mode:{' '}
+                  <strong>
+                    {stripeDx.keyMode === 'test'
+                      ? 'TEST (sk_test…)'
+                      : stripeDx.keyMode === 'live'
+                        ? 'LIVE (sk_live…)'
+                        : 'unknown'}
+                  </strong>
+                  . In the Stripe Dashboard, toggle <strong>Test mode</strong> (top right) to match:{' '}
+                  <strong>ON</strong> for test keys, <strong>OFF</strong> for live keys — otherwise products look
+                  &quot;missing&quot;.
+                </p>
+              )}
+              {stripeDx.apiError && (
+                <p className="text-red-800 mt-2 font-mono text-xs break-all">Stripe API: {stripeDx.apiError}</p>
+              )}
+              {stripeDx.apiReachable && (
+                <p className="text-gray-700 mt-2">
+                  InsightHire-tagged products visible to this key:{' '}
+                  <strong>{stripeDx.insightHireProducts.length}</strong>
+                  {stripeDx.insightHireProducts.length > 0 && (
+                    <span className="text-gray-600">
+                      {' '}
+                      ({stripeDx.insightHireProducts.map((p) => p.name).join(', ')})
+                    </span>
+                  )}
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap gap-3">
+                <a
+                  href={stripeDx.keyMode === 'live' ? 'https://dashboard.stripe.com/products' : 'https://dashboard.stripe.com/test/products'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-indigo-600 hover:underline font-medium"
+                >
+                  Open Stripe Products <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => utils.platformAdmin.getStripeBillingDiagnostics.invalidate()}
+                  className="text-gray-600 hover:underline"
+                >
+                  Refresh status
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {actionMessage && (
         <div className="rounded-lg border border-indigo-100 bg-indigo-50/80 px-4 py-3 text-sm text-indigo-950">
