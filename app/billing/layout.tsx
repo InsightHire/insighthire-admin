@@ -9,12 +9,14 @@ import {
   DollarSign,
   AlertCircle,
   Settings,
+  Clock,
   ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/billing', label: 'Overview', icon: DollarSign },
   { href: '/billing/pricing', label: 'Pricing', icon: CreditCard },
+  { href: '/billing/trial-config', label: 'Trial Config', icon: Clock },
   { href: '/billing/collections', label: 'Collections', icon: AlertCircle },
   { href: '/billing/settings', label: 'Settings', icon: Settings },
 ];

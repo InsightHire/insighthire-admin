@@ -334,7 +334,7 @@ export default function BillingDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
           href="/billing/pricing"
           className="p-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md transition-all"
@@ -362,6 +362,22 @@ export default function BillingDashboardPage() {
             <div>
               <h3 className="font-semibold text-gray-900">Collections</h3>
               <p className="text-sm text-gray-500">{overview?.pastDueCount ?? 0} past due</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 text-gray-400" />
+        </Link>
+
+        <Link
+          href="/billing/trial-config"
+          className="p-6 flex items-center justify-between rounded-xl border border-gray-200 bg-white hover:border-cyan-300 hover:shadow-md transition-all"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-cyan-100 rounded-full">
+              <Users className="h-6 w-6 text-cyan-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Trial Config</h3>
+              <p className="text-sm text-gray-500">Duration & reminder emails</p>
             </div>
           </div>
           <ArrowRight className="h-5 w-5 text-gray-400" />
