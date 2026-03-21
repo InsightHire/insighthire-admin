@@ -74,65 +74,70 @@ export default function BillingDashboardPage() {
         </div>
       )}
 
-      {/* Stats Grid — MRR card wider, status cards compact */}
-      <div className="grid grid-cols-2 lg:grid-cols-12 gap-4">
-        {/* MRR — spans 4 cols */}
-        <div className="col-span-2 lg:col-span-4 bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-2.5 bg-emerald-100 rounded-lg">
-              <DollarSign className="h-5 w-5 text-emerald-600" />
-            </div>
-            <p className="text-sm font-medium text-gray-500">Paid MRR</p>
+      {/* Revenue */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-3 mb-1">
+          <div className="p-2 bg-emerald-100 rounded-lg">
+            <DollarSign className="h-5 w-5 text-emerald-600" />
           </div>
-          <p className="text-3xl font-bold text-gray-900">
-            {loadingStats ? '…' : `$${(overview?.mrr ?? 0).toLocaleString()}`}
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Non-comped active subscriptions</p>
+          <p className="text-sm font-medium text-gray-500">Paid Monthly Recurring Revenue</p>
+        </div>
+        <p className="text-4xl font-bold text-gray-900 mt-2">
+          {loadingStats ? '…' : `$${(overview?.mrr ?? 0).toLocaleString()}`}
+        </p>
+        <p className="text-sm text-gray-400 mt-1">From non-comped active subscriptions</p>
+      </div>
+
+      {/* Subscription status cards — 5 across, plenty of room */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+          <div className="p-2.5 bg-emerald-100 rounded-lg">
+            <CheckCircle className="h-5 w-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{loadingStats ? '…' : overview?.activeSubscriptions ?? 0}</p>
+            <p className="text-sm text-gray-500">Active</p>
+          </div>
         </div>
 
-        {/* Comped */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Gift className="h-4 w-4 text-violet-500" />
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Comped</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+          <div className="p-2.5 bg-violet-100 rounded-lg">
+            <Gift className="h-5 w-5 text-violet-600" />
           </div>
-          <p className="text-2xl font-bold text-violet-900">{loadingStats ? '…' : overview?.compedActiveCount ?? 0}</p>
+          <div>
+            <p className="text-2xl font-bold text-violet-900">{loadingStats ? '…' : overview?.compedActiveCount ?? 0}</p>
+            <p className="text-sm text-gray-500">Comped</p>
+          </div>
         </div>
 
-        {/* Active */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Active</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+          <div className="p-2.5 bg-cyan-100 rounded-lg">
+            <Users className="h-5 w-5 text-cyan-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">{loadingStats ? '…' : overview?.activeSubscriptions ?? 0}</p>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{loadingStats ? '…' : overview?.trialCount ?? 0}</p>
+            <p className="text-sm text-gray-500">Trial</p>
+          </div>
         </div>
 
-        {/* Past Due */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Past Due</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+          <div className="p-2.5 bg-amber-100 rounded-lg">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
           </div>
-          <p className="text-2xl font-bold text-amber-600">{loadingStats ? '…' : overview?.pastDueCount ?? 0}</p>
+          <div>
+            <p className="text-2xl font-bold text-amber-600">{loadingStats ? '…' : overview?.pastDueCount ?? 0}</p>
+            <p className="text-sm text-gray-500">Past Due</p>
+          </div>
         </div>
 
-        {/* Trial */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="h-4 w-4 text-cyan-500" />
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Trial</p>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
+          <div className="p-2.5 bg-gray-100 rounded-lg">
+            <XCircle className="h-5 w-5 text-gray-400" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">{loadingStats ? '…' : overview?.trialCount ?? 0}</p>
-        </div>
-
-        {/* Canceled */}
-        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-2">
-            <XCircle className="h-4 w-4 text-gray-400" />
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ended</p>
+          <div>
+            <p className="text-2xl font-bold text-gray-400">{loadingStats ? '…' : overview?.canceledCount ?? 0}</p>
+            <p className="text-sm text-gray-500">Canceled</p>
           </div>
-          <p className="text-2xl font-bold text-gray-400">{loadingStats ? '…' : overview?.canceledCount ?? 0}</p>
         </div>
       </div>
 
