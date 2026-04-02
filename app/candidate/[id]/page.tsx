@@ -20,8 +20,53 @@ import {
   LinkIcon,
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { PlayCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import Hls from 'hls.js';
+
+function HlsVideo({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) return;
+
+    if (src.includes('.m3u8')) {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        video.play().catch(() => {});
+      } else if (Hls.isSupported()) {
+        const hls = new Hls();
+        hlsRef.current = hls;
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {});
+        });
+      }
+    } else {
+      video.src = src;
+      video.play().catch(() => {});
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      playsInline
+      className="w-full max-h-80 rounded-lg"
+    />
+  );
+}
 
 export default function CandidateDetailPage() {
   const params = useParams();
@@ -594,12 +639,7 @@ export default function CandidateDetailPage() {
                                       >
                                         <XMarkIcon className="h-5 w-5" />
                                       </button>
-                                      <video
-                                        src={item.videoUrl}
-                                        controls
-                                        autoPlay
-                                        className="w-full max-h-80 rounded-lg"
-                                      />
+                                      <HlsVideo src={item.videoUrl} />
                                     </div>
                                   ) : (
                                     <button
