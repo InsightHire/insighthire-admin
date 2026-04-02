@@ -21,6 +21,7 @@ import {
   ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
+import { PlayCircleIcon, XMarkIcon } from '@heroicons/react/24/solid';
 
 export default function CandidateDetailPage() {
   const params = useParams();
@@ -29,6 +30,7 @@ export default function CandidateDetailPage() {
   const candidateId = params.id as string;
   const [retrying, setRetrying] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   // Fetch journey breakdown
   const { data: journeyData, isLoading: loadingJourney, error: journeyError, refetch } = trpc.platformAdmin.getCandidateJourneyBreakdown.useQuery(
@@ -580,6 +582,36 @@ export default function CandidateDetailPage() {
                                   <span>Score</span>
                                 </div>
                               </div>
+
+                              {/* Video preview */}
+                              {item.videoUrl && (
+                                <div className="mt-3">
+                                  {playingVideoId === item.id ? (
+                                    <div className="relative rounded-lg overflow-hidden bg-black">
+                                      <button
+                                        onClick={() => setPlayingVideoId(null)}
+                                        className="absolute top-2 right-2 z-10 p-1 bg-black/60 hover:bg-black/80 rounded-full text-white transition-colors"
+                                      >
+                                        <XMarkIcon className="h-5 w-5" />
+                                      </button>
+                                      <video
+                                        src={item.videoUrl}
+                                        controls
+                                        autoPlay
+                                        className="w-full max-h-80 rounded-lg"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setPlayingVideoId(item.id)}
+                                      className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors"
+                                    >
+                                      <PlayCircleIcon className="h-4 w-4" />
+                                      <span>Watch Video</span>
+                                    </button>
+                                  )}
+                                </div>
+                              )}
 
                               {/* Error display */}
                               {(item.transcriptionError || item.aiEvaluationError) && (
