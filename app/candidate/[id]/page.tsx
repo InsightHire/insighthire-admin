@@ -85,6 +85,10 @@ export default function CandidateDetailPage() {
 
   // Retry mutation
   const retryMutation = trpc.platformAdmin.retryStuckCandidate.useMutation();
+  const resetResponseMutation = trpc.platformAdmin.resetJourneyResponse.useMutation();
+  const sendRetakeNoticeMutation = trpc.platformAdmin.sendRetakeNotice.useMutation();
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [sendingRetake, setSendingRetake] = useState(false);
 
   const handleRetry = async () => {
     setRetrying(true);
@@ -96,6 +100,40 @@ export default function CandidateDetailPage() {
       alert('Retry failed: ' + (error as Error).message);
     } finally {
       setRetrying(false);
+    }
+  };
+
+  const handleResetResponse = async (responseId: string) => {
+    if (!confirm('This will delete this response and rewind the candidate to re-record it. Continue?')) return;
+    setResettingId(responseId);
+    try {
+      const result = await resetResponseMutation.mutateAsync({ responseId });
+      await refetch();
+      alert(result.rewindedToNode
+        ? 'Response deleted and session rewound to the interview step.'
+        : 'Response deleted. The candidate can re-record it.');
+    } catch (error) {
+      alert('Reset failed: ' + (error as Error).message);
+    } finally {
+      setResettingId(null);
+    }
+  };
+
+  const handleSendRetakeNotice = async () => {
+    if (!journeyData?.sessionId) return;
+    setSendingRetake(true);
+    try {
+      const result = await sendRetakeNoticeMutation.mutateAsync({
+        candidateId,
+        sessionId: journeyData.sessionId,
+      });
+      alert(result.emailSent
+        ? 'Retake notice sent to the candidate.'
+        : 'Session updated but email could not be sent. Check logs.');
+    } catch (error) {
+      alert('Failed to send retake notice: ' + (error as Error).message);
+    } finally {
+      setSendingRetake(false);
     }
   };
 
@@ -659,8 +697,39 @@ export default function CandidateDetailPage() {
                                   <strong>Error:</strong> {item.transcriptionError || item.aiEvaluationError}
                                 </div>
                               )}
+
+                              {/* Reset response action */}
+                              {item.videoUploaded && (item.processingStatus === 'FAILED' || item.transcriptionError || item.aiEvaluationError) && (
+                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                  <button
+                                    onClick={() => handleResetResponse(item.id)}
+                                    disabled={resettingId === item.id}
+                                    className="flex items-center space-x-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-lg transition-colors"
+                                  >
+                                    <XCircleIcon className="h-4 w-4" />
+                                    <span>{resettingId === item.id ? 'Resetting...' : 'Reset Response'}</span>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ))}
+
+                          {/* Send retake notice at node level */}
+                          {node.hasFailed && journeyData?.sessionId && (
+                            <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
+                              <button
+                                onClick={handleSendRetakeNotice}
+                                disabled={sendingRetake}
+                                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-colors"
+                              >
+                                <EnvelopeIcon className="h-4 w-4" />
+                                <span>{sendingRetake ? 'Sending...' : 'Send Retake Notice to Candidate'}</span>
+                              </button>
+                              <p className="mt-1 text-xs text-gray-500">
+                                Emails the candidate a link to continue and re-record the failed question(s).
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
