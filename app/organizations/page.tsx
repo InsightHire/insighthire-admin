@@ -144,6 +144,15 @@ export default function PlatformAdminOrganizationsPage() {
                     Candidates
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Completed
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    In Progress
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Latest Activity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -190,6 +199,29 @@ export default function PlatformAdminOrganizationsPage() {
                         <ChartBarIcon className="h-4 w-4 text-gray-400 mr-1" />
                         {org._count.candidate_profiles}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {(org as any).completedCandidates > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {(org as any).completedCandidates}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">0</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      {(org as any).inProgressCandidates > 0 ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {(org as any).inProgressCandidates}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">0</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {(org as any).latestActivity
+                        ? new Date((org as any).latestActivity).toLocaleDateString()
+                        : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(org.createdAt).toLocaleDateString()}
