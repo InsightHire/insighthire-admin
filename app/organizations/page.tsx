@@ -226,7 +226,7 @@ export default function PlatformAdminOrganizationsPage() {
                     <td className="px-6 py-4 text-sm text-gray-500">
                       {new Date(org.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 text-sm">
+                    <td className="px-6 py-4 text-sm whitespace-nowrap">
                       <Link
                         href={`/organizations/${org.id}`}
                         className="text-blue-600 hover:text-blue-700 font-medium"
