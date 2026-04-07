@@ -1060,12 +1060,12 @@ function CandidateRow({
             <XCircleIcon className="h-5 w-5 text-gray-300 mx-auto" />
           )}
         </td>
-        <td className="px-4 py-3">
+        <td className="px-4 py-3 whitespace-nowrap">
           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getDerivedStatusBadge(resolveStatus(candidate))}`}>
             {getDerivedStatusLabel(resolveStatus(candidate))}
           </span>
           {candidate.overallScore != null && (
-            <span className="ml-2 text-xs text-gray-500">Score: {Math.round(candidate.overallScore)}</span>
+            <div className="text-xs text-gray-500 mt-0.5">{Math.round(candidate.overallScore)}%</div>
           )}
         </td>
         <td className="w-8" />
@@ -1226,19 +1226,19 @@ function resolveStatus(c: {
 
 function getDerivedStatusLabel(status: string): string {
   switch ((status || '').toUpperCase()) {
-    case 'REPORT_COMPLETE': return 'Report ready';
-    case 'STUCK_IN_SCORING': return 'Stuck in scoring';
-    case 'IN_INTERVIEW': return 'Recording videos';
-    case 'NOT_STARTED': return 'Opened link, not started';
-    case 'INVITED': return 'Invited, awaiting visit';
-    case 'NEW': return 'Not invited yet';
+    case 'REPORT_COMPLETE': return 'Complete';
+    case 'STUCK_IN_SCORING': return 'Stuck';
+    case 'IN_INTERVIEW': return 'Recording';
+    case 'NOT_STARTED': return 'Visited';
+    case 'INVITED': return 'Invited';
+    case 'NEW': return 'New';
     case 'SCORED':
     case 'COMPLETED': return 'Scored';
     case 'IN_PROGRESS':
-    case 'IN_PROG': return 'In progress';
+    case 'IN_PROG': return 'In Progress';
     case 'REJECTED': return 'Rejected';
     case 'HIRED': return 'Hired';
-    default: return status ? String(status) : 'Not invited yet';
+    default: return status ? String(status) : 'New';
   }
 }
 
