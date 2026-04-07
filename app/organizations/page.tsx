@@ -46,7 +46,7 @@ export default function PlatformAdminOrganizationsPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
@@ -66,7 +66,7 @@ export default function PlatformAdminOrganizationsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">

@@ -57,12 +57,12 @@ export function AlertBanner() {
             )}
             {hasWarning && (
               <>
-                <strong>{alerts.warning}</strong> location anomal{alerts.warning !== 1 ? 'ies' : 'y'} detected
+                <strong>{alerts.warning}</strong> journey location anomal{alerts.warning !== 1 ? 'ies' : 'y'} (7d)—review for fraud / VPN patterns
               </>
             )}
             {!hasCritical && !hasWarning && alerts.info > 0 && (
               <>
-                <strong>{alerts.info}</strong> job{alerts.info !== 1 ? 's' : ''} pending for 1+ hour
+                <strong>{alerts.info}</strong> session{alerts.info !== 1 ? 's' : ''} with video in the processing queue &gt;1h—check workers / scoring
               </>
             )}
           </span>
