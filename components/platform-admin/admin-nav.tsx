@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   Mail, 
@@ -106,9 +107,16 @@ export function PlatformAdminNav() {
         <div className="flex h-14 items-center justify-between gap-4">
           <div className="flex items-center space-x-6">
             {/* Logo */}
-            <Link href="/" className="flex items-center">
-              <span className="text-lg font-bold text-white">InsightHire</span>
-              <span className="ml-2 px-2 py-0.5 text-xs font-medium text-gray-400 bg-gray-800 rounded">Admin</span>
+            <Link href="/" className="flex items-center gap-2 shrink-0">
+              <Image
+                src="/logo-insighthire-white.png"
+                alt="InsightHire"
+                width={200}
+                height={48}
+                className="h-8 w-auto object-contain object-left"
+                priority
+              />
+              <span className="px-2 py-0.5 text-xs font-medium text-gray-400 bg-gray-800 rounded">Admin</span>
             </Link>
 
             {/* Nav Items */}
