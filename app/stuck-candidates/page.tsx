@@ -18,9 +18,9 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 
-type StuckReason = 'failed_processing' | 'inactive_24h' | 'pending_too_long' | 'stuck_at_gate';
+type AttentionReason = 'failed_processing' | 'inactive_24h' | 'pending_too_long' | 'stuck_at_gate';
 
-interface StuckCandidate {
+interface AttentionSessionRow {
   id: string;
   candidateId: string;
   candidateName: string;
@@ -31,7 +31,7 @@ interface StuckCandidate {
   organizationName: string | null;
   positionTitle: string | null;
   status: string;
-  stuckReason: StuckReason;
+  stuckReason: AttentionReason;
   stuckSince: string;
   lastActivityAt: string | null;
   completionPercentage: number;
@@ -56,7 +56,7 @@ interface PipelineResponse {
   processedAt: string | null;
 }
 
-export default function StuckCandidatesPage() {
+export default function JourneyAttentionPage() {
   const { isLoading: authLoading } = useAdminAuth();
   const [expandedCandidate, setExpandedCandidate] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
@@ -105,7 +105,12 @@ export default function StuckCandidatesPage() {
   };
 
   const handleDismiss = async (sessionId: string) => {
-    if (!confirm('Remove this candidate from the stuck queue? They will reappear if they become stuck again.')) return;
+    if (
+      !confirm(
+        'Remove this session from the attention list? It can appear again if the same condition triggers later.',
+      )
+    )
+      return;
     setDismissing(prev => new Set(prev).add(sessionId));
     try {
       await dismissMutation.mutateAsync({ sessionId });
@@ -124,7 +129,7 @@ export default function StuckCandidatesPage() {
   };
 
   const handleBulkRetry = async () => {
-    if (!confirm('This will retry ALL failed and stuck jobs across all candidates. Continue?')) {
+    if (!confirm('Retry failed / stuck processing jobs across candidates (technical queue). Continue?')) {
       return;
     }
     try {
@@ -138,30 +143,30 @@ export default function StuckCandidatesPage() {
     }
   };
 
-  const getStuckReasonBadge = (reason: StuckReason) => {
+  const getAttentionReasonBadge = (reason: AttentionReason) => {
     switch (reason) {
       case 'failed_processing':
         return (
           <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-            Failed Processing
+            Technical — failed step
           </span>
         );
       case 'inactive_24h':
         return (
-          <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-            Inactive 24h+
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-800">
+            Engagement — quiet 24h+
           </span>
         );
       case 'pending_too_long':
         return (
-          <span className="px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-800">
-            Pending Too Long
+          <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-900">
+            Pipeline — queue delay
           </span>
         );
       case 'stuck_at_gate':
         return (
           <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-            Stuck at Gate
+            Technical — scoring gate
           </span>
         );
       default:
@@ -199,8 +204,11 @@ export default function StuckCandidatesPage() {
           <div className="flex items-center space-x-3">
             <UserGroupIcon className="h-8 w-8 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Stuck Candidates Monitor</h1>
-              <p className="text-gray-600">Real-time monitoring of candidate journey progress and AI processing</p>
+              <h1 className="text-2xl font-bold text-gray-900">Journey attention center</h1>
+              <p className="text-gray-600">
+                Technical failures and slow jobs are ops issues. “Quiet 24h+” is usually normal candidate drop-off—not
+                broken software.
+              </p>
             </div>
           </div>
           <button
@@ -209,67 +217,83 @@ export default function StuckCandidatesPage() {
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center space-x-2"
           >
             <ArrowPathIcon className={`h-5 w-5 ${bulkRetryMutation.isLoading ? 'animate-spin' : ''}`} />
-            <span>Retry All Failed</span>
+            <span>Retry failed processing</span>
           </button>
         </div>
       </div>
 
-      {/* Alert Summary Cards */}
+      {/* Ops alert strip (matches dashboard semantics) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {/* Critical */}
         <div className={`rounded-lg p-4 ${alerts.critical > 0 ? 'bg-red-50 border-2 border-red-200' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-center space-x-3">
             <ExclamationCircleIcon className={`h-8 w-8 ${alerts.critical > 0 ? 'text-red-600' : 'text-gray-400'}`} />
             <div>
-              <p className="text-sm font-medium text-gray-600">Critical</p>
+              <p className="text-sm font-medium text-gray-600">Technical sessions</p>
               <p className={`text-2xl font-bold ${alerts.critical > 0 ? 'text-red-600' : 'text-gray-900'}`}>
                 {alerts.critical}
               </p>
-              <p className="text-xs text-gray-500">Failed AI processing</p>
+              <p className="text-xs text-gray-500">Failed or long-running processing</p>
             </div>
           </div>
         </div>
 
-        {/* Warning - location anomalies only (inactive candidates not a platform admin concern) */}
-        <div className={`rounded-lg p-4 ${alerts.warning > 0 ? 'bg-yellow-50 border-2 border-yellow-200' : 'bg-gray-50 border border-gray-200'}`}>
+        <div className={`rounded-lg p-4 ${alerts.warning > 0 ? 'bg-amber-50 border-2 border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-center space-x-3">
-            <ExclamationTriangleIcon className={`h-8 w-8 ${alerts.warning > 0 ? 'text-yellow-600' : 'text-gray-400'}`} />
+            <ExclamationTriangleIcon className={`h-8 w-8 ${alerts.warning > 0 ? 'text-amber-600' : 'text-gray-400'}`} />
             <div>
-              <p className="text-sm font-medium text-gray-600">Warning</p>
-              <p className={`text-2xl font-bold ${alerts.warning > 0 ? 'text-yellow-600' : 'text-gray-900'}`}>
+              <p className="text-sm font-medium text-gray-600">Geo (7d)</p>
+              <p className={`text-2xl font-bold ${alerts.warning > 0 ? 'text-amber-700' : 'text-gray-900'}`}>
                 {alerts.warning}
               </p>
-              <p className="text-xs text-gray-500">Location anomalies</p>
+              <p className="text-xs text-gray-500">Location anomaly events</p>
             </div>
           </div>
         </div>
 
-        {/* Info */}
-        <div className={`rounded-lg p-4 ${alerts.info > 0 ? 'bg-blue-50 border-2 border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
+        <div className={`rounded-lg p-4 ${alerts.info > 0 ? 'bg-amber-50 border-2 border-amber-200' : 'bg-gray-50 border border-gray-200'}`}>
           <div className="flex items-center space-x-3">
-            <InformationCircleIcon className={`h-8 w-8 ${alerts.info > 0 ? 'text-blue-600' : 'text-gray-400'}`} />
+            <InformationCircleIcon className={`h-8 w-8 ${alerts.info > 0 ? 'text-amber-700' : 'text-gray-400'}`} />
             <div>
-              <p className="text-sm font-medium text-gray-600">Info</p>
-              <p className={`text-2xl font-bold ${alerts.info > 0 ? 'text-blue-600' : 'text-gray-900'}`}>
+              <p className="text-sm font-medium text-gray-600">Queue backlog</p>
+              <p className={`text-2xl font-bold ${alerts.info > 0 ? 'text-amber-800' : 'text-gray-900'}`}>
                 {alerts.info}
               </p>
-              <p className="text-xs text-gray-500">Pending 1h+</p>
+              <p className="text-xs text-gray-500">Video pending &gt;1h</p>
             </div>
           </div>
         </div>
 
-        {/* Active Sessions */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center space-x-3">
             <CheckCircleIcon className="h-8 w-8 text-green-600" />
             <div>
-              <p className="text-sm font-medium text-gray-600">Active</p>
+              <p className="text-sm font-medium text-gray-600">In progress</p>
               <p className="text-2xl font-bold text-green-600">{healthData?.activeSessions || 0}</p>
-              <p className="text-xs text-gray-500">In-progress journeys</p>
+              <p className="text-xs text-gray-500">Active journey sessions</p>
             </div>
           </div>
         </div>
       </div>
+
+      {stuckData?.summary && (
+        <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm font-medium text-slate-800 mb-2">This list — breakdown</p>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="px-2 py-1 rounded-full bg-red-100 text-red-800">
+              Technical failed: {stuckData.summary.failedProcessing}
+            </span>
+            <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-800">
+              Scoring gate: {stuckData.summary.stuckAtGate}
+            </span>
+            <span className="px-2 py-1 rounded-full bg-slate-200 text-slate-800">
+              Quiet 24h+: {stuckData.summary.inactive24h}
+            </span>
+            <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-900">
+              Queue delay: {stuckData.summary.pendingTooLong}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
@@ -280,10 +304,10 @@ export default function StuckCandidatesPage() {
             onChange={(e) => setStuckTypeFilter(e.target.value as any)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
           >
-            <option value="all">All Issues</option>
-            <option value="failed_processing">Failed Processing Only</option>
-            <option value="inactive">Inactive 24h+ Only</option>
-            <option value="pending_too_long">Pending Too Long Only</option>
+            <option value="all">All categories</option>
+            <option value="failed_processing">Technical — failed only</option>
+            <option value="inactive">Engagement — quiet 24h+ only</option>
+            <option value="pending_too_long">Pipeline — queue delay only</option>
           </select>
           <button
             onClick={() => { refetchStuck(); refetchHealth(); }}
@@ -295,14 +319,13 @@ export default function StuckCandidatesPage() {
         </div>
       </div>
 
-      {/* Stuck Candidates Table */}
+      {/* Attention list */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">
-            Stuck Candidates ({stuckData?.total || 0})
-          </h2>
+          <h2 className="text-lg font-medium text-gray-900">Sessions ({stuckData?.total || 0})</h2>
           <p className="text-sm text-gray-500">
-            Candidates who need attention due to processing issues or inactivity
+            Filter to technical or pipeline items when triaging. Engagement rows are for visibility—tenants nudge
+            candidates; that is not a platform incident.
           </p>
         </div>
 
@@ -310,10 +333,10 @@ export default function StuckCandidatesPage() {
           {loadingStuck ? (
             <div className="px-6 py-8 text-center text-gray-500">
               <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p>Loading stuck candidates...</p>
+              <p>Loading attention list…</p>
             </div>
           ) : (stuckData?.candidates || []).length > 0 ? (
-            (stuckData?.candidates as StuckCandidate[]).map((candidate) => (
+            (stuckData?.candidates as AttentionSessionRow[]).map((candidate) => (
               <div key={candidate.id} className="hover:bg-gray-50">
                 {/* Main Row */}
                 <div className="px-6 py-4">
@@ -326,7 +349,7 @@ export default function StuckCandidatesPage() {
                         >
                           {candidate.candidateName}
                         </a>
-                        {getStuckReasonBadge(candidate.stuckReason)}
+                        {getAttentionReasonBadge(candidate.stuckReason)}
                       </div>
                       {candidate.candidateEmail && (
                         <p className="text-xs text-gray-500 mb-2">{candidate.candidateEmail}</p>
@@ -352,7 +375,7 @@ export default function StuckCandidatesPage() {
                         )}
                         <span className="flex items-center space-x-1">
                           <ClockIcon className="h-3 w-3" />
-                          <span>Stuck {formatTimeAgo(candidate.stuckSince)}</span>
+                          <span>Since {formatTimeAgo(candidate.stuckSince)}</span>
                         </span>
                       </div>
                       <div className="mt-2 flex items-center space-x-4">
@@ -541,8 +564,11 @@ export default function StuckCandidatesPage() {
           ) : (
             <div className="px-6 py-12 text-center">
               <CheckCircleIcon className="h-12 w-12 text-green-500 mx-auto mb-3" />
-              <p className="text-lg font-medium text-gray-900">All Clear!</p>
-              <p className="text-sm text-gray-500 mt-1">No stuck candidates found. All journeys are progressing normally.</p>
+              <p className="text-lg font-medium text-gray-900">Nothing in this list</p>
+              <p className="text-sm text-gray-500 mt-1">
+                No rows match the current filter. Technical and queue issues may still appear on the dashboard when they
+                trigger.
+              </p>
             </div>
           )}
         </div>

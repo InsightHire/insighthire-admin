@@ -270,7 +270,7 @@ export default function OrganizationDetailPage() {
                   </Link>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  Email sent, visited, steps, AI scoring, report. Status: where they are in the journey (invited, recording, stuck, or done).
+                  Email sent, visited, steps, AI scoring, report. Status shows where they are (invited, in progress, waiting on processing, or done).
                 </p>
               </div>
               <PositionCandidatesTrackingSection orgId={orgId} />
@@ -283,7 +283,7 @@ export default function OrganizationDetailPage() {
                   <SparklesIcon className="h-6 w-6 text-amber-600" />
                   <h2 className="text-lg font-semibold text-gray-900">Scoring Health</h2>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">Stuck or failed AI scoring items</p>
+                <p className="text-sm text-gray-500 mt-1">Responses pending, processing, or failed in the AI scoring pipeline</p>
               </div>
               <ScoringHealthSection orgId={orgId} />
             </div>
@@ -1162,7 +1162,7 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
       <div className="flex items-center gap-2 mb-4">
         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
           <ExclamationTriangleIcon className="h-4 w-4" />
-          {stuckCount} stuck item{stuckCount !== 1 ? 's' : ''}
+          {stuckCount} pipeline item{stuckCount !== 1 ? 's' : ''} need attention
         </span>
       </div>
       <div className="space-y-2 max-h-64 overflow-y-auto">
