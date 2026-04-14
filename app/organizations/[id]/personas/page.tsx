@@ -38,6 +38,12 @@ export default function OrganizationPersonasPage() {
               <p className="text-gray-600">{orgData?.organization?.name || 'Organization'}</p>
             </div>
             <Link
+              href="/admin/personas/heygen-catalog"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-800"
+            >
+              HeyGen catalog
+            </Link>
+            <Link
               href={`/admin/personas/create?orgId=${orgId}`}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
             >

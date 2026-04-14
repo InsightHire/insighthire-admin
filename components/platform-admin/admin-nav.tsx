@@ -21,6 +21,7 @@ import {
   CreditCard,
   Settings,
   Users,
+  Images,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -219,7 +220,8 @@ export function PlatformAdminNav() {
                   className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     pathname === '/settings/admins' || pathname?.startsWith('/settings/') ||
                     pathname === '/integrations' || pathname?.startsWith('/integrations/') ||
-                    pathname === '/gdpr' || pathname?.startsWith('/gdpr/')
+                    pathname === '/gdpr' || pathname?.startsWith('/gdpr/') ||
+                    pathname?.startsWith('/admin/personas')
                       ? 'bg-gray-800 text-white'
                       : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }`}
@@ -241,6 +243,18 @@ export function PlatformAdminNav() {
                     >
                       <Users className="h-4 w-4 mr-2" />
                       Admin Users
+                    </Link>
+                    <Link
+                      href="/admin/personas/heygen-catalog"
+                      onClick={() => setSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                        pathname === '/admin/personas/heygen-catalog'
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Images className="h-4 w-4 mr-2" />
+                      HeyGen avatars
                     </Link>
                     <Link
                       href="/integrations"
