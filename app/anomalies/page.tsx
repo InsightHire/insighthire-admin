@@ -99,7 +99,7 @@ export default function AnomaliesPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Journey</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hiring Flow</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location Change</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distance</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>

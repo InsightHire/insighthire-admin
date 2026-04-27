@@ -204,7 +204,7 @@ export default function JourneyAttentionPage() {
           <div className="flex items-center space-x-3">
             <UserGroupIcon className="h-8 w-8 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Journey attention center</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Hiring flow attention center</h1>
               <p className="text-gray-600">
                 Technical failures and slow jobs are ops issues. “Quiet 24h+” is usually normal candidate drop-off—not
                 broken software.
@@ -269,7 +269,7 @@ export default function JourneyAttentionPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">In progress</p>
               <p className="text-2xl font-bold text-green-600">{healthData?.activeSessions || 0}</p>
-              <p className="text-xs text-gray-500">Active journey sessions</p>
+              <p className="text-xs text-gray-500">Active hiring flow sessions</p>
             </div>
           </div>
         </div>

@@ -240,7 +240,7 @@ export default function CandidateDetailPage() {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-xl font-bold text-gray-900">Candidate Not Found</h2>
-            <p className="text-gray-500 mt-2">No journey session found for this candidate</p>
+            <p className="text-gray-500 mt-2">No hiring flow session found for this candidate</p>
             <button onClick={() => router.back()} className="mt-4 text-blue-600 hover:underline">
               Go Back
             </button>
@@ -339,7 +339,7 @@ export default function CandidateDetailPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <LinkIcon className="h-5 w-5 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">Candidate Journey Link</span>
+                    <span className="text-sm font-medium text-gray-700">Candidate hiring flow link</span>
                   </div>
                   <a
                     href={`${journeyData.candidateJourneyUrl}?admin_preview=true`}
@@ -470,7 +470,7 @@ export default function CandidateDetailPage() {
             {/* Progress Bar */}
             <div className="mt-6 pt-6 border-t">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">Journey Progress</span>
+                <span className="text-sm font-medium text-gray-700">Hiring flow progress</span>
                 <span className="text-sm font-bold text-gray-900">{journeyData.completionPercentage}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
@@ -519,8 +519,8 @@ export default function CandidateDetailPage() {
           {/* Journey Nodes Breakdown */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Journey Breakdown</h2>
-              <p className="text-sm text-gray-500">Step-by-step progress through the journey</p>
+              <h2 className="text-lg font-semibold text-gray-900">Hiring flow breakdown</h2>
+              <p className="text-sm text-gray-500">Step-by-step progress through the hiring flow</p>
             </div>
 
             <div className="divide-y divide-gray-100">

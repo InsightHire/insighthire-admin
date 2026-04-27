@@ -191,7 +191,7 @@ export default function OrganizationJourneysPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-900">Error Loading Journeys</h2>
+          <h2 className="text-xl font-bold text-gray-900">Error loading hiring flows</h2>
           <pre className="mt-2 text-sm text-red-600 bg-red-50 p-3 rounded max-w-lg">{error.message}</pre>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function OrganizationJourneysPage() {
                 <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Journey Sessions</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Hiring flow sessions</h1>
                 <p className="text-sm text-gray-500">{orgData?.organization?.name || 'Organization'}</p>
               </div>
             </div>
@@ -312,7 +312,7 @@ export default function OrganizationJourneysPage() {
                   onChange={(e) => { setJourneyFilter(e.target.value); setPage(1); }}
                   className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[200px] truncate"
                 >
-                  <option value="ALL">All Journeys</option>
+                  <option value="ALL">All hiring flows</option>
                   {data.journeyNames.map((j: string) => (
                     <option key={j} value={j}>{j}</option>
                   ))}
@@ -347,7 +347,7 @@ export default function OrganizationJourneysPage() {
                     <tr>
                       <SortHeader label="Rank" sortField="rank" className="w-16" />
                       <SortHeader label="Candidate" sortField="candidateName" />
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Journey / Position</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hiring flow / Position</th>
                       <SortHeader label="Progress" sortField="completionPercentage" />
                       <SortHeader label="Status" sortField="status" />
                       <SortHeader label="Score" sortField="score" className="w-20" />
@@ -518,7 +518,7 @@ export default function OrganizationJourneysPage() {
           ) : (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
               <UserGroupIcon className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No journey sessions found</p>
+              <p className="text-gray-500 font-medium">No hiring flow sessions found</p>
               <p className="text-sm text-gray-400 mt-1">
                 {search || statusFilter !== 'ALL' ? 'Try adjusting your filters' : 'No candidates have started journeys yet'}
               </p>

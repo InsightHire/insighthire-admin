@@ -82,7 +82,7 @@ export default function DashboardPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Platform Dashboard</h1>
           <p className="text-gray-600 mt-1">
-            Journey funnel, pipeline health, and sessions that need a second look—technical issues vs. normal candidate
+            Hiring flow funnel, pipeline health, and sessions that need a second look—technical issues vs. normal candidate
             drop-off.
           </p>
         </div>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
                         'Transcription, AI scoring, or related jobs failed—retry or inspect the pipeline. This is different from candidates who simply have not returned yet.'}
                       {alerts.critical === 0 &&
                         alerts.warning > 0 &&
-                        'IP / geo jumps on journey links—worth reviewing for fraud or shared links. Open Journey attention for details.'}
+                        'IP / geo jumps on hiring flow links—worth reviewing for fraud or shared links. Open Hiring flow attention for details.'}
                       {alerts.critical === 0 &&
                         alerts.warning === 0 &&
                         alerts.info > 0 &&
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 text-white font-medium shrink-0">
-                  <span>Open journey attention</span>
+                  <span>Open hiring flow attention</span>
                   <ArrowRightIcon className="h-5 w-5" />
                 </div>
               </div>
@@ -143,7 +143,7 @@ export default function DashboardPage() {
         )}
 
         {/* Funnel & activity */}
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Journey activity</h2>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Hiring flow activity</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
@@ -152,7 +152,7 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold text-gray-900 mt-1">
                   {isLoading ? '…' : healthData?.activeSessions ?? 0}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Active journey sessions now</p>
+                <p className="text-xs text-gray-500 mt-1">Active hiring flow sessions now</p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <UsersIcon className="h-6 w-6 text-green-600" />
@@ -167,7 +167,7 @@ export default function DashboardPage() {
                 <p className="text-3xl font-bold text-gray-900 mt-1">
                   {isLoading ? '…' : healthData?.completedLast24h ?? 0}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Finished journeys</p>
+                <p className="text-xs text-gray-500 mt-1">Finished hiring flows</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
                 <CheckCircleIcon className="h-6 w-6 text-blue-600" />
@@ -299,7 +299,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Journey attention queue</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Hiring flow attention queue</h2>
                 <p className="text-sm text-gray-500">
                   Mixed list: technical failures, slow queues, and low engagement—filter on the full page.
                 </p>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-right shrink-0 ml-4">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${className}`}>{label}</span>
-                      <p className="text-xs text-gray-500 mt-1">{candidate.completionPercentage}% through journey</p>
+                      <p className="text-xs text-gray-500 mt-1">{candidate.completionPercentage}% through hiring flow</p>
                     </div>
                   </Link>
                 );
@@ -434,7 +434,7 @@ export default function DashboardPage() {
                 )}
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Journey attention</h3>
+                <h3 className="font-semibold text-gray-900">Hiring flow attention</h3>
                 <p className="text-sm text-gray-500">
                   {hasIssues
                     ? `${alerts.total} ops item${alerts.total !== 1 ? 's' : ''} (technical, queue, geo)`

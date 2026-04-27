@@ -325,7 +325,7 @@ export default function OrganizationDetailPage() {
                 <div className="bg-orange-50 rounded-lg p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-orange-600 font-medium">Journeys</p>
+                      <p className="text-sm text-orange-600 font-medium">Hiring Flows</p>
                       <p className="text-2xl font-bold text-orange-900">{usage.total_journeys || 0}</p>
                     </div>
                     <ChartBarIcon className="h-8 w-8 text-orange-600" />
@@ -345,7 +345,7 @@ export default function OrganizationDetailPage() {
 
               {usage.avg_journey_score > 0 && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Average Journey Score</p>
+                  <p className="text-sm text-gray-600">Average hiring flow score</p>
                   <p className="text-3xl font-bold text-gray-900">
                     {Math.round(parseFloat(usage.avg_journey_score))}%
                   </p>
@@ -400,6 +400,16 @@ export default function OrganizationDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Authoring settings (PR — admin alignment) */}
+            <OrgAuthoringSettingsSection
+              organizationId={orgId}
+              settings={(data.organization.settings as Record<string, unknown> | null) || null}
+              onSaved={refetch}
+            />
+
+            {/* Per-org positions readiness summary */}
+            <OrgPositionsReadinessSection organizationId={orgId} />
 
             {/* Subscription Management */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -852,7 +862,7 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
     return (
       <div className="p-8 text-center text-gray-500">
         <DocumentChartBarIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-        <p>No positions with journey tracking yet</p>
+        <p>No positions with hiring flow tracking yet</p>
       </div>
     );
   }
@@ -1175,7 +1185,7 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-medium text-gray-900">{item.candidateName || item.candidateEmail || 'Unknown'}</span>
                 <span className="text-xs text-gray-500">•</span>
-                <span className="text-xs text-gray-600">{item.journeyName || 'Journey'}</span>
+                <span className="text-xs text-gray-600">{item.journeyName || 'Hiring flow'}</span>
                 <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                   item.status === 'FAILED' ? 'bg-red-100 text-red-800' :
                   item.status === 'PROCESSING' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'
@@ -1269,4 +1279,165 @@ function getStatusColor(status: string) {
     case 'EXPIRED': return 'bg-gray-100 text-gray-800';
     default: return 'bg-gray-100 text-gray-800';
   }
+}
+
+/**
+ * Per-org authoring settings (PR — admin alignment).
+ *
+ * Mirrors the customer-side toggle at /dashboard/settings/organization
+ * so platform support can flip the org's autoGenerateQuestionVideos
+ * flag while debugging HeyGen quotas / persona issues.
+ */
+function OrgAuthoringSettingsSection({
+  organizationId,
+  settings,
+  onSaved,
+}: {
+  organizationId: string;
+  settings: Record<string, unknown> | null;
+  onSaved: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const enabled = (settings?.autoGenerateQuestionVideos as boolean | undefined) !== false;
+
+  const setAuthoringSettings = trpc.platformAdmin.setOrgAuthoringSettings.useMutation({
+    onSuccess: () => {
+      utils.platformAdmin.getOrganization.invalidate({ id: organizationId });
+      onSaved();
+    },
+  });
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">Authoring settings</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Same toggles that the org admin sees in their settings, exposed here for support.
+      </p>
+      <label className="flex items-start gap-3 cursor-pointer rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={setAuthoringSettings.isLoading}
+          onChange={(e) => setAuthoringSettings.mutate({
+            organizationId,
+            autoGenerateQuestionVideos: e.target.checked,
+          })}
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">Auto-generate avatar videos on question save</span>
+            {setAuthoringSettings.isLoading && <span className="text-xs text-gray-500">Saving…</span>}
+          </div>
+          <p className="text-xs text-gray-600 mt-1">
+            When on, saving a video question kicks off HeyGen+ElevenLabs rendering automatically.
+            Turn off if this org is hitting quota or persona issues.
+          </p>
+        </div>
+      </label>
+    </div>
+  );
+}
+
+/**
+ * Per-org positions readiness summary.
+ *
+ * Lists open/draft positions in the org with their PR8 readiness state
+ * and concrete blockers, so support can debug "why isn't customer X
+ * able to invite candidates" without bouncing into impersonation.
+ */
+function OrgPositionsReadinessSection({ organizationId }: { organizationId: string }) {
+  const { data, isLoading } = trpc.platformAdmin.getOrgPositionsReadiness.useQuery(
+    { organizationId, limit: 50 },
+    { refetchOnWindowFocus: false },
+  );
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Positions readiness</h2>
+        <p className="text-sm text-gray-500">Loading…</p>
+      </div>
+    );
+  }
+
+  if (!data || data.positions.length === 0) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Positions readiness</h2>
+        <p className="text-sm text-gray-500">No open or draft positions to evaluate.</p>
+      </div>
+    );
+  }
+
+  const { positions, summary } = data;
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Positions readiness</h2>
+          <p className="text-sm text-gray-500">
+            Why each open position can or cannot accept candidates.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="px-2 py-1 rounded-full bg-green-100 text-green-800">
+            {summary.ready} ready
+          </span>
+          <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+            {summary.preparing} preparing
+          </span>
+          <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-900">
+            {summary.needsSetup} needs setup
+          </span>
+        </div>
+      </div>
+
+      <ul className="divide-y divide-gray-100 border border-gray-200 rounded-md">
+        {positions.map((p: { id: string; title: string; status: string; readiness: { state: string; blockers: Array<{ type: string; label: string }>; preparingCount: number } }) => {
+          const stateClass =
+            p.readiness.state === 'READY'
+              ? 'bg-green-50 text-green-800 ring-green-200'
+              : p.readiness.state === 'PREPARING'
+                ? 'bg-blue-50 text-blue-800 ring-blue-200'
+                : 'bg-amber-50 text-amber-900 ring-amber-200';
+          return (
+            <li key={p.id} className="px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
+                    <span className="text-xs text-gray-500">{p.status}</span>
+                    <span
+                      className={
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ' + stateClass
+                      }
+                    >
+                      {p.readiness.state === 'READY' && 'Ready'}
+                      {p.readiness.state === 'PREPARING' && `Preparing ${p.readiness.preparingCount}`}
+                      {p.readiness.state === 'NEEDS_SETUP' && `${p.readiness.blockers.length} blocker${p.readiness.blockers.length === 1 ? '' : 's'}`}
+                    </span>
+                  </div>
+                  {p.readiness.blockers.length > 0 && (
+                    <ul className="mt-1.5 space-y-0.5 text-xs text-amber-900">
+                      {p.readiness.blockers.slice(0, 4).map((b, idx) => (
+                        <li key={`${b.type}-${idx}`} className="flex items-start gap-2">
+                          <span aria-hidden className="text-amber-500">•</span>
+                          <span>{b.label}</span>
+                        </li>
+                      ))}
+                      {p.readiness.blockers.length > 4 && (
+                        <li className="text-gray-500">…and {p.readiness.blockers.length - 4} more</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }

@@ -94,7 +94,7 @@ export function PlatformAdminNav() {
   );
 
   const monitoringItems = [
-    { name: 'Journey attention', href: '/stuck-candidates', icon: AlertTriangle, badge: alertCount, badgeColor: 'bg-red-500' },
+    { name: 'Hiring flow attention', href: '/stuck-candidates', icon: AlertTriangle, badge: alertCount, badgeColor: 'bg-red-500' },
     { name: 'Location Anomalies', href: '/anomalies', icon: MapPin, badge: anomalyCount, badgeColor: 'bg-amber-500' },
     { name: 'Background Jobs', href: '/background-jobs', icon: Activity },
     { name: 'API Health', href: '/api-monitoring', icon: BarChart3 },

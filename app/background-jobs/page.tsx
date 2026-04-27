@@ -399,7 +399,7 @@ export default function BackgroundJobsAdmin() {
               onChange={(e) => setFilters(prev => ({ ...prev, journeyId: e.target.value }))}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
             >
-              <option value="" className="text-gray-900">All Journeys</option>
+              <option value="" className="text-gray-900">All Hiring Flows</option>
               {uniqueJourneys.map(jId => {
                 const job = allJobs.find(j => j.journeyId === jId);
                 return (
@@ -627,7 +627,7 @@ export default function BackgroundJobsAdmin() {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Journey</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hiring Flow</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Completed</th>
@@ -795,7 +795,7 @@ function DetailedJobRow({
                   {job.organizationId && <div><strong>Org ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.organizationId}</code></div>}
                   {job.questionId && <div><strong>Question ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.questionId}</code></div>}
                   {job.assessmentId && <div><strong>Assessment ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.assessmentId}</code></div>}
-                  {job.journeyId && <div><strong>Journey ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.journeyId}</code></div>}
+                  {job.journeyId && <div><strong>Hiring flow ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.journeyId}</code></div>}
                   {job.positionId && <div><strong>Position ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.positionId}</code></div>}
                 </div>
 
