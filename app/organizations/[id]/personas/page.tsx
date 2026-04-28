@@ -73,7 +73,7 @@ export default function OrganizationPersonasPage() {
                   <h3 className="font-semibold text-gray-900">{persona.name}</h3>
                   {persona.is_default && (
                     <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-                      Platform Default
+                      Org Default
                     </span>
                   )}
                 </div>
@@ -113,7 +113,9 @@ export default function OrganizationPersonasPage() {
           <div className="bg-white rounded-lg shadow p-12 text-center">
             <UserCircleIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No AI avatars configured</p>
-            <p className="text-sm text-gray-500 mt-2">Organization is using platform defaults</p>
+            <p className="text-sm text-gray-500 mt-2">
+              This org has no personas. New orgs receive a default persona on creation; older orgs may not. Use Create Persona above.
+            </p>
           </div>
         )}
       </div>
