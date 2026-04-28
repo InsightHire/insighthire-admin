@@ -30,6 +30,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   job_board: 'Job Boards',
   communication: 'Communication',
   automation: 'Automation',
+  meetings: 'Meetings & Calendar',
 };
 
 type ConfigField = {

@@ -9,7 +9,9 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "tsc:baseline:check": "bash scripts/check-tsc-baseline.sh",
+    "tsc:baseline:save": "bash scripts/save-tsc-baseline.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.478.0",

@@ -29,4 +29,6 @@ jobs:
 
       - run: npm ci
       - run: npm test
+      - name: Type-check (baseline guard — fails if tsc error count rises above .tsc-baseline)
+        run: npm run tsc:baseline:check
       - run: npm run build
