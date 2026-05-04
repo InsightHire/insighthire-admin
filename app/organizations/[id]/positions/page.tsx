@@ -94,12 +94,24 @@ export default function OrganizationPositionsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredPositions.map((position: any) => (
-                  <tr key={position.id} className="hover:bg-gray-50">
+                  <tr
+                    key={position.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => {
+                      window.location.href = `/organizations/${orgId}/positions/${position.id}`;
+                    }}
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
                         <BriefcaseIcon className="h-5 w-5 text-gray-400" />
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{position.title}</div>
+                          <Link
+                            href={`/organizations/${orgId}/positions/${position.id}`}
+                            className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {position.title}
+                          </Link>
                           <div className="text-xs text-gray-500 font-mono">{position.id.slice(0, 8)}...</div>
                         </div>
                       </div>

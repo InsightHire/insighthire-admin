@@ -80,62 +80,76 @@ export default function OrganizationCandidatesPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {candidates.map((candidate: any) => (
-                  <tr key={candidate.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
-                            {(candidate.firstName?.[0] || '?').toUpperCase()}
-                            {(candidate.lastName?.[0] || '').toUpperCase()}
+                {candidates.map((candidate: any) => {
+                  const forensicsHref = candidate.positions?.id
+                    ? `/organizations/${orgId}/positions/${candidate.positions.id}/candidates/${candidate.id}`
+                    : `/candidate/${candidate.id}`;
+                  return (
+                    <tr key={candidate.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 flex-shrink-0">
+                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold">
+                              {(candidate.firstName?.[0] || '?').toUpperCase()}
+                              {(candidate.lastName?.[0] || '').toUpperCase()}
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <Link
+                              href={forensicsHref}
+                              className="text-sm font-medium text-gray-900 hover:text-blue-600"
+                            >
+                              {candidate.firstName} {candidate.lastName}
+                            </Link>
                           </div>
                         </div>
-                        <div className="ml-4">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {candidate.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {candidate.positions?.id ? (
                           <Link
-                            href={`/candidate/${candidate.id}`}
-                            className="text-sm font-medium text-gray-900 hover:text-blue-600"
+                            href={`/organizations/${orgId}/positions/${candidate.positions.id}`}
+                            className="text-blue-700 hover:underline"
                           >
-                            {candidate.firstName} {candidate.lastName}
+                            {candidate.positions.title}
                           </Link>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {candidate.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {candidate.positions?.title || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(candidate.status)}`}>
-                        {candidate.status || 'NEW'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {candidate.journeyProgress !== undefined ? (
-                        <div className="flex items-center space-x-2">
-                          <div className="w-24 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${Math.min(100, candidate.journeyProgress || 0)}%` }}
-                            />
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(candidate.status)}`}>
+                          {candidate.status || 'NEW'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {candidate.journeyProgress !== undefined ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-24 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${Math.min(100, candidate.journeyProgress || 0)}%` }}
+                              />
+                            </div>
+                            <span className="text-sm text-gray-600">{candidate.journeyProgress || 0}%</span>
                           </div>
-                          <span className="text-sm text-gray-600">{candidate.journeyProgress || 0}%</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <Link
-                        href={`/candidate/${candidate.id}`}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        View Details →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <Link
+                          href={forensicsHref}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          View AI forensics →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

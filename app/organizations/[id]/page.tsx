@@ -591,6 +591,12 @@ export default function OrganizationDetailPage() {
                   View Candidates ({usage.total_candidates || 0})
                 </Link>
                 <Link
+                  href={`/organizations/${orgId}/positions`}
+                  className="block w-full text-left px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
+                >
+                  Candidate AI Forensics →
+                </Link>
+                <Link
                   href={`/organizations/${orgId}/users`}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
                 >
