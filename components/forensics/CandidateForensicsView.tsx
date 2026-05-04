@@ -154,13 +154,13 @@ function ForensicsHeader({
 
         <div className="flex items-center space-x-3">
           <div className="text-right">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide">AI</div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide" title="AI score for this candidate's current session">AI</div>
             <div className="text-xl font-bold text-blue-700 tabular-nums">
               {aiScore != null ? Number(aiScore).toFixed(0) : '—'}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide">Human</div>
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide" title="Human reviewer score for this candidate (0-100)">Human</div>
             <div className="text-xl font-bold text-emerald-700 tabular-nums">
               {humanScore != null ? humanScore.toFixed(0) : '—'}
             </div>
@@ -288,6 +288,9 @@ function OverviewTab({
   const humanScore = humanFeedback?.application?.humanScore ?? null;
   const sessionDelta = data.deltas?.sessionAverage ?? null;
   const app = humanFeedback?.application;
+  const ratingCount = humanFeedback?.ratings?.length ?? 0;
+  const reviewerRaw = app?.reviewerScore != null ? Number(app.reviewerScore) : null;
+  const sessionScoreSource = data.selectedSession?.scoreSource || null;
 
   const rolledRedFlags: Array<{ source: string; text: string }> = [];
   for (const r of responses) {
@@ -309,15 +312,46 @@ function OverviewTab({
 
   return (
     <div className="space-y-5">
+      <div className="text-xs text-gray-500 italic">
+        All numbers below are for <strong>this candidate&rsquo;s current session only</strong>. They are <strong>not</strong> org-wide or position-wide averages.
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard label="Responses" value={totalResponses} sub={`${aiScored} scored by AI`} />
-        <KpiCard label="AI avg" value={avgAi != null ? avgAi.toFixed(1) : '—'} tone="info" />
-        <KpiCard label="Human avg" value={humanScore != null ? humanScore.toFixed(1) : '—'} tone="info" />
         <KpiCard
-          label="Session Δ"
+          label="Responses"
+          value={totalResponses}
+          sub={`${aiScored} of ${totalResponses} have an AI score`}
+        />
+        <KpiCard
+          label="AI score (this candidate)"
+          value={avgAi != null ? avgAi.toFixed(1) : '—'}
+          tone="info"
+          sub={
+            avgAi != null
+              ? `avg of ${aiScored} AI-scored response${aiScored === 1 ? '' : 's'}${sessionScoreSource === 'derived_from_responses' ? ' · derived' : ''}`
+              : 'no AI score yet'
+          }
+        />
+        <KpiCard
+          label="Human score (this candidate)"
+          value={humanScore != null ? humanScore.toFixed(1) : '—'}
+          tone="info"
+          sub={
+            reviewerRaw != null
+              ? `reviewer gave ${reviewerRaw}/5`
+              : ratingCount > 0
+                ? `avg of ${ratingCount} category rating${ratingCount === 1 ? '' : 's'}`
+                : 'not reviewed yet'
+          }
+        />
+        <KpiCard
+          label="AI − Human Δ"
           value={sessionDelta != null ? `${sessionDelta > 0 ? '+' : ''}${sessionDelta.toFixed(1)}` : '—'}
           tone={sessionDelta == null ? 'neutral' : Math.abs(sessionDelta) < 5 ? 'ok' : Math.abs(sessionDelta) < 12 ? 'warn' : 'alert'}
-          sub={sessionDelta != null ? (Math.abs(sessionDelta) < 5 ? 'aligned' : sessionDelta > 0 ? 'AI higher' : 'AI lower') : undefined}
+          sub={
+            sessionDelta != null
+              ? `${Math.abs(sessionDelta) < 5 ? 'aligned' : sessionDelta > 0 ? 'AI higher than human' : 'AI lower than human'} · this session`
+              : 'need both AI + human scores'
+          }
         />
         <KpiCard
           label="Completion"
