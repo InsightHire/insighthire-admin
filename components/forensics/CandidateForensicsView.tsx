@@ -327,7 +327,9 @@ function OverviewTab({
           tone="info"
           sub={
             avgAi != null
-              ? `avg of ${aiScored} AI-scored response${aiScored === 1 ? '' : 's'}${sessionScoreSource === 'derived_from_responses' ? ' · derived' : ''}`
+              ? sessionScoreSource === 'journey_sessions.overallScore'
+                ? `session overallScore · same as dashboard`
+                : `avg of ${aiScored} scored response${aiScored === 1 ? '' : 's'} · matches dashboard calc`
               : 'no AI score yet'
           }
         />
@@ -359,6 +361,10 @@ function OverviewTab({
           sub={data.selectedSession?.status}
         />
       </div>
+
+      {data.cohort && (
+        <CohortCard cohort={data.cohort} candidateName={`${data.candidate.firstName || ''} ${data.candidate.lastName || ''}`.trim() || 'This candidate'} />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="bg-white border border-gray-200 rounded-lg p-4 lg:col-span-2">
@@ -730,6 +736,104 @@ function CalibrationTab({ data }: { data: any }) {
 
 // ---------- Raw tab ----------
 
+function CohortCard({ cohort, candidateName }: { cohort: any; candidateName: string }) {
+  const pct = cohort.candidatePercentile;
+  const rank = cohort.candidateRank;
+  const score = cohort.candidateScore;
+  const avg = cohort.avgScore;
+  const median = cohort.medianScore;
+  const min = cohort.minScore;
+  const max = cohort.maxScore;
+  const total = cohort.scoredCandidates;
+  const distribution: Array<{ bucket: string; count: number }> = cohort.distribution || [];
+  const maxCount = Math.max(1, ...distribution.map(d => d.count));
+  const vsAvg = score != null && avg != null ? score - avg : null;
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <SectionHeading
+        title="Position cohort context"
+        subtitle={`Every scored candidate on this position — same score source as the recruiter dashboard`}
+      />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <KpiCard
+          label={`${candidateName}'s score`}
+          value={score != null ? Number(score).toFixed(1) : '—'}
+          tone="info"
+        />
+        <KpiCard
+          label="Rank in cohort"
+          value={rank != null ? `#${rank} / ${total}` : '—'}
+          sub={pct != null ? `${pct}${ordinalSuffix(pct)} percentile` : undefined}
+          tone={
+            pct == null ? 'neutral'
+            : pct >= 75 ? 'ok'
+            : pct >= 50 ? 'info'
+            : pct >= 25 ? 'warn'
+            : 'alert'
+          }
+        />
+        <KpiCard
+          label="Cohort avg"
+          value={avg != null ? avg.toFixed(1) : '—'}
+          sub={vsAvg != null ? `${vsAvg > 0 ? '+' : ''}${vsAvg.toFixed(1)} vs this candidate` : undefined}
+        />
+        <KpiCard label="Median" value={median != null ? median.toFixed(1) : '—'} />
+        <KpiCard
+          label="Range"
+          value={min != null && max != null ? `${min.toFixed(0)} – ${max.toFixed(0)}` : '—'}
+          sub={`${cohort.completedCandidates}/${cohort.totalCandidates} completed`}
+        />
+      </div>
+
+      <div>
+        <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          Score distribution ({total} candidates)
+        </div>
+        <div className="space-y-1.5">
+          {distribution.map(d => {
+            const w = (d.count / maxCount) * 100;
+            const contains = score != null && isBucketContaining(d.bucket, score);
+            return (
+              <div key={d.bucket} className="flex items-center space-x-2">
+                <div className="w-14 text-xs text-gray-600 tabular-nums">{d.bucket}</div>
+                <div className="flex-1 bg-gray-100 rounded h-5 relative overflow-hidden">
+                  <div
+                    className={contains ? 'h-5 bg-blue-500' : 'h-5 bg-gray-400'}
+                    style={{ width: `${w}%` }}
+                  />
+                  {contains && score != null && (
+                    <span className="absolute inset-0 flex items-center px-2 text-[10px] text-white font-semibold">
+                      ← {candidateName.split(' ')[0]} ({score.toFixed(0)})
+                    </span>
+                  )}
+                </div>
+                <div className="w-10 text-xs text-gray-700 tabular-nums text-right">{d.count}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="text-[11px] text-gray-500 mt-3">
+          Identical calculation to the recruiter dashboard: <code>journey_sessions.overallScore</code> when populated, otherwise average of <code>aiAnalysis.overallScore || aiAnalysis.score</code> per response.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ordinalSuffix(n: number): string {
+  const s = n % 100;
+  if (s >= 11 && s <= 13) return 'th';
+  const last = n % 10;
+  return last === 1 ? 'st' : last === 2 ? 'nd' : last === 3 ? 'rd' : 'th';
+}
+
+function isBucketContaining(bucket: string, score: number): boolean {
+  const parts = bucket.split('-').map(p => parseInt(p.trim(), 10));
+  if (parts.length !== 2 || !Number.isFinite(parts[0]) || !Number.isFinite(parts[1])) return false;
+  return score >= parts[0] && score <= parts[1];
+}
+
 function RawTab({ data }: { data: any }) {
   return (
     <div className="space-y-3">
@@ -742,6 +846,7 @@ function RawTab({ data }: { data: any }) {
       <JsonViewer value={data.scoringEvents} title="scoring_events" />
       <JsonViewer value={data.rescoreHistory} title="rescore_history" />
       <JsonViewer value={data.calibration} title="tenant_calibration_snapshots (latest)" />
+      <JsonViewer value={data.cohort} title="position cohort (rank, percentile, distribution)" />
       <JsonViewer value={data.activityLogs} title="activity_logs (page visits + anomalies)" />
       <JsonViewer value={data.invitation} title="journey_invitations" />
     </div>
