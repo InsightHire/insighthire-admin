@@ -163,6 +163,12 @@ export function QuestionCard({
               />
             )}
             {innerTab === 'history' && <ScoringHistoryPanel response={response} />}
+    {innerTab === 'history' && response.scoreDebug && (
+      <div className="mt-4">
+        <SectionHeading title="Score provenance (what we looked at)" subtitle="First layer with a positive value wins. Matches the recruiter dashboard." />
+        <JsonViewer value={response.scoreDebug} title="scoreDebug" defaultOpen />
+      </div>
+    )}
           </div>
         </div>
       )}
