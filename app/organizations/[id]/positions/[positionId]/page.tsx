@@ -15,12 +15,28 @@ import {
 
 type StatusFilter = '' | 'NEW' | 'IN_REVIEW' | 'INTERVIEWED' | 'OFFERED' | 'HIRED' | 'REJECTED' | 'WITHDRAWN';
 
+type SortKey =
+  | 'name'
+  | 'status'
+  | 'aiScore'
+  | 'humanScore'
+  | 'delta'
+  | 'absDelta'
+  | 'orchestratorCoverage'
+  | 'completion'
+  | 'lastActivity'
+  | 'appliedAt';
+type SortDir = 'asc' | 'desc';
+
 export default function OrganizationPositionDetailPage() {
   const params = useParams();
   const orgId = params.id as string;
   const positionId = params.positionId as string;
   const { isLoading: authLoading } = useAdminAuth();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  // Default: highest AI score first, so the "best" candidates surface at the top.
+  const [sortKey, setSortKey] = useState<SortKey>('aiScore');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const { data: orgData } = trpc.platformAdmin.getOrganization.useQuery(
     { id: orgId },
@@ -38,8 +54,61 @@ export default function OrganizationPositionDetailPage() {
   );
 
   const position = data?.position as any;
-  const candidates = (data?.candidates ?? []) as any[];
+  const rawCandidates = (data?.candidates ?? []) as any[];
   const calibration = data?.calibration as any;
+
+  const sortedCandidates = (() => {
+    const arr = [...rawCandidates];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const cmpNum = (a: number | null | undefined, b: number | null | undefined) => {
+      // Nulls always last regardless of direction.
+      if (a == null && b == null) return 0;
+      if (a == null) return 1;
+      if (b == null) return -1;
+      return (a - b) * dir;
+    };
+    const cmpStr = (a: string | null | undefined, b: string | null | undefined) => {
+      const av = (a || '').toLowerCase();
+      const bv = (b || '').toLowerCase();
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+      return av.localeCompare(bv) * dir;
+    };
+    const cmpDate = (a: string | null | undefined, b: string | null | undefined) => {
+      const av = a ? new Date(a).getTime() : null;
+      const bv = b ? new Date(b).getTime() : null;
+      return cmpNum(av, bv);
+    };
+    arr.sort((x, y) => {
+      switch (sortKey) {
+        case 'name': return cmpStr(x.candidateName, y.candidateName);
+        case 'status': return cmpStr(x.applicationStatus, y.applicationStatus);
+        case 'aiScore': return cmpNum(x.aiScore, y.aiScore);
+        case 'humanScore': return cmpNum(x.humanScore, y.humanScore);
+        case 'delta': return cmpNum(x.delta, y.delta);
+        case 'absDelta':
+          return cmpNum(x.delta != null ? Math.abs(x.delta) : null, y.delta != null ? Math.abs(y.delta) : null);
+        case 'orchestratorCoverage': return cmpNum(x.orchestratorCoverage, y.orchestratorCoverage);
+        case 'completion': return cmpNum(x.completionPercentage, y.completionPercentage);
+        case 'lastActivity': return cmpDate(x.lastActivityAt, y.lastActivityAt);
+        case 'appliedAt': return cmpDate(x.appliedAt, y.appliedAt);
+        default: return 0;
+      }
+    });
+    return arr;
+  })();
+  const candidates = sortedCandidates;
+
+  const toggleSort = (key: SortKey, _e?: React.MouseEvent) => {
+    if (sortKey === key) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      // Strings default ascending (A→Z); everything else descending (high→low).
+      setSortDir(key === 'name' || key === 'status' ? 'asc' : 'desc');
+    }
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -178,8 +247,12 @@ export default function OrganizationPositionDetailPage() {
         {/* Candidates table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Candidates</h2>
-            <div className="text-xs text-gray-500">Click any row for full AI forensics</div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Candidates <span className="text-sm font-normal text-gray-500">({candidates.length})</span>
+            </h2>
+            <div className="text-xs text-gray-500">
+              Click a header to sort. Shift-click <span className="font-mono">Δ</span> to sort by |Δ| (largest disagreement). Click any row for full AI forensics.
+            </div>
           </div>
           {candidates.length === 0 ? (
             <div className="p-12 text-center text-gray-500 text-sm">
@@ -190,14 +263,14 @@ export default function OrganizationPositionDetailPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <Th>Candidate</Th>
-                    <Th>Status</Th>
-                    <Th>AI score</Th>
-                    <Th>Human score</Th>
-                    <Th>Δ</Th>
-                    <Th>Conv. LLM coverage</Th>
-                    <Th>Progress</Th>
-                    <Th>Last activity</Th>
+                    <SortableTh sortKey="name" current={sortKey} dir={sortDir} onClick={toggleSort}>Candidate</SortableTh>
+                    <SortableTh sortKey="status" current={sortKey} dir={sortDir} onClick={toggleSort}>Status</SortableTh>
+                    <SortableTh sortKey="aiScore" current={sortKey} dir={sortDir} onClick={toggleSort} align="right">AI score</SortableTh>
+                    <SortableTh sortKey="humanScore" current={sortKey} dir={sortDir} onClick={toggleSort} align="right">Human score</SortableTh>
+                    <SortableTh sortKey="delta" current={sortKey} dir={sortDir} onClick={toggleSort} align="right" tooltip="Click to sort by signed Δ. Shift-click to sort by |Δ| (largest disagreement first).">Δ</SortableTh>
+                    <SortableTh sortKey="orchestratorCoverage" current={sortKey} dir={sortDir} onClick={toggleSort} align="right">Conv. LLM coverage</SortableTh>
+                    <SortableTh sortKey="completion" current={sortKey} dir={sortDir} onClick={toggleSort} align="right">Progress</SortableTh>
+                    <SortableTh sortKey="lastActivity" current={sortKey} dir={sortDir} onClick={toggleSort} align="right">Last activity</SortableTh>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -222,6 +295,46 @@ function Th({ children }: { children: React.ReactNode }) {
   return (
     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
       {children}
+    </th>
+  );
+}
+
+function SortableTh({
+  sortKey,
+  current,
+  dir,
+  onClick,
+  children,
+  align = 'left',
+  tooltip,
+}: {
+  sortKey: SortKey;
+  current: SortKey;
+  dir: SortDir;
+  onClick: (k: SortKey, e?: React.MouseEvent) => void;
+  children: React.ReactNode;
+  align?: 'left' | 'right';
+  tooltip?: string;
+}) {
+  const active = current === sortKey;
+  const arrow = !active ? '↕' : dir === 'asc' ? '↑' : '↓';
+  return (
+    <th
+      className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer select-none hover:text-gray-900 ${align === 'right' ? 'text-right' : 'text-left'}`}
+      onClick={(e) => {
+        // Shift-click on Δ column sorts by absolute value (largest disagreement)
+        if (sortKey === 'delta' && e.shiftKey) {
+          onClick('absDelta', e);
+        } else {
+          onClick(sortKey, e);
+        }
+      }}
+      title={tooltip || `Sort by ${typeof children === 'string' ? children : sortKey}`}
+    >
+      <span className={`inline-flex items-center ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
+        <span>{children}</span>
+        <span className={`ml-1 ${active ? 'text-gray-900' : 'text-gray-300'}`}>{arrow}</span>
+      </span>
     </th>
   );
 }
