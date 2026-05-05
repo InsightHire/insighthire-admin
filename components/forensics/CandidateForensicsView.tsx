@@ -214,6 +214,54 @@ function JourneyMap({ data }: { data: any }) {
   }, [nodes, edges]);
 
   const responsesByNode = new Map(((data.responses || []) as any[]).map(r => [r.nodeId, r]));
+  // Decision nodes don't produce journey_responses rows; their evidence is in
+  // journey_decisions. Index by nodeId so a "Score Gate" / "Branch" chip can
+  // light up green when the engine actually evaluated it.
+  const decisionsByNode = new Map(
+    ((data.selectedSession?.decisions || []) as any[]).map(d => [d.nodeId, d]),
+  );
+  // Email send activity per node — for SEND_EMAIL nodes that also don't write
+  // journey_responses but DO have email_sends or activity_logs.
+  const emailLogsByNode = new Map<string, any>();
+  for (const log of ((data.activityLogs?.pageVisits || []) as any[])) {
+    if (log?.metadata?.nodeId) emailLogsByNode.set(log.metadata.nodeId, log);
+  }
+
+  const sessionStatus = String(data.selectedSession?.status || '').toUpperCase();
+  const sessionIsComplete = sessionStatus === 'COMPLETED' || sessionStatus === 'COMPLETE';
+
+  // Classify node "kind" so structural / decision nodes get distinct styling
+  // from "actionable" content nodes that produce journey_responses.
+  type NodeKind = 'start' | 'end' | 'actionable' | 'decision' | 'email' | 'other';
+  const classify = (type: string | undefined | null): NodeKind => {
+    const t = String(type || '').toLowerCase();
+    if (t === 'start') return 'start';
+    if (t === 'end' || t === 'journey_end' || t === 'journey-end') return 'end';
+    if (
+      t === 'video_interview' || t === 'video-interview' || t === 'interview' ||
+      t === 'video_question' || t === 'video-question' ||
+      t === 'assessment' || t === 'document_upload' || t === 'document-upload' ||
+      t === 'coding-challenge' || t === 'coding_challenge' || t === 'code'
+    ) return 'actionable';
+    if (
+      t === 'score_gate' || t === 'score-gate' || t === 'decision' ||
+      t === 'condition' || t === 'branch' || t === 'rule' || t === 'gate'
+    ) return 'decision';
+    if (t === 'send_email' || t === 'send-email' || t === 'email') return 'email';
+    return 'other';
+  };
+
+  // Mark nodes that the engine actually traversed. We compute this from the
+  // index of the last actionable response / decision in the ordered list.
+  // Anything BEFORE that is "passed", anything AFTER is "not yet" (or skipped
+  // if the session is COMPLETED).
+  const lastTouchedIdx = (() => {
+    let idx = -1;
+    ordered.forEach((n, i) => {
+      if (responsesByNode.has(n.id) || decisionsByNode.has(n.id)) idx = i;
+    });
+    return idx;
+  })();
 
   if (!ordered.length) return null;
 
@@ -222,13 +270,86 @@ function JourneyMap({ data }: { data: any }) {
       <div className="flex items-stretch space-x-2 px-2 py-1 min-w-max">
         {ordered.map((n, i) => {
           const r = responsesByNode.get(n.id);
+          const decision = decisionsByNode.get(n.id);
+          const kind = classify(n.type);
           const status = (r?.status || '').toUpperCase();
+
+          // Compute display state per node kind:
+          //   complete  – emerald
+          //   running   – blue
+          //   failed    – red
+          //   pending   – amber (only mid-flow, not after END)
+          //   passed    – gray-green (structural, traversed by the engine)
+          //   skipped   – gray dashed (in a completed session that bypassed it)
+          //   upcoming  – plain neutral (still ahead of where the engine is)
+          let displayState: 'complete' | 'running' | 'failed' | 'pending' | 'passed' | 'skipped' | 'upcoming' = 'upcoming';
+          let subtext: string | null = null;
+
+          if (kind === 'actionable') {
+            if (status === 'COMPLETED' || status === 'COMPLETE') {
+              displayState = 'complete';
+              subtext = 'completed';
+            } else if (status === 'FAILED') {
+              displayState = 'failed';
+              subtext = 'failed';
+            } else if (status === 'PROCESSING' || status === 'IN_PROGRESS') {
+              displayState = 'running';
+              subtext = status.toLowerCase();
+            } else if (status === 'PENDING') {
+              displayState = 'pending';
+              subtext = 'pending';
+            } else if (sessionIsComplete && i <= lastTouchedIdx) {
+              displayState = 'skipped';
+              subtext = 'skipped';
+            } else {
+              displayState = i <= lastTouchedIdx ? 'pending' : 'upcoming';
+              subtext = i <= lastTouchedIdx ? 'awaiting' : 'upcoming';
+            }
+          } else if (kind === 'decision') {
+            if (decision) {
+              displayState = 'passed';
+              subtext = `evaluated → ${decision.decision || 'next'}`;
+            } else if (i < lastTouchedIdx || (sessionIsComplete && i <= ordered.length - 1)) {
+              displayState = 'passed';
+              subtext = 'evaluated';
+            } else {
+              displayState = 'upcoming';
+              subtext = null;
+            }
+          } else if (kind === 'email') {
+            if (i <= lastTouchedIdx || sessionIsComplete) {
+              displayState = 'passed';
+              subtext = 'sent';
+            } else {
+              displayState = 'upcoming';
+              subtext = null;
+            }
+          } else if (kind === 'start') {
+            displayState = 'passed';
+            subtext = 'started';
+          } else if (kind === 'end') {
+            if (sessionIsComplete) {
+              displayState = 'complete';
+              subtext = 'journey complete';
+            } else {
+              displayState = 'upcoming';
+              subtext = null;
+            }
+          } else {
+            // Other / unknown structural nodes: passed if before/at lastTouchedIdx
+            if (i <= lastTouchedIdx) {
+              displayState = 'passed';
+            }
+          }
+
           const tone =
-            status === 'COMPLETED' || status === 'COMPLETE' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-            : status === 'FAILED' ? 'bg-red-50 border-red-200 text-red-800'
-            : status === 'PROCESSING' || status === 'IN_PROGRESS' ? 'bg-blue-50 border-blue-200 text-blue-800'
-            : status === 'PENDING' ? 'bg-amber-50 border-amber-200 text-amber-800'
-            : 'bg-white border-gray-200 text-gray-700';
+            displayState === 'complete' ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+            : displayState === 'failed' ? 'bg-red-50 border-red-300 text-red-900'
+            : displayState === 'running' ? 'bg-blue-50 border-blue-300 text-blue-900'
+            : displayState === 'pending' ? 'bg-amber-50 border-amber-300 text-amber-900'
+            : displayState === 'passed' ? 'bg-gray-100 border-gray-300 text-gray-700'
+            : displayState === 'skipped' ? 'bg-gray-50 border-gray-300 border-dashed text-gray-500'
+            : 'bg-white border-gray-200 text-gray-400';
 
           const label = n.data?.label || n.data?.config?.label || n.type || 'step';
           const score = r?.score != null ? Number(r.score) : null;
@@ -242,6 +363,7 @@ function JourneyMap({ data }: { data: any }) {
                 const el = document.getElementById(`response-${r?.id || n.id}`);
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }}
+              title={`${kind} · ${displayState}`}
               className={clsx(
                 'min-w-[140px] max-w-[180px] border rounded-md px-3 py-2 text-xs transition',
                 tone,
@@ -249,20 +371,48 @@ function JourneyMap({ data }: { data: any }) {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wide text-gray-500">{i + 1}. {n.type}</span>
+                <span className="text-[10px] uppercase tracking-wide opacity-70">
+                  {i + 1}. {n.type}
+                </span>
                 {score != null && (
                   <span className="text-[10px] font-semibold tabular-nums">{score.toFixed(0)}</span>
                 )}
               </div>
               <div className="font-medium truncate">{label}</div>
-              {status && (
-                <div className="text-[10px] text-gray-600 mt-0.5">{status.toLowerCase()}</div>
+              {subtext && (
+                <div className="text-[10px] mt-0.5 opacity-80">{subtext}</div>
               )}
             </a>
           );
         })}
       </div>
+      <div className="text-[10px] text-gray-500 mt-1 ml-2 flex flex-wrap gap-x-3 gap-y-1">
+        <LegendDot tone="emerald" label="completed" />
+        <LegendDot tone="blue" label="running" />
+        <LegendDot tone="amber" label="pending" />
+        <LegendDot tone="red" label="failed" />
+        <LegendDot tone="gray-solid" label="passed (structural)" />
+        <LegendDot tone="gray-dashed" label="skipped" />
+        <LegendDot tone="white" label="upcoming" />
+      </div>
     </div>
+  );
+}
+
+function LegendDot({ tone, label }: { tone: 'emerald' | 'blue' | 'amber' | 'red' | 'gray-solid' | 'gray-dashed' | 'white'; label: string }) {
+  const cls =
+    tone === 'emerald' ? 'bg-emerald-50 border-emerald-300'
+    : tone === 'blue' ? 'bg-blue-50 border-blue-300'
+    : tone === 'amber' ? 'bg-amber-50 border-amber-300'
+    : tone === 'red' ? 'bg-red-50 border-red-300'
+    : tone === 'gray-solid' ? 'bg-gray-100 border-gray-300'
+    : tone === 'gray-dashed' ? 'bg-gray-50 border-gray-300 border-dashed'
+    : 'bg-white border-gray-200';
+  return (
+    <span className="inline-flex items-center space-x-1">
+      <span className={`inline-block w-3 h-3 rounded-sm border ${cls}`} />
+      <span>{label}</span>
+    </span>
   );
 }
 
