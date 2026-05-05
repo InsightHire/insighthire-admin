@@ -244,6 +244,15 @@ export default function OrganizationPositionDetailPage() {
           <KpiCard label="Target hires" value={`${position.currentHires ?? 0} / ${position.targetHires ?? 0}`} />
         </div>
 
+        {data?.diagnostics && scoredCount === 0 && data.diagnostics.candidatesWithSession > 0 && (
+          <div className="mb-6 border-2 border-amber-300 bg-amber-50 rounded-lg p-4 text-xs text-amber-900">
+            <div className="font-semibold mb-1">⚠ AI scored = 0 — diagnostic snapshot</div>
+            <div className="text-amber-800">
+              Of <strong>{data.diagnostics.applications}</strong> applications: <strong>{data.diagnostics.candidatesWithSession}</strong> have a journey session, <strong>{data.diagnostics.candidatesCompleted}</strong> are COMPLETED, <strong>{data.diagnostics.candidatesWithAiScore}</strong> resolved an AI score, <strong>{data.diagnostics.candidatesWithHumanScore}</strong> have a human review, <strong>{data.diagnostics.candidatesWithOrchestratorAssessments}</strong> have orchestrator question assessments. <span className="block mt-1">Click any completed candidate (e.g. Evelyn or Annette) to see the per-response score-source diagnostic banner inline.</span>
+            </div>
+          </div>
+        )}
+
         {/* Candidates table */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b">
