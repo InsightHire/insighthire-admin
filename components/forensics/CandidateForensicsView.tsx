@@ -310,11 +310,15 @@ function OverviewTab({
     }
   }
 
+  const missingAiScore = avgAi == null && responses.length > 0;
+
   return (
     <div className="space-y-5">
       <div className="text-xs text-gray-500 italic">
         All numbers below are for <strong>this candidate&rsquo;s current session only</strong>. They are <strong>not</strong> org-wide or position-wide averages.
       </div>
+
+      {missingAiScore && <ScoreDiagnosticsBanner responses={responses} />}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KpiCard
           label="Responses"
@@ -735,6 +739,99 @@ function CalibrationTab({ data }: { data: any }) {
 }
 
 // ---------- Raw tab ----------
+
+function ScoreDiagnosticsBanner({ responses }: { responses: any[] }) {
+  // Roll up the most common candidate fields across every response so we can
+  // suggest the right key path. Numeric fields 0-100 that appear on every
+  // response are strong candidates for "this is the actual score field".
+  const pathCounts = new Map<string, { count: number; samples: number[] }>();
+  for (const r of responses) {
+    const fields: Array<{ path: string; value: number }> = r.scoreDebug?.numericFieldsOnAi || [];
+    for (const f of fields) {
+      const cur = pathCounts.get(f.path) || { count: 0, samples: [] };
+      cur.count += 1;
+      cur.samples.push(f.value);
+      pathCounts.set(f.path, cur);
+    }
+  }
+  const ranked = Array.from(pathCounts.entries())
+    .map(([path, info]) => ({
+      path,
+      count: info.count,
+      avg: info.samples.reduce((s, v) => s + v, 0) / info.samples.length,
+      samples: info.samples,
+    }))
+    .sort((a, b) => b.count - a.count || b.avg - a.avg);
+
+  return (
+    <div className="border-2 border-amber-300 bg-amber-50 rounded-lg p-4">
+      <div className="flex items-start space-x-2">
+        <span className="text-amber-700 font-bold">⚠</span>
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-amber-900">
+            AI score could not be derived for this session
+          </div>
+          <div className="text-xs text-amber-800 mt-1">
+            We checked every layer (<code>journey_responses.score</code>, <code>ai_evaluations.overallScore</code>, <code>ai_evaluations.hireRecommendation</code>, <code>aiAnalysis.overallScore</code>, <code>aiAnalysis.score</code>, <code>aiAnalysis.overall_score</code>, <code>aiAnalysis.scorePercent</code>, <code>aiAnalysis.overallScore.scorePercent</code>) and got null/0 from all of them on every one of {responses.length} response{responses.length === 1 ? '' : 's'}.
+          </div>
+          {ranked.length > 0 && (
+            <div className="mt-3">
+              <div className="text-xs font-semibold text-amber-900 uppercase tracking-wide mb-1">
+                Numeric 0–100 fields actually present on aiAnalysis
+              </div>
+              <div className="text-xs text-amber-800 mb-2">
+                These are real numbers in the JSON we got back. The actual score field for this session is almost certainly one of these:
+              </div>
+              <table className="text-xs">
+                <thead>
+                  <tr className="text-amber-900 border-b border-amber-300">
+                    <th className="text-left py-1 pr-4">Path</th>
+                    <th className="text-right py-1 pr-4">Present in</th>
+                    <th className="text-right py-1 pr-4">Avg</th>
+                    <th className="text-left py-1">Samples</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ranked.slice(0, 25).map(r => (
+                    <tr key={r.path}>
+                      <td className="py-1 pr-4 font-mono">{r.path}</td>
+                      <td className="py-1 pr-4 text-right tabular-nums">{r.count} / {responses.length}</td>
+                      <td className="py-1 pr-4 text-right tabular-nums">{r.avg.toFixed(1)}</td>
+                      <td className="py-1 font-mono">{r.samples.map(s => s.toFixed(1)).join(', ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <details className="mt-3">
+            <summary className="text-xs font-semibold text-amber-900 cursor-pointer">Per-response diagnostic + raw aiAnalysis snippet</summary>
+            <div className="mt-2 space-y-3">
+              {responses.map((r, i) => (
+                <div key={r.id} className="bg-white border border-amber-200 rounded p-3 text-xs">
+                  <div className="font-semibold mb-1">Response #{i + 1} — {r.nodeType} — {r.question?.text?.slice(0, 80) || r.id}</div>
+                  <div className="text-gray-700">
+                    <span className="font-mono">aiAnalysisType:</span> {r.scoreDebug?.aiAnalysisType ?? '?'}
+                    <span className="ml-3 font-mono">aiAnalysisIsNull:</span> {String(r.scoreDebug?.aiAnalysisIsNull)}
+                    <span className="ml-3 font-mono">wasString:</span> {String(r.scoreDebug?.aiAnalysisWasString)}
+                  </div>
+                  <div className="text-gray-700 mt-1">
+                    <span className="font-mono">topKeys:</span> {(r.scoreDebug?.aiAnalysisTopKeys || []).join(', ') || '—'}
+                  </div>
+                  {r.scoreDebug?.aiAnalysisSnippet && (
+                    <pre className="bg-gray-50 border border-gray-200 rounded p-2 mt-2 overflow-x-auto whitespace-pre text-[10px] max-h-64">
+{r.scoreDebug.aiAnalysisSnippet}
+                    </pre>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CohortCard({ cohort, candidateName }: { cohort: any; candidateName: string }) {
   const pct = cohort.candidatePercentile;
