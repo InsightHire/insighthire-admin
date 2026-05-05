@@ -883,6 +883,22 @@ function CohortCard({ cohort, candidateName }: { cohort: any; candidateName: str
         />
       </div>
 
+      {score == null && (rank != null || cohort.diagnostics) && (
+        <div className="mb-4 border-2 border-amber-300 bg-amber-50 rounded p-3 text-xs">
+          <div className="font-semibold text-amber-900">
+            ⚠ This candidate has cohort context but no derivable session score
+          </div>
+          <div className="text-amber-800 mt-1">
+            The session was loaded but <code>journey_sessions.overallScore</code> couldn&rsquo;t be coerced to a finite number, and per-response derivation also returned null. The session-score derivation block below shows what the raw value was so we can identify the right fix:
+          </div>
+          {cohort.diagnostics && (
+            <pre className="mt-2 bg-white border border-amber-200 rounded p-2 overflow-x-auto whitespace-pre font-mono text-[10px]">
+{JSON.stringify(cohort.diagnostics, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+
       <div>
         <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
           Score distribution ({total} candidates)
