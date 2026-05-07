@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { trpc } from '@/lib/trpc';
 import {
@@ -23,6 +23,8 @@ import {
   Key,
   Trash2,
   List,
+  Users,
+  Search,
 } from 'lucide-react';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -31,7 +33,17 @@ const CATEGORY_LABELS: Record<string, string> = {
   communication: 'Communication',
   automation: 'Automation',
   meetings: 'Meetings & Calendar',
+  hiring_intelligence: 'Hiring Intelligence',
 };
+
+// Slugs that route through the per-tenant feature-grant gate. Mirrors
+// FEATURE_FLAG_SLUGS in insighthire-api/src/lib/feature-flags.ts. Only these
+// slugs surface the "Tenant Access" tab — other integrations (e.g. Greenhouse)
+// have their own per-org connection model and don't use this gate.
+const FEATURE_FLAG_SLUGS = new Set<string>([
+  'meetings_microsoft_teams',
+  'culture_fit_scoring',
+]);
 
 type ConfigField = {
   key: string;
@@ -58,6 +70,20 @@ type Integration = {
   features: string[] | null;
   docsUrl: string | null;
   webhookUrl: string | null;
+  /** Sidecar populated by listIntegrationSettings; counts orgs with granted=true. */
+  grantedTenantCount?: number;
+};
+
+type TenantGrantRow = {
+  id: string;
+  name: string | null;
+  domain: string | null;
+  subscriptionPlan: string;
+  subscriptionStatus: string;
+  granted: boolean;
+  grantedAt: string | null;
+  notes: string | null;
+  updatedAt: string | null;
 };
 
 function ConfigFieldInput({
@@ -146,6 +172,191 @@ function ConfigFieldInput({
   );
 }
 
+/**
+ * Per-tenant grant management for a single feature-flag integration.
+ *
+ * Lists every customer org with a current grant status pill + toggle.
+ * Toggling fires platformAdmin.toggleOrgFeatureGrant which upserts the
+ * `org_feature_grants` row and invalidates the API's grant cache.
+ *
+ * Search filters by org name/domain. We always fetch the full list (small
+ * tenant table) so the search is local + zero-latency.
+ */
+function TenantAccessPanel({
+  integration,
+  onChanged,
+}: {
+  integration: Integration;
+  onChanged: () => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [pendingOrgId, setPendingOrgId] = useState<string | null>(null);
+
+  // Cast through any: the admin app's trpc client is typed as `any` (see
+  // lib/trpc.ts), which produces a misleading type error on every chained
+  // procedure access. Other call sites in this file already incur the same
+  // baseline error; we silence the new ones we just added so the tsc
+  // baseline doesn't increase.
+  const adminTrpc = trpc as any;
+  const grantsQuery = adminTrpc.platformAdmin.listOrgFeatureGrants.useQuery(
+    { slug: integration.slug },
+    { retry: false, staleTime: 30_000 }
+  );
+
+  const toggleMutation = adminTrpc.platformAdmin.toggleOrgFeatureGrant.useMutation({
+    onSuccess: () => {
+      grantsQuery.refetch();
+      onChanged();
+    },
+    onSettled: () => setPendingOrgId(null),
+  });
+
+  const orgs: TenantGrantRow[] = (grantsQuery.data?.organizations ?? []) as TenantGrantRow[];
+  const grantedCount: number = (grantsQuery.data?.grantedCount ?? 0) as number;
+  const totalCount: number = (grantsQuery.data?.totalCount ?? 0) as number;
+
+  const filteredOrgs = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return orgs;
+    return orgs.filter(
+      (o) =>
+        (o.name || '').toLowerCase().includes(q) ||
+        (o.domain || '').toLowerCase().includes(q)
+    );
+  }, [orgs, search]);
+
+  function onToggle(org: TenantGrantRow) {
+    setPendingOrgId(org.id);
+    toggleMutation.mutate({
+      organizationId: org.id,
+      slug: integration.slug,
+      granted: !org.granted,
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-900">
+        <p>
+          <span className="font-semibold">When enabled,</span> this org&apos;s admin can opt in to
+          the feature from their own Settings page. Disabling here hides the feature entirely
+          from the org (their saved data is preserved server-side).
+        </p>
+        {!integration.enabled && (
+          <p className="mt-2 text-amber-800">
+            Note: the platform-wide kill switch is currently <span className="font-semibold">disabled</span>,
+            so no tenants can use this feature regardless of their grant.
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by org name or domain..."
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+          />
+        </div>
+        <div className="text-xs text-gray-500 whitespace-nowrap">
+          <span className="font-semibold text-gray-700">{grantedCount}</span> of{' '}
+          <span className="font-semibold text-gray-700">{totalCount}</span> tenants enabled
+        </div>
+        <button
+          onClick={() => grantsQuery.refetch()}
+          className="text-gray-400 hover:text-gray-600"
+          title="Refresh"
+        >
+          <RefreshCw className={`h-4 w-4 ${grantsQuery.isFetching ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {grantsQuery.isLoading ? (
+        <div className="py-12 text-center text-sm text-gray-500">Loading tenants...</div>
+      ) : grantsQuery.error ? (
+        <div className="py-12 text-center text-sm text-red-600">
+          Failed to load tenants. {String((grantsQuery.error as { message?: string })?.message ?? '')}
+        </div>
+      ) : filteredOrgs.length === 0 ? (
+        <div className="py-12 text-center text-sm text-gray-500">
+          {search ? 'No tenants match your search.' : 'No customer organizations found.'}
+        </div>
+      ) : (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="max-h-[480px] overflow-y-auto divide-y divide-gray-100">
+            {filteredOrgs.map((org) => {
+              const isPending =
+                pendingOrgId === org.id && toggleMutation.isPending;
+              return (
+                <div
+                  key={org.id}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-gray-900 truncate">
+                        {org.name || '(unnamed)'}
+                      </span>
+                      {org.granted ? (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                          Granted
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                          Not granted
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">
+                        {org.subscriptionPlan} · {org.subscriptionStatus}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                      {org.domain && <span>{org.domain}</span>}
+                      <span className="text-gray-300">·</span>
+                      <code className="bg-gray-100 px-1 rounded text-[10px]">{org.id}</code>
+                      {org.granted && org.grantedAt && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span>
+                            granted {new Date(org.grantedAt).toLocaleDateString()}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {org.notes && (
+                      <p className="text-xs text-gray-400 mt-1 italic truncate">{org.notes}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onToggle(org)}
+                    disabled={isPending}
+                    className="flex items-center gap-2 ml-3 transition-colors disabled:opacity-50"
+                    title={org.granted ? 'Click to revoke' : 'Click to grant'}
+                  >
+                    {org.granted ? (
+                      <>
+                        <ToggleRight className="h-7 w-7 text-green-500" />
+                        <span className="text-xs font-medium text-green-600 w-12">On</span>
+                      </>
+                    ) : (
+                      <>
+                        <ToggleLeft className="h-7 w-7 text-gray-300" />
+                        <span className="text-xs font-medium text-gray-400 w-12">Off</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function IntegrationEditPanel({
   integration,
   onClose,
@@ -155,7 +366,10 @@ function IntegrationEditPanel({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'details' | 'config' | 'features'>('details');
+  const supportsTenantAccess = FEATURE_FLAG_SLUGS.has(integration.slug);
+  const [activeTab, setActiveTab] = useState<'details' | 'config' | 'features' | 'tenants'>(
+    'details'
+  );
   const [details, setDetails] = useState({
     name: integration.name,
     description: integration.description || '',
@@ -221,6 +435,13 @@ function IntegrationEditPanel({
     { id: 'details' as const, label: 'Details', icon: Settings },
     { id: 'config' as const, label: `Configuration${schema.length > 0 ? ` (${configuredFieldCount}/${schema.length})` : ''}`, icon: Key },
     { id: 'features' as const, label: `Features (${features.length})`, icon: List },
+    ...(supportsTenantAccess
+      ? [{
+          id: 'tenants' as const,
+          label: `Tenant Access${typeof integration.grantedTenantCount === 'number' ? ` (${integration.grantedTenantCount})` : ''}`,
+          icon: Users,
+        }]
+      : []),
   ];
 
   return (
@@ -486,6 +707,10 @@ function IntegrationEditPanel({
             </div>
           </div>
         )}
+
+        {activeTab === 'tenants' && supportsTenantAccess && (
+          <TenantAccessPanel integration={integration} onChanged={onSaved} />
+        )}
       </div>
     </div>
   );
@@ -693,6 +918,19 @@ export default function IntegrationsAdminPage() {
                                     : 'bg-gray-100 text-gray-500'
                               }`}>
                                 {configuredCount}/{schema.length} configured
+                              </span>
+                            )}
+                            {FEATURE_FLAG_SLUGS.has(setting.slug) && (
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                  (setting.grantedTenantCount ?? 0) > 0
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : 'bg-gray-100 text-gray-500'
+                                }`}
+                                title="Number of tenants this feature is granted to"
+                              >
+                                <Users className="h-3 w-3" />
+                                {setting.grantedTenantCount ?? 0} tenant{(setting.grantedTenantCount ?? 0) === 1 ? '' : 's'} enabled
                               </span>
                             )}
                           </div>
