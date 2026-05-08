@@ -678,6 +678,27 @@ export default function OrganizationDetailPage() {
                 >
                   View Candidate Culture Signals ({cultureSummary?.counts.candidateSignals ?? 0})
                 </Link>
+                <Link
+                  href={`/organizations/${orgId}/culture#careers`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  title={
+                    cultureSummary?.careersPage?.published
+                      ? `Public at ${cultureSummary?.careersPage?.url ?? '/careers/<slug>'}`
+                      : 'Org admin has not published the careers page yet'
+                  }
+                >
+                  Careers Page (
+                  {cultureSummary?.careersPage
+                    ? cultureSummary.careersPage.published
+                      ? 'Published'
+                      : cultureSummary?.profile?.exists === false ||
+                          cultureSummary?.status === 'PLATFORM_OFF' ||
+                          cultureSummary?.status === 'NOT_GRANTED'
+                        ? 'N/A'
+                        : 'Not Published'
+                    : '—'}
+                  )
+                </Link>
                 <div className="my-2 border-t border-gray-100" />
 
                 <Link
