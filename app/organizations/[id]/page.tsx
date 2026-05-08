@@ -46,6 +46,16 @@ export default function OrganizationDetailPage() {
     enabled: !authLoading,
   });
 
+  // PR — Culture: lightweight per-org counts + status for the Quick Actions
+  // sidebar. Always queried (regardless of culture grant state) so platform
+  // ops can see at-a-glance "no culture configured" without clicking in.
+  // Cast through `any` to avoid the repo-wide createTRPCReact<any>() type
+  // collision diagnostic that fires on every property access.
+  const { data: cultureSummary } = (trpc as unknown as any).platformAdmin.org.cultureSummary.useQuery(
+    { organizationId: orgId },
+    { enabled: !authLoading },
+  );
+
   const updateSubscription = trpc.platformAdmin.updateSubscription.useMutation({
     onSuccess: () => {
       setEditingSubscription(false);
@@ -626,6 +636,50 @@ export default function OrganizationDetailPage() {
                 >
                   View AI Avatars
                 </Link>
+
+                {/* Culture — 6 entries, always shown (counts will read 0 if
+                    the org doesn't have culture configured) so platform ops
+                    can see "no culture configured" at-a-glance without
+                    clicking in. */}
+                <div className="my-2 border-t border-gray-100" />
+                <Link
+                  href={`/organizations/${orgId}/culture`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Culture Profiles ({cultureSummary?.counts.profiles ?? 0})
+                </Link>
+                <Link
+                  href={`/organizations/${orgId}/culture#groups`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Culture Groups ({cultureSummary?.counts.groups ?? 0})
+                </Link>
+                <Link
+                  href={`/organizations/${orgId}/culture#quiz-templates`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Culture Quiz Templates ({cultureSummary?.counts.quizTemplates ?? 0})
+                </Link>
+                <Link
+                  href={`/organizations/${orgId}/culture#interview-templates`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Culture Interview Templates ({cultureSummary?.counts.interviewTemplates ?? 0})
+                </Link>
+                <Link
+                  href={`/organizations/${orgId}/culture#scenarios`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Culture Scenarios ({cultureSummary?.counts.scenarios ?? 0})
+                </Link>
+                <Link
+                  href={`/organizations/${orgId}/culture#candidate-signals`}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                >
+                  View Candidate Culture Signals ({cultureSummary?.counts.candidateSignals ?? 0})
+                </Link>
+                <div className="my-2 border-t border-gray-100" />
+
                 <Link
                   href={`/audit?org=${orgId}`}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
