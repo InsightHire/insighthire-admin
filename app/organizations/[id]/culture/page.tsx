@@ -276,6 +276,13 @@ export default function OrganizationCulturePage() {
       { enabled },
     );
 
+  // Part B — recent reads of culture signals (compliance audit log).
+  const { data: accessLogData, isLoading: loadingAccessLog } =
+    trpcAny.platformAdmin.org.cultureSignalAccessLog.useQuery(
+      { organizationId: orgId, limit: 50 },
+      { enabled },
+    );
+
   const impersonateMutation = trpcAny.platformAdmin.impersonateOrganization.useMutation({
     onSuccess: (data: { loginUrl: string }) => {
       window.open(data.loginUrl, '_blank');
@@ -847,8 +854,126 @@ export default function OrganizationCulturePage() {
             </div>
           )}
         </CollapsibleSection>
+
+        {/*
+          Part B — SOC2 / GDPR compliance trail of every read of a
+          candidate_culture_signals row. Sits below the signals table
+          so platform support can pivot from "what scores exist for
+          this org" to "who has been looking at them" without leaving
+          the page. Access is platform-admin only by virtue of the
+          parent route guard. Logging is fire-and-forget and dedupes
+          repeat reads from the position pipeline within 5 minutes.
+        */}
+        <CollapsibleSection
+          id="signal-access-log"
+          title="Recent reads of culture signals"
+          count={accessLogData?.accesses?.length}
+        >
+          {loadingAccessLog ? (
+            <SectionLoading />
+          ) : !accessLogData ||
+            !accessLogData.accesses ||
+            accessLogData.accesses.length === 0 ? (
+            <EmptyHint>
+              No <code>candidate_culture_signal_access_log</code> rows yet.
+              Either no recruiter has opened a Culture Fit card / pipeline
+              column for this org, or culture-fit scoring isn&apos;t in use
+              here. Logging is fire-and-forget and never blocks reads.
+            </EmptyHint>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">When</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">Reader</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">Candidate</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">Position</th>
+                    <th className="px-4 py-2 text-left font-medium text-gray-600">Surface</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {accessLogData.accesses.map((a: any) => (
+                    <tr key={a.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">
+                        {formatDate(a.readAt)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="text-gray-900 font-medium">
+                          {a.readByName}
+                        </span>
+                        {a.readByEmail && (
+                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                            {a.readByEmail}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="text-gray-800">{a.candidateName}</span>
+                        {a.candidateEmail && (
+                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                            {a.candidateEmail}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-gray-700">{a.positionTitle}</td>
+                      <td className="px-4 py-2">
+                        <SourcePill source={a.source} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {accessLogData.nextCursor && (
+                <p className="mt-4 text-xs text-gray-500">
+                  Showing the most recent 50 reads. Older entries remain in
+                  the audit log and can be queried directly for deeper
+                  forensic investigations.
+                </p>
+              )}
+            </div>
+          )}
+        </CollapsibleSection>
       </div>
     </div>
+  );
+}
+
+function SourcePill({ source }: { source: string }) {
+  const map: Record<string, { label: string; cls: string; help: string }> = {
+    candidate_detail: {
+      label: 'Candidate Fit card',
+      cls: 'bg-indigo-100 text-indigo-800 ring-indigo-200',
+      help: 'Recruiter opened the Culture Fit card on the candidate detail page.',
+    },
+    position_list_column: {
+      label: 'Position pipeline',
+      cls: 'bg-blue-100 text-blue-800 ring-blue-200',
+      help: 'Culture column on the position pipeline list (deduped per recruiter+position per 5 min).',
+    },
+    platform_admin: {
+      label: 'Platform admin',
+      cls: 'bg-purple-100 text-purple-800 ring-purple-200',
+      help: 'Platform admin opened the org culture page (this page).',
+    },
+    export: {
+      label: 'Export',
+      cls: 'bg-amber-100 text-amber-900 ring-amber-200',
+      help: 'Bulk export job touched the signal row.',
+    },
+  };
+  const meta = map[source] ?? {
+    label: source,
+    cls: 'bg-gray-100 text-gray-700 ring-gray-200',
+    help: source,
+  };
+  return (
+    <span
+      title={meta.help}
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ring-1 ${meta.cls}`}
+    >
+      {meta.label}
+    </span>
   );
 }
 
