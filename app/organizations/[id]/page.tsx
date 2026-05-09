@@ -56,6 +56,13 @@ export default function OrganizationDetailPage() {
     { enabled: !authLoading },
   );
 
+  // Careers page roll-up (public job listings + direct apply). Same
+  // pattern as cultureSummary — always queried, cast through `any`.
+  const { data: careersSummary } = (trpc as unknown as any).careers.platform.summary.useQuery(
+    { organizationId: orgId },
+    { enabled: !authLoading },
+  );
+
   const updateSubscription = trpc.platformAdmin.updateSubscription.useMutation({
     onSuccess: () => {
       setEditingSubscription(false);
@@ -678,27 +685,37 @@ export default function OrganizationDetailPage() {
                 >
                   View Candidate Culture Signals ({cultureSummary?.counts.candidateSignals ?? 0})
                 </Link>
-                <Link
-                  href={`/organizations/${orgId}/culture#careers`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-                  title={
-                    cultureSummary?.careersPage?.published
-                      ? `Public at ${cultureSummary?.careersPage?.url ?? '/careers/<slug>'}`
-                      : 'Org admin has not published the careers page yet'
-                  }
-                >
-                  Careers Page (
-                  {cultureSummary?.careersPage
-                    ? cultureSummary.careersPage.published
-                      ? 'Published'
-                      : cultureSummary?.profile?.exists === false ||
-                          cultureSummary?.status === 'PLATFORM_OFF' ||
-                          cultureSummary?.status === 'NOT_GRANTED'
-                        ? 'N/A'
-                        : 'Not Published'
-                    : '—'}
-                  )
-                </Link>
+                <div className="my-2 border-t border-gray-100" />
+
+                {/*
+                  Public careers page (job listings + direct apply).
+                  Sourced from `careers.platform.summary` — surfaces
+                  enabled-state + published count + the public URL so
+                  platform support can pop into the org's careers page
+                  in a new tab.
+                */}
+                {careersSummary?.publicUrl ? (
+                  <a
+                    href={careersSummary.publicUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                    title={`Open ${careersSummary.publicUrl} in a new tab`}
+                  >
+                    Careers Page (Enabled · {careersSummary.publishedPositionCount} listed) ↗
+                  </a>
+                ) : (
+                  <span
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-500 rounded-lg cursor-default"
+                    title={
+                      careersSummary
+                        ? 'Org admin has not enabled the public careers page yet.'
+                        : 'Loading…'
+                    }
+                  >
+                    Careers Page ({careersSummary ? 'Disabled' : '—'})
+                  </span>
+                )}
                 <div className="my-2 border-t border-gray-100" />
 
                 <Link
