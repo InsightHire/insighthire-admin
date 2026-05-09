@@ -1,6 +1,12 @@
 /**
  * Platform Admin → Org → Company Culture (read-only).
  *
+ * Phase 7.1 — quiz pivot: with sliders the quiz no longer materializes
+ * a `culture_quiz_templates` row or a per-org scenario library, so the
+ * #quiz-templates and #scenarios sections are gone. The recruiter-side
+ * surface is now just "what dimensions does this profile have" — same
+ * data the #profile + #groups sections already render.
+ *
  * Single coherent inspection page for everything related to an org's
  * Company Culture configuration:
  *   - Status pill: Enabled / Granted but not configured / Not granted /
@@ -9,13 +15,12 @@
  *     scoring weight, profile version, last-updated.
  *   - Stacked sections (anchored, deep-linkable from the Quick Actions
  *     panel):
- *       #profile           — Org default culture profile (8 dims, values,
- *                            dealbreakers).
- *       #groups            — Culture groups + their dimensions.
- *       #quiz-templates    — culture_quiz_templates with snapshot items.
+ *       #profile             — Org default culture profile (dims, values,
+ *                              dealbreakers).
+ *       #groups              — Culture groups + their dimensions.
  *       #interview-templates — interview_templates filtered to CULTURAL_FIT.
- *       #scenarios         — org_culture_quiz_scenarios grouped by dimension.
- *       #candidate-signals — last 50 candidate_culture_signals.
+ *       #candidate-signals   — last 50 candidate_culture_signals.
+ *       #signal-access-log   — last 50 reads of culture-signal data.
  *
  * Read-only by contract. Mutations (toggle / archive / regenerate / etc.)
  * happen via the existing "Login as Admin" affordance on the parent org
@@ -41,7 +46,6 @@ import {
   ExclamationTriangleIcon,
   InformationCircleIcon,
   XCircleIcon,
-  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 type CultureStatus =
@@ -57,13 +61,6 @@ interface DimensionRow {
   label: string;
   leftAnchor: string;
   rightAnchor: string;
-}
-
-interface QuizOption {
-  id?: unknown;
-  label?: unknown;
-  dimensionValue?: unknown;
-  weight?: unknown;
 }
 
 function statusPill(status: CultureStatus | undefined) {
@@ -219,11 +216,8 @@ export default function OrganizationCulturePage() {
   const orgId = params.id as string;
 
   const [includeArchivedGroups, setIncludeArchivedGroups] = useState(false);
-  const [includeArchivedQuizTemplates, setIncludeArchivedQuizTemplates] = useState(false);
   const [includeArchivedInterviewTemplates, setIncludeArchivedInterviewTemplates] = useState(false);
-  const [includeArchivedScenarios, setIncludeArchivedScenarios] = useState(false);
 
-  const [openTemplateId, setOpenTemplateId] = useState<string | null>(null);
   const [openInterviewTemplateId, setOpenInterviewTemplateId] = useState<string | null>(null);
   const [openGroupId, setOpenGroupId] = useState<string | null>(null);
 
@@ -252,21 +246,9 @@ export default function OrganizationCulturePage() {
       { enabled },
     );
 
-  const { data: quizTemplatesData, isLoading: loadingQuizTemplates } =
-    trpcAny.platformAdmin.org.cultureQuizTemplates.useQuery(
-      { organizationId: orgId, includeArchived: includeArchivedQuizTemplates },
-      { enabled },
-    );
-
   const { data: interviewTemplatesData, isLoading: loadingInterviewTemplates } =
     trpcAny.platformAdmin.org.cultureInterviewTemplates.useQuery(
       { organizationId: orgId, includeArchived: includeArchivedInterviewTemplates },
-      { enabled },
-    );
-
-  const { data: scenariosData, isLoading: loadingScenarios } =
-    trpcAny.platformAdmin.org.cultureScenarios.useQuery(
-      { organizationId: orgId, includeArchived: includeArchivedScenarios },
       { enabled },
     );
 
@@ -562,95 +544,6 @@ export default function OrganizationCulturePage() {
         </CollapsibleSection>
 
         <CollapsibleSection
-          id="quiz-templates"
-          title="Quiz templates"
-          count={quizTemplatesData?.templates.length}
-          toolbar={
-            <ArchiveToggle
-              checked={includeArchivedQuizTemplates}
-              onChange={setIncludeArchivedQuizTemplates}
-            />
-          }
-        >
-          {loadingQuizTemplates ? (
-            <SectionLoading />
-          ) : !quizTemplatesData || quizTemplatesData.templates.length === 0 ? (
-            <EmptyHint>No culture quiz templates have been generated for this org.</EmptyHint>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Title</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Profile source</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Items</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Generated</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Updated</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {quizTemplatesData.templates.map((t: any) => {
-                    const isOpen = openTemplateId === t.id;
-                    return (
-                      <>
-                        <tr
-                          key={t.id}
-                          className="hover:bg-blue-50/50 cursor-pointer"
-                          onClick={() => setOpenTemplateId(isOpen ? null : t.id)}
-                        >
-                          <td className="px-4 py-2 font-medium text-gray-900">
-                            <div className="flex items-center gap-2">
-                              {isOpen ? (
-                                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
-                              ) : (
-                                <ChevronRightIcon className="h-4 w-4 text-gray-500" />
-                              )}
-                              <span>{t.title}</span>
-                            </div>
-                            {t.description && (
-                              <p className="text-xs text-gray-500 ml-6 truncate max-w-md">
-                                {t.description}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-4 py-2 text-gray-700">{t.cultureProfileSourceLabel}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{t.itemCount}</td>
-                          <td className="px-4 py-2 text-right text-gray-500">
-                            {formatDate(t.generatedAt)} (v{t.profileVersionAtGen})
-                          </td>
-                          <td className="px-4 py-2 text-right text-gray-500">
-                            {formatDate(t.updatedAt)}
-                          </td>
-                          <td className="px-4 py-2">
-                            {t.isActive ? (
-                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">
-                                Active
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
-                                Archived
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                        {isOpen && (
-                          <tr className="bg-blue-50/30">
-                            <td colSpan={6} className="px-4 py-4">
-                              <QuizTemplateItems items={t.items} />
-                            </td>
-                          </tr>
-                        )}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CollapsibleSection>
-
-        <CollapsibleSection
           id="interview-templates"
           title="Interview templates"
           count={interviewTemplatesData?.templates.length}
@@ -736,53 +629,6 @@ export default function OrganizationCulturePage() {
                   })}
                 </tbody>
               </table>
-            </div>
-          )}
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          id="scenarios"
-          title="Scenarios"
-          count={scenariosData?.scenarios.length}
-          toolbar={
-            <ArchiveToggle
-              checked={includeArchivedScenarios}
-              onChange={setIncludeArchivedScenarios}
-            />
-          }
-        >
-          {loadingScenarios ? (
-            <SectionLoading />
-          ) : !scenariosData || scenariosData.scenarios.length === 0 ? (
-            <EmptyHint>
-              No <code>org_culture_quiz_scenarios</code> rows. They get seeded on first quiz
-              generation; if this org has never generated a culture quiz, this will be empty.
-            </EmptyHint>
-          ) : (
-            <div className="space-y-6">
-              {scenariosData.byDimension.map((dim: any) => (
-                <div key={dim.dimensionKey} className="space-y-2">
-                  <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                    <SparklesIcon className="h-4 w-4 text-amber-500" />
-                    {dim.label}
-                    <span className="text-xs text-gray-500 font-normal">
-                      {dim.leftAnchor} ↔ {dim.rightAnchor}
-                    </span>
-                    <span className="text-xs text-gray-400 font-normal">
-                      ({dim.scenarios.length})
-                    </span>
-                  </h3>
-                  {dim.scenarios.length === 0 ? (
-                    <p className="text-xs text-gray-500 ml-6">No scenarios for this dimension.</p>
-                  ) : (
-                    <div className="space-y-2 ml-6">
-                      {dim.scenarios.map((s: any) => (
-                        <ScenarioCard key={s.id} scenario={s} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
           )}
         </CollapsibleSection>
@@ -1046,72 +892,6 @@ function SectionLoading() {
   );
 }
 
-function QuizTemplateItems({
-  items,
-}: {
-  items: Array<{
-    id: string;
-    order: number;
-    scenario: string;
-    options: unknown;
-    dimensionKey: string;
-    estimatedSeconds: number;
-    sourceScenario: { isCustom: boolean; isActive: boolean; seedScenarioId: string | null } | null;
-  }>;
-}) {
-  if (!items.length) {
-    return <p className="text-sm text-gray-500">No items pinned to this template.</p>;
-  }
-  return (
-    <ol className="space-y-3">
-      {items.map((it) => {
-        const opts = (Array.isArray(it.options) ? it.options : []) as QuizOption[];
-        return (
-          <li key={it.id} className="rounded-lg border border-gray-200 bg-white p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs text-gray-500">
-                  #{it.order} · {it.dimensionKey} · ~{it.estimatedSeconds}s
-                  {it.sourceScenario?.isCustom && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
-                      custom
-                    </span>
-                  )}
-                  {it.sourceScenario && !it.sourceScenario.isActive && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-700">
-                      source archived
-                    </span>
-                  )}
-                </p>
-                <p className="text-sm text-gray-900 mt-1">{it.scenario}</p>
-              </div>
-            </div>
-            <ul className="mt-3 space-y-1">
-              {opts.map((o, idx) => {
-                const id = typeof o.id === 'string' ? o.id : `opt-${idx}`;
-                const label = typeof o.label === 'string' ? o.label : '(missing label)';
-                const dv = typeof o.dimensionValue === 'number' ? o.dimensionValue : null;
-                const w = typeof o.weight === 'number' ? o.weight : null;
-                return (
-                  <li
-                    key={id}
-                    className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-1.5 text-xs"
-                  >
-                    <span className="text-gray-800">{label}</span>
-                    <span className="font-mono text-gray-600 shrink-0">
-                      dimVal {dv === null ? '—' : dv} · weight {w === null ? '—' : w}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 function InterviewTemplateQuestions({
   questions,
 }: {
@@ -1159,77 +939,6 @@ function InterviewTemplateQuestions({
         </li>
       ))}
     </ol>
-  );
-}
-
-function ScenarioCard({
-  scenario,
-}: {
-  scenario: {
-    id: string;
-    dimensionKey: string;
-    scenario: string;
-    options: unknown;
-    estimatedSeconds: number;
-    isActive: boolean;
-    isCustom: boolean;
-    seedScenarioId: string | null;
-  };
-}) {
-  const opts = (Array.isArray(scenario.options) ? scenario.options : []) as QuizOption[];
-  return (
-    <div
-      className={`rounded-lg border bg-white p-3 ${
-        scenario.isActive ? 'border-gray-200' : 'border-gray-200 opacity-60'
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-gray-900 flex-1">{scenario.scenario}</p>
-        <div className="flex items-center gap-1 shrink-0">
-          {scenario.isCustom ? (
-            <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-800">
-              custom
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
-              seeded
-            </span>
-          )}
-          {scenario.isActive ? (
-            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
-              active
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-700">
-              archived
-            </span>
-          )}
-        </div>
-      </div>
-      <ul className="mt-2 space-y-1">
-        {opts.map((o, idx) => {
-          const id = typeof o.id === 'string' ? o.id : `opt-${idx}`;
-          const label = typeof o.label === 'string' ? o.label : '(missing label)';
-          const dv = typeof o.dimensionValue === 'number' ? o.dimensionValue : null;
-          const w = typeof o.weight === 'number' ? o.weight : null;
-          return (
-            <li
-              key={id}
-              className="flex items-center justify-between gap-3 rounded-md bg-gray-50 px-3 py-1.5 text-xs"
-            >
-              <span className="text-gray-800">{label}</span>
-              <span className="font-mono text-gray-600 shrink-0">
-                dimVal {dv === null ? '—' : dv} · weight {w === null ? '—' : w}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="mt-2 text-[10px] text-gray-400">
-        ~{scenario.estimatedSeconds}s · {scenario.id}
-        {scenario.seedScenarioId && ` · seed ${scenario.seedScenarioId}`}
-      </p>
-    </div>
   );
 }
 

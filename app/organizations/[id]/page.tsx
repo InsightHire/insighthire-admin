@@ -662,22 +662,10 @@ export default function OrganizationDetailPage() {
                   View Culture Groups ({cultureSummary?.counts.groups ?? 0})
                 </Link>
                 <Link
-                  href={`/organizations/${orgId}/culture#quiz-templates`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-                >
-                  View Culture Quiz Templates ({cultureSummary?.counts.quizTemplates ?? 0})
-                </Link>
-                <Link
                   href={`/organizations/${orgId}/culture#interview-templates`}
                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
                 >
                   View Culture Interview Templates ({cultureSummary?.counts.interviewTemplates ?? 0})
-                </Link>
-                <Link
-                  href={`/organizations/${orgId}/culture#scenarios`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
-                >
-                  View Culture Scenarios ({cultureSummary?.counts.scenarios ?? 0})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/culture#candidate-signals`}
