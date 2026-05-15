@@ -42,6 +42,14 @@ export default function SentEmailsPage() {
 
   return (
     <div className="space-y-4">
+      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900">
+        <strong className="font-semibold">Heads up:</strong> outbound mail
+        switched from Mailgun to Resend on 2026-05-14. Live-interview invites,
+        password resets, and other non-template account mail sent between
+        2026-05-14 and 2026-05-15 may not appear below — Resend observability
+        was wired into <code className="font-mono">email_sends</code> on
+        2026-05-15. Template-driven journey mail was unaffected.
+      </div>
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-center">
         <div className="flex items-center gap-2">
           <FunnelIcon className="h-5 w-5 text-gray-400" />
