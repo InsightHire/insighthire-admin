@@ -76,6 +76,7 @@ export function CandidateForensicsView({ data, onSessionChange, onRefresh }: Pro
             responses={responses}
             humanFeedback={humanFeedback}
             calibration={calibration}
+            videoRecordingDiagnostics={data.videoRecordingDiagnostics}
             onReset={(responseId) => resetMutation.mutate({ responseId })}
             resetBusy={resetMutation.isLoading}
           />
@@ -681,12 +682,28 @@ function TimelineTab({ data }: { data: any }) {
     });
   }
 
+  for (const t of (data.videoRecordingDiagnostics?.timeline || []) as any[]) {
+    events.push({
+      at: new Date(t.at),
+      kind: 'video_upload',
+      source: `video · ${t.source || t.kind || 'system'}`,
+      text: t.errorMessage ? `${t.label} — ${t.errorMessage}` : t.label,
+      meta: {
+        questionId: t.questionId,
+        status: t.status,
+        eventType: t.eventType,
+        muxUploadId: t.muxUploadId,
+      },
+    });
+  }
+
   events.sort((a, b) => b.at.getTime() - a.at.getTime());
 
   const toneFor = (k: string) =>
     k === 'anomaly' ? 'border-red-300 bg-red-50'
     : k === 'scored' ? 'border-blue-200 bg-blue-50'
     : k === 'response' ? 'border-emerald-200 bg-emerald-50'
+    : k === 'video_upload' ? 'border-orange-200 bg-orange-50'
     : k === 'scoring_event' || k === 'rescore' ? 'border-indigo-200 bg-indigo-50'
     : k === 'decision' ? 'border-purple-200 bg-purple-50'
     : k === 'note' ? 'border-amber-200 bg-amber-50'
@@ -724,12 +741,14 @@ function PerQuestionTab({
   responses,
   humanFeedback,
   calibration,
+  videoRecordingDiagnostics,
   onReset,
   resetBusy,
 }: {
   responses: any[];
   humanFeedback: any;
   calibration: any;
+  videoRecordingDiagnostics?: { attempts?: any[]; timeline?: any[] };
   onReset: (responseId: string) => void;
   resetBusy: boolean;
 }) {
@@ -774,6 +793,18 @@ function PerQuestionTab({
                 response={r}
                 humanFeedback={humanFeedback}
                 calibration={calibration}
+                videoDiagnostics={
+                  r.questionId
+                    ? {
+                        attempts: (videoRecordingDiagnostics?.attempts || []).filter(
+                          (a: any) => a.questionId === r.questionId,
+                        ),
+                        timeline: (videoRecordingDiagnostics?.timeline || []).filter(
+                          (t: any) => t.questionId === r.questionId,
+                        ),
+                      }
+                    : undefined
+                }
                 defaultOpen={i === 0 && filter !== 'all' ? true : false}
               />
               {((r.status || '').toUpperCase() === 'FAILED' || r.processingError) && (
@@ -1112,6 +1143,7 @@ function RawTab({ data }: { data: any }) {
       <JsonViewer value={data.cohort} title="position cohort (rank, percentile, distribution)" />
       <JsonViewer value={data.activityLogs} title="activity_logs (page visits + anomalies)" />
       <JsonViewer value={data.invitation} title="journey_invitations" />
+      <JsonViewer value={data.videoRecordingDiagnostics} title="video_recording_diagnostics" />
     </div>
   );
 }

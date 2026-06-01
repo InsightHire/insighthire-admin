@@ -17,6 +17,7 @@ import { HlsVideo } from './HlsVideo';
 const INNER_TABS = [
   { id: 'prompt', label: 'Prompt & criteria' },
   { id: 'response', label: 'Response' },
+  { id: 'uploads', label: 'Upload diagnostics' },
   { id: 'conversations', label: 'Conversations LLM' },
   { id: 'evaluation', label: 'Evaluation LLM' },
   { id: 'video', label: 'Video analysis' },
@@ -31,11 +32,13 @@ export function QuestionCard({
   response,
   humanFeedback,
   calibration,
+  videoDiagnostics,
   defaultOpen = false,
 }: {
   response: any;
   humanFeedback: any;
   calibration: any;
+  videoDiagnostics?: { attempts: any[]; timeline: any[] };
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -47,6 +50,9 @@ export function QuestionCard({
 
   const aiScore = response.score;
   const humanScore = humanFeedback?.application?.humanScore ?? null;
+
+  const hasUploadDiagnostics =
+    (videoDiagnostics?.attempts?.length ?? 0) > 0 || (videoDiagnostics?.timeline?.length ?? 0) > 0;
 
   // Quick indicators for the closed row
   const hasVideoAnalysis = !!response.videoAnalysis;
@@ -127,7 +133,8 @@ export function QuestionCard({
             {INNER_TABS.map(t => {
               const disabled =
                 (t.id === 'video' && !hasVideoAnalysis) ||
-                (t.id === 'authenticity' && !hasAuthenticity);
+                (t.id === 'authenticity' && !hasAuthenticity) ||
+                (t.id === 'uploads' && !hasUploadDiagnostics);
               return (
                 <button
                   key={t.id}
@@ -151,6 +158,9 @@ export function QuestionCard({
           <div className="p-4 space-y-4">
             {innerTab === 'prompt' && <PromptPanel responseId={response.id} fallback={response} />}
             {innerTab === 'response' && <ResponsePanel response={response} />}
+            {innerTab === 'uploads' && (
+              <UploadDiagnosticsPanel diagnostics={videoDiagnostics} />
+            )}
             {innerTab === 'conversations' && <ConversationsPanel response={response} />}
             {innerTab === 'evaluation' && <EvaluationPanel response={response} />}
             {innerTab === 'video' && <VideoAnalysisPanel response={response} />}
@@ -169,6 +179,67 @@ export function QuestionCard({
         <JsonViewer value={response.scoreDebug} title="scoreDebug" defaultOpen />
       </div>
     )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- Panel: Upload diagnostics ----------
+
+function UploadDiagnosticsPanel({
+  diagnostics,
+}: {
+  diagnostics?: { attempts: any[]; timeline: any[] };
+}) {
+  const attempts = diagnostics?.attempts ?? [];
+  const timeline = diagnostics?.timeline ?? [];
+
+  if (!attempts.length && !timeline.length) {
+    return <div className="text-xs text-gray-500 italic">No upload telemetry for this question.</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <SectionHeading
+        title="Recording & upload timeline"
+        subtitle={`${attempts.length} Mux upload attempt(s) · ${timeline.length} event(s)`}
+      />
+      <ol className="space-y-2">
+        {timeline.map((item: any, idx: number) => (
+          <li key={`${item.at}-${idx}`} className="bg-white border rounded-md p-3 text-xs">
+            <div className="flex justify-between text-[10px] uppercase text-gray-500">
+              <span>{item.source || item.kind}</span>
+              <span>{new Date(item.at).toLocaleString()}</span>
+            </div>
+            <div className="mt-1 font-medium text-gray-900">{item.label}</div>
+            {item.status && (
+              <StatusChip status={item.status} />
+            )}
+            {item.errorMessage && (
+              <div className="mt-1 text-red-700">{item.errorMessage}</div>
+            )}
+            {item.muxUploadId && (
+              <div className="mt-1 font-mono text-[10px] text-gray-400 truncate">{item.muxUploadId}</div>
+            )}
+          </li>
+        ))}
+      </ol>
+      {attempts.length > 0 && (
+        <div>
+          <SectionHeading title="Mux upload attempts" />
+          <div className="space-y-2">
+            {attempts.map((a: any) => (
+              <div key={a.id} className="bg-white border rounded-md p-3 text-xs flex justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-mono text-gray-600 truncate">{a.muxUploadId}</div>
+                  <div className="text-gray-500 mt-1">{new Date(a.createdAt).toLocaleString()}</div>
+                  {a.errorMessage && <div className="text-red-700 mt-1">{a.errorMessage}</div>}
+                </div>
+                <StatusChip status={a.status} />
+              </div>
+            ))}
           </div>
         </div>
       )}
