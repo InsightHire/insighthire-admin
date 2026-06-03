@@ -14,9 +14,12 @@ function AcceptInviteContent() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
+  // Note: admin sign-in moved to Microsoft 365 via Authio. This invite-accept
+  // flow still works (legacy) but on success we redirect to /sign-in. The
+  // password you set won't actually be checked anymore; sign in with 365.
   const acceptMutation = trpc.auth.acceptPlatformAdminInvite.useMutation({
     onSuccess: () => {
-      router.push('/login?accepted=1');
+      router.push('/sign-in?accepted=1');
     },
     onError: (e) => {
       setError(e.message);
@@ -61,7 +64,7 @@ function AcceptInviteContent() {
           </p>
         </div>
         <a
-          href="/login"
+          href="/sign-in"
           className="block mt-8 text-center text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
         >
           Back to sign in

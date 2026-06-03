@@ -2,8 +2,6 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
@@ -38,35 +36,17 @@ function attentionReasonLabel(reason: string): { label: string; className: strin
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [isAuthed, setIsAuthed] = useState(false);
-
-  useEffect(() => {
-    const adminToken = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    if (!adminToken) {
-      router.push('/login');
-    } else {
-      setIsAuthed(true);
-    }
-  }, [router]);
-
+  // Auth is gated by middleware.ts — by the time this renders, we have a valid
+  // Authio session cookie. No client-side token check needed.
   const { data: healthData, isLoading } = trpc.platformAdmin.getJourneyHealthSummary.useQuery(
     undefined,
-    { enabled: isAuthed, refetchInterval: 30000 }
+    { refetchInterval: 30000 }
   );
 
   const { data: stuckData } = trpc.platformAdmin.getStuckCandidates.useQuery(
     { stuckType: 'all', limit: 5 },
-    { enabled: isAuthed, refetchInterval: 30000 }
+    { refetchInterval: 30000 }
   );
-
-  if (!isAuthed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
 
   const alerts = healthData?.alerts || { critical: 0, warning: 0, info: 0, total: 0 };
   const analytics = healthData?.analytics;

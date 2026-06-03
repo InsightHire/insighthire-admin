@@ -1,24 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-
+/**
+ * Compat shim. Auth gating is now done by middleware.ts (Authio cookies). Any client
+ * code that previously called `useAdminAuth()` to gate its render gets an immediate
+ * `isAuthenticated: true` — if the request reached this React tree at all, middleware
+ * already verified or refreshed the session.
+ *
+ * Kept exported so we don't break callers in a single commit; new code should use
+ * `auth()` from `@/lib/authio/session` in Server Components instead.
+ */
 export function useAdminAuth() {
-  const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-
-    if (!token) {
-      router.push('/login');
-    } else {
-      setIsAuthenticated(true);
-    }
-
-    setIsLoading(false);
-  }, [router]);
-
-  return { isAuthenticated, isLoading };
+  return { isAuthenticated: true, isLoading: false };
 }

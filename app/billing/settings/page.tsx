@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   Settings,
   CreditCard,
@@ -12,17 +10,7 @@ import {
 } from 'lucide-react';
 
 export default function BillingSettingsPage() {
-  const router = useRouter();
-  const [isAuthed, setIsAuthed] = useState(false);
-
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    if (!token) router.push('/login');
-    else setIsAuthed(true);
-  }, [router]);
-
-  if (!isAuthed) return null;
-
+  // Auth handled by middleware.ts.
   return (
     <div className="space-y-8">
       <div>

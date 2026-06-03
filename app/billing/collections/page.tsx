@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import {
@@ -13,19 +12,12 @@ import {
 } from 'lucide-react';
 
 export default function BillingCollectionsPage() {
-  const router = useRouter();
-  const [isAuthed, setIsAuthed] = useState(false);
+  // Auth handled by middleware.ts.
   const [suspending, setSuspending] = useState<string | null>(null);
-
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    if (!token) router.push('/login');
-    else setIsAuthed(true);
-  }, [router]);
 
   const { data, isLoading, refetch } = trpc.platformAdmin.getCollections.useQuery(
     { limit: 50, includeExpiringTrials: true },
-    { enabled: isAuthed, refetchInterval: 60000 }
+    { refetchInterval: 60000 }
   );
 
   const suspendMutation = trpc.platformAdmin.suspendForNonPayment.useMutation({
@@ -45,8 +37,6 @@ export default function BillingCollectionsPage() {
     setSuspending(orgId);
     suspendMutation.mutate({ organizationId: orgId, reason: 'Non-payment - admin action' });
   };
-
-  if (!isAuthed) return null;
 
   const pastDue = data?.organizations?.filter((o) => o.subscriptionStatus === 'PAST_DUE') ?? [];
   const trials = data?.organizations?.filter((o) => o.subscriptionStatus === 'TRIAL') ?? [];

@@ -36,25 +36,17 @@ export function PlatformAdminNav() {
   const settingsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Load admin display name from API (fresh) or localStorage fallback
-  const { data: admins } = trpc.platformAdmin.listPlatformAdmins.useQuery(undefined, {
+  // Load admin display name via the `me` query (Authio cookies are HttpOnly — no
+  // localStorage fallback needed).
+  const { data: me } = trpc.platformAdmin.me.useQuery(undefined, {
     retry: false,
     staleTime: 60_000,
   });
   useEffect(() => {
-    const user = localStorage.getItem('admin_user');
-    if (!user) return;
-    try {
-      const parsed = JSON.parse(user);
-      const currentAdmin = admins?.find((a: { id: string }) => a.id === parsed.id);
-      if (currentAdmin?.name) {
-        setAdminDisplayName(currentAdmin.name);
-      } else {
-        const name = [parsed.firstName, parsed.lastName].filter(Boolean).join(' ').trim();
-        setAdminDisplayName(name || parsed.email || 'Admin');
-      }
-    } catch (e) {}
-  }, [admins]);
+    if (!me) return;
+    const name = [me.firstName, me.lastName].filter(Boolean).join(' ').trim();
+    setAdminDisplayName(name || me.email || 'Admin');
+  }, [me]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -74,9 +66,8 @@ export function PlatformAdminNav() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('admin_user');
-    router.push('/login');
+    // Server clears Authio cookies + revokes the session; redirect chained back to /sign-in.
+    window.location.href = '/api/auth/sign-out';
   };
 
   // Fetch health summary for badge count

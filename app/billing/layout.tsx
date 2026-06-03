@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import {
@@ -26,23 +25,8 @@ export default function BillingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
+  // Auth gating handled by middleware.ts (Authio cookies).
   const pathname = usePathname();
-  const [isAuthed, setIsAuthed] = useState(false);
-
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    if (!token) router.push('/login');
-    else setIsAuthed(true);
-  }, [router]);
-
-  if (!isAuthed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
 
   return (
     <AuthenticatedLayout>

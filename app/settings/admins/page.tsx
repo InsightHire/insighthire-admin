@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import {
@@ -36,8 +35,6 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function AdminUsersPage() {
-  const router = useRouter();
-  const [isAuthed, setIsAuthed] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState<{
     id: string;
@@ -58,30 +55,24 @@ export default function AdminUsersPage() {
   const [invitePlatformRoleId, setInvitePlatformRoleId] = useState<string>('platform_role_support');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
+  // Current admin's user id — used to highlight "you" in the table and prevent
+  // self-modification. Auth gating itself is handled by middleware.ts.
+  const { data: me } = trpc.platformAdmin.me.useQuery(undefined, { staleTime: 60_000 });
   useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : null;
-    if (!token) router.push('/login');
-    else {
-      setIsAuthed(true);
-      try {
-        const u = localStorage.getItem('admin_user');
-        if (u) setCurrentUserId(JSON.parse(u).id);
-      } catch {}
-    }
-  }, [router]);
+    if (me?.id) setCurrentUserId(me.id);
+  }, [me]);
 
   const { data: admins, isLoading, refetch } = trpc.platformAdmin.listPlatformAdmins.useQuery(
     undefined,
-    { enabled: isAuthed, refetchInterval: 30000 }
+    { refetchInterval: 30000 }
   );
 
   const { data: platformRoles } = trpc.platformAdmin.listPlatformRoles.useQuery(
     undefined,
-    { enabled: isAuthed && (showInvite || !!editingAdmin) }
+    { enabled: showInvite || !!editingAdmin }
   );
 
   const { data: emailHealth } = trpc.platformAdmin.getTransactionalEmailHealth.useQuery(undefined, {
-    enabled: isAuthed,
     refetchOnMount: 'always',
   });
 
@@ -175,8 +166,6 @@ export default function AdminUsersPage() {
     }
     updateMutation.mutate(payload);
   };
-
-  if (!isAuthed) return null;
 
   return (
     <AuthenticatedLayout>
