@@ -15,15 +15,32 @@ export const AUTHIO_PROJECT_ID = process.env.AUTHIO_PROJECT_ID ?? '';
  */
 export const AUTHIO_ORGANIZATION_ID =
   process.env.AUTHIO_ORGANIZATION_ID || 'org_h8k2m9qx4n1v7p3r6w5t0';
+/**
+ * Management API host (`manage.authio.com`, legacy alias `api.authio.com`).
+ * This is the REST surface used for user lookups (`GET /v1/users/:id`) and
+ * other dashboard-style calls — it does NOT sign access tokens and does NOT
+ * serve the JWKS. Keep it distinct from the auth-core host below.
+ */
 export const AUTHIO_API_URL = (process.env.AUTHIO_API_URL || 'https://api.authio.com').replace(/\/$/, '');
 export const AUTHIO_HOSTED_UI_URL = (
   process.env.AUTHIO_HOSTED_UI_URL || 'https://lobby.authio.com'
 ).replace(/\/$/, '');
 
-/** JWKS + issuer. Override with env vars if Authio finalizes a different host. */
+/**
+ * Auth-core host (`identity.authio.com`). This is the service that MINTS and
+ * SIGNS access tokens (Ed25519/EdDSA) and serves the JWKS at
+ * `/v1/auth/.well-known/jwks.json`. The token's `iss` claim is this host —
+ * NOT the management API host — so JWKS + issuer must be derived from here.
+ * (The legacy `auth-api.authio.com` alias 301-redirects here.)
+ */
+export const AUTHIO_AUTH_CORE_URL = (
+  process.env.AUTHIO_AUTH_CORE_URL || 'https://identity.authio.com'
+).replace(/\/$/, '');
+
+/** JWKS + issuer. Derived from the auth-core host (token signer), not the management API. */
 export const AUTHIO_JWKS_URL =
-  process.env.AUTHIO_JWKS_URL || `${AUTHIO_API_URL}/.well-known/jwks.json`;
-export const AUTHIO_JWT_ISSUER = process.env.AUTHIO_JWT_ISSUER || AUTHIO_API_URL;
+  process.env.AUTHIO_JWKS_URL || `${AUTHIO_AUTH_CORE_URL}/v1/auth/.well-known/jwks.json`;
+export const AUTHIO_JWT_ISSUER = process.env.AUTHIO_JWT_ISSUER || AUTHIO_AUTH_CORE_URL;
 export const AUTHIO_JWT_AUDIENCE = process.env.AUTHIO_JWT_AUDIENCE || 'authio';
 
 /** Cookie names from the @authio/nextjs docs. */
