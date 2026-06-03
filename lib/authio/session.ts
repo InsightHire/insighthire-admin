@@ -35,6 +35,32 @@ export interface AuthioJwtPayload extends JWTPayload {
 }
 
 /**
+ * Verify a raw Authio access JWT against the JWKS (signature + issuer + audience
+ * + kind), returning the decoded payload or null on any failure. Algorithm is
+ * pinned to EdDSA — Authio's auth-core signs access tokens with an Ed25519 key
+ * (the JWKS advertises `alg: EdDSA`), so pinning it forecloses any algorithm-
+ * confusion downgrade.
+ *
+ * Shared by `auth()` (cookie path) and the callback handler, which verifies the
+ * token straight off the redirect URL before persisting it as a cookie.
+ */
+export async function verifyAccessToken(token: string): Promise<AuthioJwtPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: AUTHIO_JWT_ISSUER,
+      audience: AUTHIO_JWT_AUDIENCE,
+      algorithms: ['EdDSA'],
+    });
+    const p = payload as AuthioJwtPayload;
+    if (p.kind && p.kind !== 'customer') return null;
+    if (!p.sub) return null;
+    return p;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Read the current session, verifying the JWT freshly. Returns null if no cookie,
  * invalid signature, expired, or wrong kind.
  *
@@ -46,25 +72,16 @@ export async function auth(): Promise<AuthioSession | null> {
   const accessToken = cookieStore.get(SESSION_COOKIE)?.value;
   if (!accessToken) return null;
 
-  try {
-    const { payload } = await jwtVerify(accessToken, JWKS, {
-      issuer: AUTHIO_JWT_ISSUER,
-      audience: AUTHIO_JWT_AUDIENCE,
-    });
-    const p = payload as AuthioJwtPayload;
-    if (p.kind && p.kind !== 'customer') return null;
-    if (!p.sub) return null;
-    return {
-      userId: p.sub,
-      email: p.email,
-      orgId: p.org_id ?? null,
-      role: p.role ?? null,
-      sessionId: p.session_id ?? null,
-      accessToken,
-    };
-  } catch {
-    return null;
-  }
+  const p = await verifyAccessToken(accessToken);
+  if (!p) return null;
+  return {
+    userId: p.sub,
+    email: p.email,
+    orgId: p.org_id ?? null,
+    role: p.role ?? null,
+    sessionId: p.session_id ?? null,
+    accessToken,
+  };
 }
 
 /** Cheap predicate when the caller only needs a yes/no without the payload. */

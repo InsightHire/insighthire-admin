@@ -13,10 +13,11 @@
  *   - All routes are dynamic (no caching).
  */
 import { NextResponse, type NextRequest } from 'next/server';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   AUTHIO_API_URL,
   AUTHIO_HOSTED_UI_URL,
+  AUTHIO_ORGANIZATION_ID,
   AUTHIO_PROJECT_ID,
   CALLBACK_PATH,
   CALLBACK_STATE_COOKIE,
@@ -24,7 +25,9 @@ import {
   SESSION_COOKIE,
   SIGN_IN_PATH,
   assertConfig,
+  safeNext,
 } from './config';
+import { verifyAccessToken } from './session';
 
 const FIVE_MIN = 5 * 60;
 const THIRTY_DAYS = 30 * 24 * 60 * 60;
@@ -85,12 +88,25 @@ function clearSessionCookies(res: NextResponse) {
   }
 }
 
+/**
+ * Length-checked constant-time string comparison for the callback-state nonce,
+ * so the cookie ⟷ URL check can't leak the nonce through a timing oracle. The
+ * length guard is required because `timingSafeEqual` throws on unequal-length
+ * buffers.
+ */
+function constantTimeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
+
 // ─── Sign-in ────────────────────────────────────────────────────────────────────
 
 export function createAuthioSignInHandler() {
   return async function GET(req: NextRequest) {
     assertConfig();
-    const next = req.nextUrl.searchParams.get('next') || '/';
+    const next = safeNext(req.nextUrl.searchParams.get('next'));
     const nonce = randomBytes(32).toString('base64url');
 
     const hosted = new URL(AUTHIO_HOSTED_UI_URL);
@@ -98,6 +114,11 @@ export function createAuthioSignInHandler() {
     hosted.searchParams.set('redirect_uri', callbackUrl(req));
     hosted.searchParams.set('client_state_nonce', nonce);
     hosted.searchParams.set('return_to', next);
+    // Pin the org so the Lobby skips the generic method picker and goes
+    // straight to InsightHire's Entra connection.
+    if (AUTHIO_ORGANIZATION_ID) {
+      hosted.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
+    }
 
     const res = NextResponse.redirect(hosted);
     res.cookies.set({
@@ -141,11 +162,12 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
           nonce?: string;
           next?: string;
         };
-        if (!cookieNonce || cookieNonce !== urlNonce) {
+        if (!cookieNonce || !urlNonce || !constantTimeEqual(cookieNonce, urlNonce)) {
           return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_mismatch`));
         }
-        if (next && next.startsWith('/') && !next.startsWith('//')) {
-          nextPath = next;
+        const safe = safeNext(next);
+        if (safe !== '/') {
+          nextPath = safe;
         }
       } catch {
         return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_state_unreadable`));
@@ -154,6 +176,17 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
       // Per the docs, pre-v0.3 SDKs degraded to a warned legacy path. We refuse
       // because our admin app is greenfield and there's no legacy traffic.
       return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_state_missing`));
+    }
+
+    // Defense in depth on top of the cookie-bound CSRF nonce: verify the access
+    // JWT's signature (issuer/audience/kind, alg pinned to EdDSA) against
+    // Authio's JWKS before persisting it, so a forged token planted via a
+    // crafted callback URL can never reach the session cookie.
+    const verified = await verifyAccessToken(accessToken);
+    if (!verified) {
+      const bad = NextResponse.redirect(publicUrl(req, `/sign-in?error=invalid_token`));
+      bad.cookies.set({ name: CALLBACK_STATE_COOKIE, value: '', path: '/', maxAge: 0 });
+      return bad;
     }
 
     const res = NextResponse.redirect(publicUrl(req, nextPath));
@@ -169,7 +202,7 @@ export function createAuthioRefreshHandler() {
   return async function GET(req: NextRequest) {
     assertConfig();
     const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
-    const returnTo = req.nextUrl.searchParams.get('return_to') || '/';
+    const returnTo = safeNext(req.nextUrl.searchParams.get('return_to'));
 
     if (!refreshToken) {
       return NextResponse.redirect(
