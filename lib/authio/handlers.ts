@@ -33,9 +33,26 @@ function isProd() {
   return process.env.NODE_ENV === 'production';
 }
 
+/**
+ * Return the public origin for this request. Behind a proxy (Railway, Vercel,
+ * Cloudflare) `req.nextUrl.origin` is the *internal* address (e.g. 0.0.0.0:3000),
+ * not the public hostname — useless for redirect_uri / return_to. Prefer the
+ * forwarded headers the edge sets, then NEXT_PUBLIC_APP_URL, then the raw origin.
+ */
+function publicOrigin(req: NextRequest): string {
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const proto = req.headers.get('x-forwarded-proto') || (isProd() ? 'https' : 'http');
+  if (host) return `${proto}://${host}`;
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  return req.nextUrl.origin;
+}
+
+function publicUrl(req: NextRequest, path: string): URL {
+  return new URL(path, publicOrigin(req));
+}
+
 function callbackUrl(req: NextRequest): string {
-  const url = new URL(CALLBACK_PATH, req.nextUrl.origin);
-  return url.toString();
+  return publicUrl(req, CALLBACK_PATH).toString();
 }
 
 function setSessionCookies(
@@ -112,9 +129,7 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
     const urlNonce = req.nextUrl.searchParams.get('client_state_nonce');
 
     if (!accessToken || !refreshToken) {
-      return NextResponse.redirect(
-        new URL(`/sign-in?error=missing_tokens`, req.nextUrl.origin),
-      );
+      return NextResponse.redirect(publicUrl(req, `/sign-in?error=missing_tokens`));
     }
 
     // CSRF: cookie nonce must equal the URL nonce.
@@ -127,27 +142,21 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
           next?: string;
         };
         if (!cookieNonce || cookieNonce !== urlNonce) {
-          return NextResponse.redirect(
-            new URL(`/sign-in?error=csrf_mismatch`, req.nextUrl.origin),
-          );
+          return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_mismatch`));
         }
         if (next && next.startsWith('/') && !next.startsWith('//')) {
           nextPath = next;
         }
       } catch {
-        return NextResponse.redirect(
-          new URL(`/sign-in?error=csrf_state_unreadable`, req.nextUrl.origin),
-        );
+        return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_state_unreadable`));
       }
     } else {
       // Per the docs, pre-v0.3 SDKs degraded to a warned legacy path. We refuse
       // because our admin app is greenfield and there's no legacy traffic.
-      return NextResponse.redirect(
-        new URL(`/sign-in?error=csrf_state_missing`, req.nextUrl.origin),
-      );
+      return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_state_missing`));
     }
 
-    const res = NextResponse.redirect(new URL(nextPath, req.nextUrl.origin));
+    const res = NextResponse.redirect(publicUrl(req, nextPath));
     setSessionCookies(res, { accessToken, refreshToken });
     res.cookies.set({ name: CALLBACK_STATE_COOKIE, value: '', path: '/', maxAge: 0 });
     return res;
@@ -164,7 +173,7 @@ export function createAuthioRefreshHandler() {
 
     if (!refreshToken) {
       return NextResponse.redirect(
-        new URL(`${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}`, req.nextUrl.origin),
+        publicUrl(req, `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}`),
       );
     }
 
@@ -179,10 +188,7 @@ export function createAuthioRefreshHandler() {
       });
       if (!apiRes.ok) {
         const res = NextResponse.redirect(
-          new URL(
-            `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}&error=refresh_failed`,
-            req.nextUrl.origin,
-          ),
+          publicUrl(req, `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}&error=refresh_failed`),
         );
         clearSessionCookies(res);
         return res;
@@ -192,7 +198,7 @@ export function createAuthioRefreshHandler() {
         refresh_token: string;
         expires_in?: number;
       };
-      const res = NextResponse.redirect(new URL(returnTo, req.nextUrl.origin));
+      const res = NextResponse.redirect(publicUrl(req, returnTo));
       setSessionCookies(res, {
         accessToken: body.access_token,
         refreshToken: body.refresh_token,
@@ -201,10 +207,7 @@ export function createAuthioRefreshHandler() {
       return res;
     } catch {
       const res = NextResponse.redirect(
-        new URL(
-          `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}&error=refresh_threw`,
-          req.nextUrl.origin,
-        ),
+        publicUrl(req, `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}&error=refresh_threw`),
       );
       clearSessionCookies(res);
       return res;
@@ -233,7 +236,7 @@ export function createAuthioSignOutHandler() {
         /* best-effort revoke; we always clear cookies below */
       }
     }
-    const res = NextResponse.redirect(new URL('/sign-in', req.nextUrl.origin));
+    const res = NextResponse.redirect(publicUrl(req, '/sign-in'));
     clearSessionCookies(res);
     return res;
   }
