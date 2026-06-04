@@ -270,6 +270,11 @@ export function createAuthioSignOutHandler() {
       }
     }
     const res = NextResponse.redirect(publicUrl(req, '/sign-in'));
+    // no-store so neither this redirect nor its cookie-clearing Set-Cookie
+    // headers can be served from a browser / bfcache / CDN cache, which
+    // would otherwise let a stale authenticated render survive sign-out
+    // until a manual refresh.
+    res.headers.set('Cache-Control', 'no-store, private');
     clearSessionCookies(res);
     return res;
   }
