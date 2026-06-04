@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { 
   Mail, 
   Building2, 
@@ -27,7 +27,6 @@ import { trpc } from '@/lib/trpc';
 
 export function PlatformAdminNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [monitoringOpen, setMonitoringOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -64,11 +63,6 @@ export function PlatformAdminNav() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const handleLogout = () => {
-    // Server clears Authio cookies + revokes the session; redirect chained back to /sign-in.
-    window.location.href = '/api/auth/sign-out';
-  };
 
   // Fetch health summary for badge count
   const { data: healthData } = trpc.platformAdmin.getJourneyHealthSummary.useQuery(
@@ -308,13 +302,22 @@ export function PlatformAdminNav() {
                   <p className="text-xs text-gray-400">Signed in as</p>
                   <p className="text-sm text-white truncate">{adminDisplayName}</p>
                 </div>
-                <button
-                  onClick={handleLogout}
+                {/*
+                  Plain <a> (NOT next/link) so the click is a full-page browser
+                  navigation to the BFF sign-out route, which 307s to /sign-in
+                  after clearing the Authio session cookies. This works even if
+                  this client component never hydrates — the previous
+                  onClick={handleLogout} → window.location handler silently did
+                  nothing whenever hydration failed, which is why "Sign out
+                  didn't do anything."
+                */}
+                <a
+                  href="/api/auth/sign-out"
                   className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-gray-700 hover:text-red-300 transition-colors"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
-                </button>
+                </a>
               </div>
             )}
           </div>
