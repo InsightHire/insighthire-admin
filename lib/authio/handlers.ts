@@ -15,10 +15,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
-  AUTHIO_API_URL,
+  AUTHIO_AUTH_CORE_URL,
   AUTHIO_HOSTED_UI_URL,
   AUTHIO_ORGANIZATION_ID,
   AUTHIO_PROJECT_ID,
+  AUTHIO_SSO_CONNECTION_ID,
+  AUTHIO_SSO_HOST,
   CALLBACK_PATH,
   CALLBACK_STATE_COOKIE,
   REFRESH_COOKIE,
@@ -28,6 +30,12 @@ import {
   safeNext,
 } from './config';
 import { verifyAccessToken } from './session';
+
+/** Query-string key used to round-trip our cookie-bound CSRF nonce through the
+ * SP-initiated flow (which doesn't accept `client_state_nonce` as a top-level
+ * param the way Lobby does). Authio echoes the redirect_uri verbatim, so any
+ * query we plant in it comes back unchanged. */
+const NONCE_PARAM = 'ihx_nonce';
 
 const FIVE_MIN = 5 * 60;
 const THIRTY_DAYS = 30 * 24 * 60 * 60;
@@ -54,8 +62,12 @@ function publicUrl(req: NextRequest, path: string): URL {
   return new URL(path, publicOrigin(req));
 }
 
-function callbackUrl(req: NextRequest): string {
-  return publicUrl(req, CALLBACK_PATH).toString();
+function callbackUrl(req: NextRequest, extraQuery: Record<string, string> = {}): string {
+  const url = publicUrl(req, CALLBACK_PATH);
+  for (const [k, v] of Object.entries(extraQuery)) {
+    url.searchParams.set(k, v);
+  }
+  return url.toString();
 }
 
 function setSessionCookies(
@@ -109,18 +121,43 @@ export function createAuthioSignInHandler() {
     const next = safeNext(req.nextUrl.searchParams.get('next'));
     const nonce = randomBytes(32).toString('base64url');
 
-    const hosted = new URL(AUTHIO_HOSTED_UI_URL);
-    hosted.searchParams.set('project_id', AUTHIO_PROJECT_ID);
-    hosted.searchParams.set('redirect_uri', callbackUrl(req));
-    hosted.searchParams.set('client_state_nonce', nonce);
-    hosted.searchParams.set('return_to', next);
-    // Pin the org so the Lobby skips the generic method picker and goes
-    // straight to InsightHire's Entra connection.
-    if (AUTHIO_ORGANIZATION_ID) {
-      hosted.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
+    // Two flows, picked by config:
+    //   1. SP-initiated (preferred when AUTHIO_SSO_CONNECTION_ID is set):
+    //      https://sso.authio.com/v1/sso/connections/{conn_id}/initiate?…
+    //      Browser goes straight to the customer IdP — no Lobby UI at all.
+    //   2. Lobby fallback: https://lobby.authio.com/?project_id=…&organization_id=…
+    //      Renders the method picker (or auto-advances if the org has one method).
+    //
+    // SP-initiated doesn't accept Lobby's `client_state_nonce` top-level param, so
+    // we embed the nonce in the redirect_uri itself (Authio echoes redirect_uri
+    // verbatim on the callback hop). The callback handler accepts the nonce from
+    // either source.
+    let destination: URL;
+    if (AUTHIO_SSO_CONNECTION_ID) {
+      if (!AUTHIO_ORGANIZATION_ID) {
+        // Org id is required so Authio can resolve the connection's tenant.
+        return NextResponse.redirect(
+          publicUrl(req, `/sign-in?error=sso_org_unconfigured`),
+        );
+      }
+      destination = new URL(
+        `${AUTHIO_SSO_HOST}/v1/sso/connections/${encodeURIComponent(AUTHIO_SSO_CONNECTION_ID)}/initiate`,
+      );
+      destination.searchParams.set('project_id', AUTHIO_PROJECT_ID);
+      destination.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
+      destination.searchParams.set('redirect_uri', callbackUrl(req, { [NONCE_PARAM]: nonce }));
+    } else {
+      destination = new URL(AUTHIO_HOSTED_UI_URL);
+      destination.searchParams.set('project_id', AUTHIO_PROJECT_ID);
+      destination.searchParams.set('redirect_uri', callbackUrl(req));
+      destination.searchParams.set('client_state_nonce', nonce);
+      destination.searchParams.set('return_to', next);
+      if (AUTHIO_ORGANIZATION_ID) {
+        destination.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
+      }
     }
 
-    const res = NextResponse.redirect(hosted);
+    const res = NextResponse.redirect(destination);
     res.cookies.set({
       name: CALLBACK_STATE_COOKIE,
       value: JSON.stringify({ nonce, next }),
@@ -147,7 +184,12 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
 
     const accessToken = req.nextUrl.searchParams.get('access_token');
     const refreshToken = req.nextUrl.searchParams.get('refresh_token');
-    const urlNonce = req.nextUrl.searchParams.get('client_state_nonce');
+    // Nonce comes from `client_state_nonce` on the Lobby flow, or our
+    // `NONCE_PARAM` query for SP-initiated (which Authio doesn't synthesise; we
+    // round-tripped it through the redirect_uri).
+    const urlNonce =
+      req.nextUrl.searchParams.get('client_state_nonce') ||
+      req.nextUrl.searchParams.get(NONCE_PARAM);
 
     if (!accessToken || !refreshToken) {
       return NextResponse.redirect(publicUrl(req, `/sign-in?error=missing_tokens`));
@@ -211,7 +253,9 @@ export function createAuthioRefreshHandler() {
     }
 
     try {
-      const apiRes = await fetch(`${AUTHIO_API_URL}/v1/auth/refresh`, {
+      // Refresh is an auth-core operation, NOT a mgmt-API one — must go to
+      // identity.authio.com, not api.authio.com (which returns 404).
+      const apiRes = await fetch(`${AUTHIO_AUTH_CORE_URL}/v1/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -256,17 +300,24 @@ export function createAuthioSignOutHandler() {
     const accessToken = req.cookies.get(SESSION_COOKIE)?.value;
 
     if (accessToken) {
-      try {
-        await fetch(`${AUTHIO_API_URL}/v1/auth/sign-out`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-            'X-Authio-Project': AUTHIO_PROJECT_ID,
-          },
-        });
-      } catch {
-        /* best-effort revoke; we always clear cookies below */
+      // Belt + suspenders: try the new alias first, then the legacy URL. 401
+      // (already revoked) is treated as success on both, per the SDK's
+      // `signOutPaths` fallback pattern documented in the migration guide.
+      const signOutPaths = ['/v1/auth/sign-out', '/v1/sessions/revoke'];
+      for (const path of signOutPaths) {
+        try {
+          const res = await fetch(`${AUTHIO_AUTH_CORE_URL}${path}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+              'X-Authio-Project': AUTHIO_PROJECT_ID,
+            },
+          });
+          if (res.ok || res.status === 401) break; // 401 = already revoked, treat as success
+        } catch {
+          /* try next path */
+        }
       }
     }
     const res = NextResponse.redirect(publicUrl(req, '/sign-in'));

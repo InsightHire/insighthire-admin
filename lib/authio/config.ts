@@ -27,6 +27,27 @@ export const AUTHIO_HOSTED_UI_URL = (
 ).replace(/\/$/, '');
 
 /**
+ * SSO service host that serves the SP-initiated login URL pattern documented at
+ * https://docs.authio.com/lobby/sso-login-url . When `AUTHIO_SSO_CONNECTION_ID`
+ * is set, the sign-in handler builds
+ *   ${AUTHIO_SSO_HOST}/v1/sso/connections/${conn_id}/initiate?…
+ * and sends the browser straight to the customer's IdP — no Lobby method picker,
+ * one redirect, WorkOS-style. Without `AUTHIO_SSO_CONNECTION_ID`, we fall back
+ * to the Lobby URL above (org-pinned so it still skips the picker for that org).
+ */
+export const AUTHIO_SSO_HOST = (
+  process.env.AUTHIO_SSO_HOST || 'https://sso.authio.com'
+).replace(/\/$/, '');
+
+/**
+ * Authio SSO connection id (`sso_…`) for the InsightHire admin org's One-click
+ * Microsoft connection. Surfaced on Org → Features → Single Sign-On in the
+ * Authio dashboard. Required for the SP-initiated direct-to-IdP flow; if blank,
+ * sign-in falls through to the Lobby URL.
+ */
+export const AUTHIO_SSO_CONNECTION_ID = process.env.AUTHIO_SSO_CONNECTION_ID ?? '';
+
+/**
  * Auth-core host (`identity.authio.com`). This is the service that MINTS and
  * SIGNS access tokens (Ed25519/EdDSA) and serves the JWKS at
  * `/v1/auth/.well-known/jwks.json`. The token's `iss` claim is this host —
