@@ -27,6 +27,18 @@ export interface AuthioMiddlewareOptions {
   refreshPath?: string;
 }
 
+function publicOrigin(req: NextRequest): string {
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const proto =
+    req.headers.get('x-forwarded-proto') ||
+    (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+  if (host) return `${proto}://${host}`;
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+  }
+  return req.nextUrl.origin;
+}
+
 export function createAuthioMiddleware(opts: AuthioMiddlewareOptions = {}) {
   const publicPaths = opts.publicPaths ?? DEFAULT_PUBLIC_PATHS;
   const signInPath = opts.signInPath ?? '/sign-in';
@@ -45,14 +57,15 @@ export function createAuthioMiddleware(opts: AuthioMiddlewareOptions = {}) {
     if (hasAccess) return NextResponse.next();
 
     const returnTo = `${pathname}${req.nextUrl.search}`;
+    const origin = publicOrigin(req);
 
     if (hasRefresh) {
-      const refresh = new URL(refreshPath, req.nextUrl.origin);
+      const refresh = new URL(refreshPath, origin);
       refresh.searchParams.set('return_to', returnTo);
       return NextResponse.redirect(refresh);
     }
 
-    const signIn = new URL(signInPath, req.nextUrl.origin);
+    const signIn = new URL(signInPath, origin);
     signIn.searchParams.set('next', returnTo);
     return NextResponse.redirect(signIn);
   };

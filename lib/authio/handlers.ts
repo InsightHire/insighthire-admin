@@ -27,6 +27,7 @@ import {
   SESSION_COOKIE,
   SIGN_IN_PATH,
   assertConfig,
+  authCoreHeaders,
   safeNext,
 } from './config';
 import { verifyAccessToken } from './session';
@@ -149,9 +150,13 @@ export function createAuthioSignInHandler() {
     } else {
       destination = new URL(AUTHIO_HOSTED_UI_URL);
       destination.searchParams.set('project_id', AUTHIO_PROJECT_ID);
-      destination.searchParams.set('redirect_uri', callbackUrl(req));
+      // Lobby does not forward arbitrary top-level params; embed `next` in the
+      // redirect_uri (same pattern as @authio/nextjs). The callback still reads
+      // `next` from the cookie-bound state — this is defense-in-depth only.
+      const lobbyRedirectUri =
+        next !== '/' ? callbackUrl(req, { next }) : callbackUrl(req);
+      destination.searchParams.set('redirect_uri', lobbyRedirectUri);
       destination.searchParams.set('client_state_nonce', nonce);
-      destination.searchParams.set('return_to', next);
       if (AUTHIO_ORGANIZATION_ID) {
         destination.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
       }
@@ -257,10 +262,7 @@ export function createAuthioRefreshHandler() {
       // identity.authio.com, not api.authio.com (which returns 404).
       const apiRes = await fetch(`${AUTHIO_AUTH_CORE_URL}/v1/auth/refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Authio-Project': AUTHIO_PROJECT_ID,
-        },
+        headers: authCoreHeaders(),
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
       if (!apiRes.ok) {
@@ -308,11 +310,7 @@ export function createAuthioSignOutHandler() {
         try {
           const res = await fetch(`${AUTHIO_AUTH_CORE_URL}${path}`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-              'X-Authio-Project': AUTHIO_PROJECT_ID,
-            },
+            headers: authCoreHeaders({ Authorization: `Bearer ${accessToken}` }),
           });
           if (res.ok || res.status === 401) break; // 401 = already revoked, treat as success
         } catch {

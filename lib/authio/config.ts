@@ -75,6 +75,22 @@ export const CALLBACK_PATH = '/api/auth/callback';
 export const REFRESH_PATH = '/api/auth/refresh';
 export const SIGN_OUT_PATH = '/api/auth/sign-out';
 
+/**
+ * Hand-port version tag sent as `X-Authio-SDK` on every auth-core fetch so HQ
+ * can attribute SDK usage. Mirrors `@authio/nextjs@0.3.2` (`nextjs/0.3.2`).
+ */
+export const AUTHIO_SDK_HEADER = 'nextjs/0.3.2';
+
+/** Standard auth-core request headers (SDK version + project resolution). */
+export function authCoreHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    'X-Authio-SDK': AUTHIO_SDK_HEADER,
+    'X-Authio-Project': AUTHIO_PROJECT_ID,
+    ...extra,
+  };
+}
+
 /** Public paths that bypass the auth gate. */
 export const DEFAULT_PUBLIC_PATHS = [
   '/sign-in',

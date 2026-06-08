@@ -13,6 +13,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   csrf_mismatch: 'Sign-in security check failed. Try again.',
   csrf_state_missing: 'Sign-in security state missing. Try again from this page.',
   csrf_state_unreadable: 'Sign-in security state corrupted. Try again.',
+  invalid_token: 'Sign-in returned an invalid session. Try again.',
+  sso_org_unconfigured: 'SSO is misconfigured (missing organization id). Contact support.',
   refresh_failed: 'Your session ended. Sign in to continue.',
   refresh_threw: 'We could not refresh your session. Sign in to continue.',
 };
