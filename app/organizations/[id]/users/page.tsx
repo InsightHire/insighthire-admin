@@ -22,6 +22,24 @@ export default function OrganizationUsersPage() {
   const impersonateUser = trpc.platformAdmin.impersonateUser.useMutation();
 
   const [impersonating, setImpersonating] = useState<string | null>(null);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    firstName: '',
+    lastName: '',
+    role: 'ORGANIZATION_ADMIN' as 'ORGANIZATION_ADMIN' | 'RECRUITER' | 'HIRING_MANAGER',
+  });
+
+  // Cast: the admin app's `trpc` is typed as `any`-router (every hook call in
+  // this codebase errors the same way); keep new code out of the tsc baseline.
+  const inviteOrgAdmin = (trpc as any).platformAdmin.inviteOrgAdmin.useMutation({
+    onSuccess: () => {
+      setShowInvite(false);
+      setInviteForm({ email: '', firstName: '', lastName: '', role: 'ORGANIZATION_ADMIN' });
+      refetch();
+    },
+    onError: (e: { message: string }) => alert('Invite failed: ' + e.message),
+  });
 
   const handleImpersonate = async (userId: string) => {
     if (!confirm('Impersonate this user? All actions will be logged.')) return;
@@ -78,11 +96,27 @@ export default function OrganizationUsersPage() {
                 <p className="text-sm text-gray-600">{data?.users.length || 0} users</p>
               </div>
             </div>
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowInvite(true)}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+            >
+              + Invite User
+            </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {data?.users.length === 0 && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            This organization has no users yet. Invite the customer&apos;s first admin with
+            <span className="font-medium"> + Invite User</span>, or use{' '}
+            <span className="font-medium">Login as Admin</span> on the organization page — it now
+            creates a &quot;Platform Setup&quot; admin automatically so you can configure the
+            tenant yourself.
+          </div>
+        )}
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -144,6 +178,76 @@ export default function OrganizationUsersPage() {
           </table>
         </div>
       </div>
+
+      {/* Invite user modal */}
+      {showInvite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-gray-900">Invite user to this organization</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Sends a WorkOS invitation plus a branded email. The user appears as Pending until
+              they accept.
+            </p>
+            <div className="mt-4 space-y-3">
+              <input
+                type="email"
+                placeholder="email@company.com"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                autoFocus
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  placeholder="First name"
+                  value={inviteForm.firstName}
+                  onChange={(e) => setInviteForm((p) => ({ ...p, firstName: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  placeholder="Last name"
+                  value={inviteForm.lastName}
+                  onChange={(e) => setInviteForm((p) => ({ ...p, lastName: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <select
+                value={inviteForm.role}
+                onChange={(e) =>
+                  setInviteForm((p) => ({ ...p, role: e.target.value as typeof p.role }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="ORGANIZATION_ADMIN">Organization Admin</option>
+                <option value="RECRUITER">Recruiter</option>
+                <option value="HIRING_MANAGER">Hiring Manager</option>
+              </select>
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setShowInvite(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() =>
+                  inviteOrgAdmin.mutate({ organizationId: orgId, ...inviteForm })
+                }
+                disabled={
+                  inviteOrgAdmin.isPending ||
+                  !inviteForm.email ||
+                  !inviteForm.firstName ||
+                  !inviteForm.lastName
+                }
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {inviteOrgAdmin.isPending ? 'Sending…' : 'Send invitation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
