@@ -94,28 +94,81 @@ function basename(file?: string) {
   return parts[parts.length - 1] ?? file;
 }
 
+function dedupeFailedTests(
+  items: Array<{ title?: string; file?: string; project?: string; error?: string; status?: string }>,
+): TestResult[] {
+  const seen = new Set<string>();
+  const out: TestResult[] = [];
+  for (const t of items) {
+    const key = `${t.title ?? ''}|${t.file ?? ''}|${t.project ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      title: t.title ?? 'Unknown test',
+      file: t.file,
+      project: t.project,
+      status: (t.status as TestStatus) ?? 'failed',
+      error: t.error,
+    });
+  }
+  return out;
+}
+
+function isCompleteBreakdown(tests: TestResult[], runTotals: { passed: number; failed: number; skipped: number }) {
+  const expectedTotal = runTotals.passed + runTotals.failed + runTotals.skipped;
+  if (tests.length === 0 || expectedTotal === 0) return false;
+  const passedInList = tests.filter((t) => t.status === 'passed').length;
+  return passedInList > 0 || tests.length >= expectedTotal - 2;
+}
+
 function RunTestList({
   tests,
   legacyFailed,
+  runTotals,
 }: {
   tests: TestResult[];
-  legacyFailed?: Array<{ title?: string; file?: string; error?: string }>;
+  legacyFailed?: Array<{ title?: string; file?: string; error?: string; project?: string }>;
+  runTotals: { passed: number; failed: number; skipped: number };
 }) {
   const [statusFilter, setStatusFilter] = useState<'all' | TestStatus>('all');
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  const complete = isCompleteBreakdown(tests, runTotals);
+  const expectedTotal = runTotals.passed + runTotals.failed + runTotals.skipped;
+
   const sourceTests: TestResult[] = useMemo(() => {
-    if (tests.length > 0) return tests;
-    return (legacyFailed ?? []).map((t) => ({
-      title: t.title ?? 'Unknown test',
-      file: t.file,
-      status: 'failed' as const,
-      error: t.error,
-    }));
-  }, [tests, legacyFailed]);
+    if (complete) return tests;
+    const failures = dedupeFailedTests(
+      tests.length > 0
+        ? tests.filter((t) => t.status !== 'passed' && t.status !== 'skipped')
+        : (legacyFailed ?? []).map((t) => ({ ...t, status: 'failed' })),
+    );
+    return failures;
+  }, [tests, legacyFailed, complete]);
+
+  const counts = useMemo(() => {
+    if (complete) {
+      const c = { passed: 0, failed: 0, skipped: 0, total: sourceTests.length };
+      for (const t of sourceTests) {
+        if (t.status === 'passed') c.passed++;
+        else if (t.status === 'skipped') c.skipped++;
+        else c.failed++;
+      }
+      return c;
+    }
+    return {
+      passed: runTotals.passed,
+      failed: runTotals.failed,
+      skipped: runTotals.skipped,
+      total: expectedTotal,
+    };
+  }, [complete, sourceTests, runTotals, expectedTotal]);
 
   const filtered = useMemo(() => {
+    if (!complete && (statusFilter === 'passed' || statusFilter === 'skipped')) {
+      return [];
+    }
     const q = search.trim().toLowerCase();
     return sourceTests.filter((t) => {
       if (statusFilter !== 'all') {
@@ -132,29 +185,28 @@ function RunTestList({
         (t.project?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [sourceTests, statusFilter, search]);
+  }, [sourceTests, statusFilter, search, complete]);
 
-  const counts = useMemo(() => {
-    const c = { passed: 0, failed: 0, skipped: 0, total: sourceTests.length };
-    for (const t of sourceTests) {
-      if (t.status === 'passed') c.passed++;
-      else if (t.status === 'skipped') c.skipped++;
-      else c.failed++;
-    }
-    return c;
-  }, [sourceTests]);
-
-  if (sourceTests.length === 0) {
+  if (!complete && sourceTests.length === 0 && expectedTotal === 0) {
     return (
       <p className="text-sm text-gray-500 py-4">
-        No per-test breakdown for this run. Re-run CI after the latest deploy to capture test-level
-        detail, or open the GitHub workflow for the Playwright HTML report.
+        No per-test breakdown for this run. Re-run CI to capture test-level detail, or open the
+        GitHub workflow for the Playwright HTML report.
       </p>
     );
   }
 
   return (
     <div className="space-y-3">
+      {!complete && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Showing <strong>{sourceTests.length} failed</strong> test
+          {sourceTests.length === 1 ? '' : 's'} individually ({counts.passed} passed and{' '}
+          {counts.skipped} skipped are in the summary only). Re-run CI after the latest deploy for
+          the full {expectedTotal}-test list.
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         {(['all', 'passed', 'failed', 'skipped'] as const).map((key) => (
           <button
@@ -167,7 +219,9 @@ function RunTestList({
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {key === 'all' ? `All (${counts.total})` : `${key} (${counts[key]})`}
+            {key === 'all'
+              ? `All (${counts.total})`
+              : `${key} (${counts[key as keyof typeof counts]})`}
           </button>
         ))}
         <div className="relative flex-1 min-w-[180px] max-w-xs ml-auto">
@@ -244,7 +298,11 @@ function RunTestList({
           </tbody>
         </table>
         {filtered.length === 0 && (
-          <p className="text-sm text-gray-500 text-center py-6">No tests match your filter.</p>
+          <p className="text-sm text-gray-500 text-center py-6">
+            {!complete && (statusFilter === 'passed' || statusFilter === 'skipped')
+              ? `${counts[statusFilter]} ${statusFilter} tests — open a newer CI run for the full list, or use GitHub for the HTML report.`
+              : 'No tests match your filter.'}
+          </p>
         )}
       </div>
     </div>
@@ -293,7 +351,15 @@ function RunDetailPanel({ runId }: { runId: string }) {
         </div>
       </div>
 
-      <RunTestList tests={tests} legacyFailed={detail.failedTests} />
+      <RunTestList
+        tests={tests}
+        legacyFailed={detail.failedTests}
+        runTotals={{
+          passed: detail.passed ?? 0,
+          failed: detail.failed ?? 0,
+          skipped: detail.skipped ?? 0,
+        }}
+      />
     </div>
   );
 }
