@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
@@ -14,7 +14,35 @@ import {
   RefreshCw,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
+  Search,
+  MinusCircle,
+  Zap,
 } from 'lucide-react';
+
+type TestStatus = 'passed' | 'failed' | 'skipped' | 'flaky' | 'timedOut';
+type TestResult = {
+  title: string;
+  file?: string;
+  project?: string;
+  status: TestStatus;
+  durationMs?: number;
+  error?: string;
+  retries?: number;
+};
+
+type E2eRunRow = {
+  id: string;
+  status: string;
+  suite: string;
+  triggerSource?: string | null;
+  passed: number;
+  failed: number;
+  skipped: number;
+  finishedAt: string;
+  githubRunUrl?: string | null;
+  durationMs?: number | null;
+};
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'passed') {
@@ -38,6 +66,13 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function TestStatusIcon({ status }: { status: TestStatus | string }) {
+  if (status === 'passed') return <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />;
+  if (status === 'skipped') return <MinusCircle className="h-4 w-4 text-gray-400 shrink-0" />;
+  if (status === 'flaky') return <Zap className="h-4 w-4 text-amber-600 shrink-0" />;
+  return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
+}
+
 function formatDuration(ms: number | null | undefined) {
   if (!ms) return '—';
   if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
@@ -51,6 +86,216 @@ function formatWhen(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function basename(file?: string) {
+  if (!file) return '';
+  const parts = file.split(/[/\\]/);
+  return parts[parts.length - 1] ?? file;
+}
+
+function RunTestList({
+  tests,
+  legacyFailed,
+}: {
+  tests: TestResult[];
+  legacyFailed?: Array<{ title?: string; file?: string; error?: string }>;
+}) {
+  const [statusFilter, setStatusFilter] = useState<'all' | TestStatus>('all');
+  const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const sourceTests: TestResult[] = useMemo(() => {
+    if (tests.length > 0) return tests;
+    return (legacyFailed ?? []).map((t) => ({
+      title: t.title ?? 'Unknown test',
+      file: t.file,
+      status: 'failed' as const,
+      error: t.error,
+    }));
+  }, [tests, legacyFailed]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return sourceTests.filter((t) => {
+      if (statusFilter !== 'all') {
+        const bucket =
+          t.status === 'timedOut' || t.status === 'flaky' ? 'failed' : t.status;
+        const filterBucket =
+          statusFilter === 'timedOut' || statusFilter === 'flaky' ? 'failed' : statusFilter;
+        if (bucket !== filterBucket && t.status !== statusFilter) return false;
+      }
+      if (!q) return true;
+      return (
+        t.title.toLowerCase().includes(q) ||
+        (t.file?.toLowerCase().includes(q) ?? false) ||
+        (t.project?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [sourceTests, statusFilter, search]);
+
+  const counts = useMemo(() => {
+    const c = { passed: 0, failed: 0, skipped: 0, total: sourceTests.length };
+    for (const t of sourceTests) {
+      if (t.status === 'passed') c.passed++;
+      else if (t.status === 'skipped') c.skipped++;
+      else c.failed++;
+    }
+    return c;
+  }, [sourceTests]);
+
+  if (sourceTests.length === 0) {
+    return (
+      <p className="text-sm text-gray-500 py-4">
+        No per-test breakdown for this run. Re-run CI after the latest deploy to capture test-level
+        detail, or open the GitHub workflow for the Playwright HTML report.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {(['all', 'passed', 'failed', 'skipped'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setStatusFilter(key)}
+            className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
+              statusFilter === key
+                ? 'bg-indigo-100 text-indigo-800'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {key === 'all' ? `All (${counts.total})` : `${key} (${counts[key]})`}
+          </button>
+        ))}
+        <div className="relative flex-1 min-w-[180px] max-w-xs ml-auto">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <input
+            type="search"
+            placeholder="Search tests…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 py-1.5 pl-8 pr-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 overflow-hidden max-h-[480px] overflow-y-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 sticky top-0 z-10">
+            <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
+              <th className="px-3 py-2 w-8" />
+              <th className="px-3 py-2">Test</th>
+              <th className="px-3 py-2 hidden md:table-cell">File</th>
+              <th className="px-3 py-2 w-20 text-right">Time</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {filtered.map((test, i) => {
+              const rowKey = `${test.title}-${i}`;
+              const isOpen = expanded === rowKey;
+              const hasError = !!test.error;
+              return (
+                <Fragment key={rowKey}>
+                  <tr
+                    className={`${hasError ? 'cursor-pointer hover:bg-gray-50' : ''} ${
+                      test.status !== 'passed' && test.status !== 'skipped' ? 'bg-red-50/30' : ''
+                    }`}
+                    onClick={() => hasError && setExpanded(isOpen ? null : rowKey)}
+                  >
+                    <td className="px-3 py-2">
+                      <TestStatusIcon status={test.status} />
+                    </td>
+                    <td className="px-3 py-2 min-w-0">
+                      <p className="font-medium text-gray-900 break-words">{test.title}</p>
+                      <div className="flex flex-wrap gap-2 mt-0.5">
+                        {test.project && (
+                          <span className="text-xs text-gray-400">{test.project}</span>
+                        )}
+                        {test.retries != null && test.retries > 0 && (
+                          <span className="text-xs text-amber-600">{test.retries} retries</span>
+                        )}
+                        <span className="text-xs text-gray-400 capitalize md:hidden">
+                          {basename(test.file)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 hidden md:table-cell text-xs text-gray-500 font-mono truncate max-w-[200px]">
+                      {basename(test.file) || '—'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs text-gray-500 tabular-nums">
+                      {formatDuration(test.durationMs)}
+                    </td>
+                  </tr>
+                  {isOpen && test.error && (
+                    <tr>
+                      <td colSpan={4} className="px-3 py-2 bg-red-50/80">
+                        <pre className="text-xs text-red-800 whitespace-pre-wrap font-mono overflow-x-auto">
+                          {test.error}
+                        </pre>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <p className="text-sm text-gray-500 text-center py-6">No tests match your filter.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RunDetailPanel({ runId }: { runId: string }) {
+  const { data: detail, isLoading } = (trpc as any).platformAdmin.getE2eRun.useQuery(
+    { id: runId },
+    { enabled: !!runId },
+  );
+
+  if (isLoading) {
+    return (
+      <div className="px-5 py-6 bg-slate-50 border-t border-gray-100 text-sm text-gray-500">
+        Loading test results…
+      </div>
+    );
+  }
+  if (!detail) return null;
+
+  const tests = (detail.testResults ?? []) as TestResult[];
+
+  return (
+    <div className="px-5 py-4 bg-slate-50 border-t border-gray-100 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-gray-900 capitalize">{detail.suite} — test breakdown</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {detail.passed} passed · {detail.failed} failed · {detail.skipped} skipped ·{' '}
+            {formatDuration(detail.durationMs)} total
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <StatusBadge status={detail.status} />
+          {detail.githubRunUrl && (
+            <a
+              href={detail.githubRunUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
+            >
+              GitHub run <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      </div>
+
+      <RunTestList tests={tests} legacyFailed={detail.failedTests} />
+    </div>
+  );
 }
 
 export default function E2eResultsPage() {
@@ -71,11 +316,6 @@ export default function E2eResultsPage() {
   } = (trpc as any).platformAdmin.listE2eRuns.useQuery(
     { suite: suiteFilter === 'all' ? undefined : suiteFilter, limit: 40 },
     { refetchInterval: 60_000 },
-  );
-
-  const { data: detail } = (trpc as any).platformAdmin.getE2eRun.useQuery(
-    { id: selectedId! },
-    { enabled: !!selectedId },
   );
 
   const loading = summaryLoading || runsLoading;
@@ -100,7 +340,7 @@ export default function E2eResultsPage() {
                 insighthire-e2e
                 <ExternalLink className="h-3 w-3" />
               </a>
-              {' '}— runs every 6h and after deploys
+              {' '}— runs every 6h and after deploys. Click a run to drill into individual tests.
             </p>
           </div>
           <button
@@ -116,7 +356,6 @@ export default function E2eResultsPage() {
           </button>
         </div>
 
-        {/* Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Latest smoke</p>
@@ -128,16 +367,13 @@ export default function E2eResultsPage() {
                   {summary.latestSmoke.skipped} skipped
                 </p>
                 <p className="text-xs text-gray-400">{formatWhen(summary.latestSmoke.finishedAt)}</p>
-                {summary.latestSmoke.githubRunUrl && (
-                  <a
-                    href={summary.latestSmoke.githubRunUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
-                  >
-                    GitHub run <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(summary.latestSmoke.id)}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  View tests →
+                </button>
               </div>
             ) : (
               <p className="mt-2 text-sm text-gray-400">No runs recorded yet</p>
@@ -158,16 +394,13 @@ export default function E2eResultsPage() {
                 <p className="text-xs text-gray-400">
                   {formatWhen(summary.latestFunctional.finishedAt)}
                 </p>
-                {summary.latestFunctional.githubRunUrl && (
-                  <a
-                    href={summary.latestFunctional.githubRunUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
-                  >
-                    GitHub run <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(summary.latestFunctional.id)}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  View tests →
+                </button>
               </div>
             ) : (
               <p className="mt-2 text-sm text-gray-400">No runs recorded yet</p>
@@ -186,7 +419,6 @@ export default function E2eResultsPage() {
           </div>
         </div>
 
-        {/* Run history */}
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h2 className="font-semibold text-gray-900">Run history</h2>
@@ -207,115 +439,60 @@ export default function E2eResultsPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {runsData.runs.map((run: { id: string; status: string; suite: string; triggerSource?: string | null; passed: number; failed: number; skipped: number; finishedAt: string; githubRunUrl?: string | null; durationMs?: number | null }) => (
-                <button
-                  key={run.id}
-                  type="button"
-                  onClick={() => setSelectedId(run.id === selectedId ? null : run.id)}
-                  className="w-full flex items-center gap-4 px-5 py-3 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <StatusBadge status={run.status} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 capitalize">
-                      {run.suite}
-                      {run.triggerSource ? (
-                        <span className="text-gray-400 font-normal"> · after {run.triggerSource}</span>
-                      ) : null}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {run.passed} passed · {run.failed} failed · {run.skipped} skipped ·{' '}
-                      {formatDuration(run.durationMs)}
-                    </p>
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0">{formatWhen(run.finishedAt)}</span>
-                  {run.githubRunUrl && (
-                    <a
-                      href={run.githubRunUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-gray-400 hover:text-indigo-600"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  <ChevronRight
-                    className={`h-4 w-4 text-gray-300 transition-transform ${selectedId === run.id ? 'rotate-90' : ''}`}
-                  />
-                </button>
+              {runsData.runs.map((run: E2eRunRow) => (
+                <div key={run.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(run.id === selectedId ? null : run.id)}
+                    className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors ${
+                      selectedId === run.id ? 'bg-indigo-50/60' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <StatusBadge status={run.status} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 capitalize">
+                        {run.suite}
+                        {run.triggerSource ? (
+                          <span className="text-gray-400 font-normal">
+                            {' '}
+                            · after {run.triggerSource}
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {run.passed} passed · {run.failed} failed · {run.skipped} skipped ·{' '}
+                        {formatDuration(run.durationMs)}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 shrink-0">{formatWhen(run.finishedAt)}</span>
+                    {run.githubRunUrl && (
+                      <a
+                        href={run.githubRunUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-gray-400 hover:text-indigo-600"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </a>
+                    )}
+                    {selectedId === run.id ? (
+                      <ChevronDown className="h-4 w-4 text-indigo-500" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-gray-300" />
+                    )}
+                  </button>
+                  {selectedId === run.id && <RunDetailPanel runId={run.id} />}
+                </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Detail panel */}
-        {detail && selectedId && (
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 capitalize">{detail.suite} run detail</h3>
-              <StatusBadge status={detail.status} />
-            </div>
-            <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <dt className="text-gray-500">Trigger</dt>
-                <dd className="font-medium text-gray-900">{detail.trigger ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Duration</dt>
-                <dd className="font-medium text-gray-900">{formatDuration(detail.durationMs)}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">Finished</dt>
-                <dd className="font-medium text-gray-900">{formatWhen(detail.finishedAt)}</dd>
-              </div>
-              <div>
-                <dt className="text-gray-500">GitHub</dt>
-                <dd>
-                  {detail.githubRunUrl ? (
-                    <a
-                      href={detail.githubRunUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-600 hover:underline"
-                    >
-                      View workflow
-                    </a>
-                  ) : (
-                    '—'
-                  )}
-                </dd>
-              </div>
-            </dl>
-
-            {Array.isArray(detail.failedTests) && detail.failedTests.length > 0 && (
-              <div>
-                <h4 className="flex items-center gap-2 text-sm font-semibold text-red-800 mb-2">
-                  <AlertTriangle className="h-4 w-4" />
-                  Failed tests ({detail.failedTests.length})
-                </h4>
-                <ul className="space-y-2">
-                  {(detail.failedTests as Array<{ title?: string; file?: string; error?: string }>).map(
-                    (t, i) => (
-                      <li
-                        key={i}
-                        className="rounded-lg border border-red-100 bg-red-50/50 px-3 py-2 text-sm"
-                      >
-                        <p className="font-medium text-gray-900">{t.title}</p>
-                        {t.file && <p className="text-xs text-gray-500 font-mono mt-0.5">{t.file}</p>}
-                        {t.error && (
-                          <pre className="mt-1 text-xs text-red-700 whitespace-pre-wrap">{t.error}</pre>
-                        )}
-                      </li>
-                    ),
-                  )}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        <p className="text-xs text-gray-400">
-          Tip: open a failed GitHub run to download the Playwright HTML report artifact (retained 7 days).
+        <p className="text-xs text-gray-400 flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" />
+          Older runs may only show failed tests. New runs include full pass/fail/skip breakdown. GitHub
+          artifacts retain Playwright HTML reports for 7 days.
         </p>
       </div>
     </AuthenticatedLayout>
