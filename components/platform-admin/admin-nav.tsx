@@ -21,7 +21,7 @@ import {
   CreditCard,
   Settings,
   Users,
-  Images,
+  FlaskConical,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -74,7 +74,7 @@ export function PlatformAdminNav() {
   const anomalyCount = healthData?.metrics?.locationAnomalies || 0;
   const totalAlerts = alertCount + anomalyCount;
 
-  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring', '/scoring'].some(
+  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring', '/scoring', '/e2e-results'].some(
     path => pathname === path || pathname?.startsWith(path + '/')
   );
 
@@ -83,6 +83,7 @@ export function PlatformAdminNav() {
     { name: 'Location Anomalies', href: '/anomalies', icon: MapPin, badge: anomalyCount, badgeColor: 'bg-amber-500' },
     { name: 'Background Jobs', href: '/background-jobs', icon: Activity },
     { name: 'API Health', href: '/api-monitoring', icon: BarChart3 },
+    { name: 'E2E Tests', href: '/e2e-results', icon: FlaskConical },
     { name: 'Email & Digests', href: '/email-monitoring', icon: Mail },
     { name: 'AI Scoring', href: '/scoring', icon: BarChart3 },
   ];
