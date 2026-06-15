@@ -62,18 +62,18 @@ export default function E2eResultsPage() {
     data: summary,
     refetch: refetchSummary,
     isFetching: summaryLoading,
-  } = trpc.platformAdmin.getE2eSummary.useQuery(undefined, { refetchInterval: 60_000 });
+  } = (trpc as any).platformAdmin.getE2eSummary.useQuery(undefined, { refetchInterval: 60_000 });
 
   const {
     data: runsData,
     refetch: refetchRuns,
     isFetching: runsLoading,
-  } = trpc.platformAdmin.listE2eRuns.useQuery(
+  } = (trpc as any).platformAdmin.listE2eRuns.useQuery(
     { suite: suiteFilter === 'all' ? undefined : suiteFilter, limit: 40 },
     { refetchInterval: 60_000 },
   );
 
-  const { data: detail } = trpc.platformAdmin.getE2eRun.useQuery(
+  const { data: detail } = (trpc as any).platformAdmin.getE2eRun.useQuery(
     { id: selectedId! },
     { enabled: !!selectedId },
   );
@@ -207,7 +207,7 @@ export default function E2eResultsPage() {
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
-              {runsData.runs.map((run) => (
+              {runsData.runs.map((run: { id: string; status: string; suite: string; triggerSource?: string | null; passed: number; failed: number; skipped: number; finishedAt: string; githubRunUrl?: string | null; durationMs?: number | null }) => (
                 <button
                   key={run.id}
                   type="button"

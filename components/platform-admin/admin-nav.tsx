@@ -21,6 +21,7 @@ import {
   CreditCard,
   Settings,
   Users,
+  Images,
   FlaskConical,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
