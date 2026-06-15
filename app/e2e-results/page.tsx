@@ -42,6 +42,7 @@ type E2eRunRow = {
   finishedAt: string;
   githubRunUrl?: string | null;
   durationMs?: number | null;
+  hasFullBreakdown?: boolean;
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -516,8 +517,17 @@ export default function E2eResultsPage() {
                   >
                     <StatusBadge status={run.status} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 capitalize">
-                        {run.suite}
+                    <p className="text-sm font-medium text-gray-900 capitalize">
+                      {run.suite}
+                      {run.hasFullBreakdown ? (
+                        <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                          Full list
+                        </span>
+                      ) : run.passed + run.failed + run.skipped > 0 ? (
+                        <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                          Failures only
+                        </span>
+                      ) : null}
                         {run.triggerSource ? (
                           <span className="text-gray-400 font-normal">
                             {' '}
