@@ -23,6 +23,7 @@ import {
   Users,
   Images,
   FlaskConical,
+  Wrench,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -75,7 +76,7 @@ export function PlatformAdminNav() {
   const anomalyCount = healthData?.metrics?.locationAnomalies || 0;
   const totalAlerts = alertCount + anomalyCount;
 
-  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring', '/scoring', '/e2e-results'].some(
+  const isMonitoringActive = ['/stuck-candidates', '/anomalies', '/background-jobs', '/api-monitoring', '/email-monitoring', '/scoring', '/e2e-results', '/devops'].some(
     path => pathname === path || pathname?.startsWith(path + '/')
   );
 
@@ -85,6 +86,7 @@ export function PlatformAdminNav() {
     { name: 'Background Jobs', href: '/background-jobs', icon: Activity },
     { name: 'API Health', href: '/api-monitoring', icon: BarChart3 },
     { name: 'E2E Tests', href: '/e2e-results', icon: FlaskConical },
+    { name: 'AI DevOps', href: '/devops', icon: Wrench },
     { name: 'Email & Digests', href: '/email-monitoring', icon: Mail },
     { name: 'AI Scoring', href: '/scoring', icon: BarChart3 },
   ];
