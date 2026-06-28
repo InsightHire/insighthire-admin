@@ -23,7 +23,7 @@ export const AUTHIO_ORGANIZATION_ID =
  */
 export const AUTHIO_API_URL = (process.env.AUTHIO_API_URL || 'https://api.authio.com').replace(/\/$/, '');
 export const AUTHIO_HOSTED_UI_URL = (
-  process.env.AUTHIO_HOSTED_UI_URL || 'https://lobby.authio.com'
+  process.env.AUTHIO_HOSTED_UI_URL || 'https://auth.insighthire.com'
 ).replace(/\/$/, '');
 
 /**
