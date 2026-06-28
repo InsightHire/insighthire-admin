@@ -8,8 +8,8 @@
 
 export const AUTHIO_PROJECT_ID = process.env.AUTHIO_PROJECT_ID ?? '';
 /**
- * Org to pin on the hosted-UI (Lobby) sign-in URL. Pinning the org sends the
- * Lobby straight to InsightHire's Entra connection instead of the generic
+ * Org to pin on the hosted-UI sign-in URL (auth.insighthire.com). Pinning the org
+ * sends users straight to InsightHire's Entra connection instead of the generic
  * method picker. Defaults to InsightHire's org id; override per-environment via
  * the AUTHIO_ORGANIZATION_ID env var.
  */
@@ -23,7 +23,7 @@ export const AUTHIO_ORGANIZATION_ID =
  */
 export const AUTHIO_API_URL = (process.env.AUTHIO_API_URL || 'https://api.authio.com').replace(/\/$/, '');
 export const AUTHIO_HOSTED_UI_URL = (
-  process.env.AUTHIO_HOSTED_UI_URL || 'https://lobby.authio.com'
+  process.env.AUTHIO_HOSTED_UI_URL || 'https://auth.insighthire.com'
 ).replace(/\/$/, '');
 
 /**
@@ -31,9 +31,9 @@ export const AUTHIO_HOSTED_UI_URL = (
  * https://docs.authio.com/lobby/sso-login-url . When `AUTHIO_SSO_CONNECTION_ID`
  * is set, the sign-in handler builds
  *   ${AUTHIO_SSO_HOST}/v1/sso/connections/${conn_id}/initiate?…
- * and sends the browser straight to the customer's IdP — no Lobby method picker,
+ * and sends the browser straight to the customer's IdP — no hosted UI method picker,
  * one redirect, WorkOS-style. Without `AUTHIO_SSO_CONNECTION_ID`, we fall back
- * to the Lobby URL above (org-pinned so it still skips the picker for that org).
+ * to AUTHIO_HOSTED_UI_URL (org-pinned so it still skips the picker for that org).
  */
 export const AUTHIO_SSO_HOST = (
   process.env.AUTHIO_SSO_HOST || 'https://sso.authio.com'
@@ -43,7 +43,7 @@ export const AUTHIO_SSO_HOST = (
  * Authio SSO connection id (`sso_…`) for the InsightHire admin org's One-click
  * Microsoft connection. Surfaced on Org → Features → Single Sign-On in the
  * Authio dashboard. Required for the SP-initiated direct-to-IdP flow; if blank,
- * sign-in falls through to the Lobby URL.
+ * sign-in falls through to AUTHIO_HOSTED_UI_URL.
  */
 export const AUTHIO_SSO_CONNECTION_ID = process.env.AUTHIO_SSO_CONNECTION_ID ?? '';
 
