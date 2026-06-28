@@ -31,6 +31,7 @@ import {
   safeNext,
 } from './config';
 import { verifyAccessToken } from './session';
+import { exchangeAuthorizationCode, hashBootstrapHtml } from './token-exchange';
 
 /** Query-string key used to round-trip our cookie-bound CSRF nonce through the
  * SP-initiated flow (which doesn't accept `client_state_nonce` as a top-level
@@ -150,12 +151,8 @@ export function createAuthioSignInHandler() {
     } else {
       destination = new URL(AUTHIO_HOSTED_UI_URL);
       destination.searchParams.set('project_id', AUTHIO_PROJECT_ID);
-      // Lobby does not forward arbitrary top-level params; embed `next` in the
-      // redirect_uri (same pattern as @authio/nextjs). The callback still reads
-      // `next` from the cookie-bound state — this is defense-in-depth only.
-      const lobbyRedirectUri =
-        next !== '/' ? callbackUrl(req, { next }) : callbackUrl(req);
-      destination.searchParams.set('redirect_uri', lobbyRedirectUri);
+      // Allow-list is exact-match — never append app params to redirect_uri.
+      destination.searchParams.set('redirect_uri', callbackUrl(req));
       destination.searchParams.set('client_state_nonce', nonce);
       if (AUTHIO_ORGANIZATION_ID) {
         destination.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
@@ -176,6 +173,30 @@ export function createAuthioSignInHandler() {
   };
 }
 
+function hashTokenBootstrapResponse(): NextResponse {
+  return new NextResponse(hashBootstrapHtml(), {
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
+async function resolveCallbackTokens(
+  req: NextRequest,
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  let accessToken = req.nextUrl.searchParams.get('access_token');
+  let refreshToken = req.nextUrl.searchParams.get('refresh_token');
+  if (accessToken && refreshToken) {
+    return { accessToken, refreshToken };
+  }
+
+  const code = req.nextUrl.searchParams.get('code');
+  if (code) {
+    const exchanged = await exchangeAuthorizationCode(code, callbackUrl(req));
+    if (exchanged) return exchanged;
+  }
+
+  return null;
+}
+
 // ─── Callback ───────────────────────────────────────────────────────────────────
 
 export interface CallbackHandlerOptions {
@@ -187,9 +208,15 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
   return async function GET(req: NextRequest) {
     assertConfig();
 
-    const accessToken = req.nextUrl.searchParams.get('access_token');
-    const refreshToken = req.nextUrl.searchParams.get('refresh_token');
-    // Nonce comes from `client_state_nonce` on the Lobby flow, or our
+    const oauthError = req.nextUrl.searchParams.get('error');
+    if (oauthError) {
+      return NextResponse.redirect(publicUrl(req, `/sign-in?error=${encodeURIComponent(oauthError)}`));
+    }
+
+    const tokens = await resolveCallbackTokens(req);
+    const accessToken = tokens?.accessToken;
+    const refreshToken = tokens?.refreshToken;
+    // Nonce comes from `client_state_nonce` on the hosted UI flow, or our
     // `NONCE_PARAM` query for SP-initiated (which Authio doesn't synthesise; we
     // round-tripped it through the redirect_uri).
     const urlNonce =
@@ -197,7 +224,7 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
       req.nextUrl.searchParams.get(NONCE_PARAM);
 
     if (!accessToken || !refreshToken) {
-      return NextResponse.redirect(publicUrl(req, `/sign-in?error=missing_tokens`));
+      return hashTokenBootstrapResponse();
     }
 
     // CSRF: cookie nonce must equal the URL nonce.
