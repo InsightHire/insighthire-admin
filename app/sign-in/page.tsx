@@ -4,20 +4,11 @@
  * UI in our code — Authio renders whichever methods you toggled on for the project.
  */
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { auth } from '@/lib/authio/session';
 import { InsighthireAuthLogo, AuthPageLayout } from '@/components/auth/auth-shell';
 import { SIGN_IN_PATH } from '@/lib/authio/config';
-
-const ERROR_MESSAGES: Record<string, string> = {
-  missing_tokens: 'Sign-in did not return a session. Try again.',
-  csrf_mismatch: 'Sign-in security check failed. Try again.',
-  csrf_state_missing: 'Sign-in security state missing. Try again from this page.',
-  csrf_state_unreadable: 'Sign-in security state corrupted. Try again.',
-  invalid_token: 'Sign-in returned an invalid session. Try again.',
-  sso_org_unconfigured: 'SSO is misconfigured (missing organization id). Contact support.',
-  refresh_failed: 'Your session ended. Sign in to continue.',
-  refresh_threw: 'We could not refresh your session. Sign in to continue.',
-};
+import { AUTH_LOGIN_ERROR_COOKIE, authErrorMessage } from '@/lib/authio/auth-errors';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,15 +17,20 @@ export default async function AdminSignInPage({
 }: {
   searchParams: { next?: string; error?: string };
 }) {
-  // Already signed in? Bounce to the landing page.
+  if (searchParams.error) {
+    redirect(`/api/auth/login-error?code=${encodeURIComponent(searchParams.error)}`);
+  }
+
   const session = await auth();
   if (session) {
     redirect(searchParams.next && searchParams.next.startsWith('/') ? searchParams.next : '/');
   }
 
+  const flashCode = cookies().get(AUTH_LOGIN_ERROR_COOKIE)?.value;
+  const errorMessage = authErrorMessage(flashCode);
+
   const next = searchParams.next && searchParams.next.startsWith('/') ? searchParams.next : '/';
   const signInHref = `${SIGN_IN_PATH}?next=${encodeURIComponent(next)}`;
-  const errorMessage = searchParams.error ? ERROR_MESSAGES[searchParams.error] : null;
 
   return (
     <AuthPageLayout>

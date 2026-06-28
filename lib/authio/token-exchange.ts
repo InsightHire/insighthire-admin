@@ -1,4 +1,4 @@
-import { AUTHIO_AUTH_CORE_URL, authCoreHeaders } from './config';
+import { AUTHIO_AUTH_CORE_URL, AUTHIO_PROJECT_ID, authCoreHeaders } from './config';
 
 export interface AuthioTokenPair {
   accessToken: string;
@@ -9,12 +9,15 @@ export interface AuthioTokenPair {
 export async function exchangeAuthorizationCode(
   code: string,
   redirectUri: string,
+  codeVerifier: string,
 ): Promise<AuthioTokenPair | null> {
   try {
     const payload: Record<string, string> = {
       grant_type: 'authorization_code',
       code,
       redirect_uri: redirectUri,
+      client_id: AUTHIO_PROJECT_ID,
+      code_verifier: codeVerifier,
     };
     const secret = process.env.AUTHIO_SECRET_KEY;
     if (secret) payload.client_secret = secret;
@@ -39,7 +42,7 @@ export async function exchangeAuthorizationCode(
   }
 }
 
-export function hashBootstrapHtml(signInErrorPath = '/sign-in'): string {
+export function hashBootstrapHtml(loginErrorPath = '/api/auth/login-error'): string {
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Completing sign in…</title></head>
 <body><p style="font-family:system-ui;text-align:center;margin-top:40vh">Completing sign in…</p>
@@ -59,7 +62,7 @@ export function hashBootstrapHtml(signInErrorPath = '/sign-in'): string {
     return;
   }
   var err = merged.get('error') || 'missing_tokens';
-  window.location.replace('${signInErrorPath}?error=' + encodeURIComponent(err));
+  window.location.replace('${loginErrorPath}?code=' + encodeURIComponent(err));
 })();
 </script></body></html>`;
 }

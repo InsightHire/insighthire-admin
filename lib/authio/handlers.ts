@@ -32,6 +32,8 @@ import {
 } from './config';
 import { verifyAccessToken } from './session';
 import { exchangeAuthorizationCode, hashBootstrapHtml } from './token-exchange';
+import { redirectWithAuthError } from './auth-errors';
+import { generatePkcePair } from './pkce';
 
 /** Query-string key used to round-trip our cookie-bound CSRF nonce through the
  * SP-initiated flow (which doesn't accept `client_state_nonce` as a top-level
@@ -122,6 +124,7 @@ export function createAuthioSignInHandler() {
     assertConfig();
     const next = safeNext(req.nextUrl.searchParams.get('next'));
     const nonce = randomBytes(32).toString('base64url');
+    const pkce = generatePkcePair();
 
     // Two flows, picked by config:
     //   1. SP-initiated (preferred when AUTHIO_SSO_CONNECTION_ID is set):
@@ -137,10 +140,7 @@ export function createAuthioSignInHandler() {
     let destination: URL;
     if (AUTHIO_SSO_CONNECTION_ID) {
       if (!AUTHIO_ORGANIZATION_ID) {
-        // Org id is required so Authio can resolve the connection's tenant.
-        return NextResponse.redirect(
-          publicUrl(req, `/sign-in?error=sso_org_unconfigured`),
-        );
+        return redirectWithAuthError(req, 'sso_org_unconfigured');
       }
       destination = new URL(
         `${AUTHIO_SSO_HOST}/v1/sso/connections/${encodeURIComponent(AUTHIO_SSO_CONNECTION_ID)}/initiate`,
@@ -154,6 +154,8 @@ export function createAuthioSignInHandler() {
       // Allow-list is exact-match — never append app params to redirect_uri.
       destination.searchParams.set('redirect_uri', callbackUrl(req));
       destination.searchParams.set('client_state_nonce', nonce);
+      destination.searchParams.set('code_challenge', pkce.codeChallenge);
+      destination.searchParams.set('code_challenge_method', 'S256');
       if (AUTHIO_ORGANIZATION_ID) {
         destination.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
       }
@@ -162,7 +164,7 @@ export function createAuthioSignInHandler() {
     const res = NextResponse.redirect(destination);
     res.cookies.set({
       name: CALLBACK_STATE_COOKIE,
-      value: JSON.stringify({ nonce, next }),
+      value: JSON.stringify({ nonce, next, codeVerifier: pkce.codeVerifier }),
       httpOnly: true,
       secure: isProd(),
       sameSite: 'lax',
@@ -181,6 +183,7 @@ function hashTokenBootstrapResponse(): NextResponse {
 
 async function resolveCallbackTokens(
   req: NextRequest,
+  codeVerifier?: string,
 ): Promise<{ accessToken: string; refreshToken: string } | null> {
   let accessToken = req.nextUrl.searchParams.get('access_token');
   let refreshToken = req.nextUrl.searchParams.get('refresh_token');
@@ -189,8 +192,12 @@ async function resolveCallbackTokens(
   }
 
   const code = req.nextUrl.searchParams.get('code');
-  if (code) {
-    const exchanged = await exchangeAuthorizationCode(code, callbackUrl(req));
+  if (code && codeVerifier) {
+    const exchanged = await exchangeAuthorizationCode(
+      code,
+      callbackUrl(req),
+      codeVerifier,
+    );
     if (exchanged) return exchanged;
   }
 
@@ -210,55 +217,55 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
 
     const oauthError = req.nextUrl.searchParams.get('error');
     if (oauthError) {
-      return NextResponse.redirect(publicUrl(req, `/sign-in?error=${encodeURIComponent(oauthError)}`));
+      return redirectWithAuthError(req, oauthError);
     }
 
-    const tokens = await resolveCallbackTokens(req);
+    const stateCookie = req.cookies.get(CALLBACK_STATE_COOKIE)?.value;
+    let parsedState: { nonce?: string; next?: string; codeVerifier?: string } = {};
+    if (stateCookie) {
+      try {
+        parsedState = JSON.parse(stateCookie) as typeof parsedState;
+      } catch {
+        return redirectWithAuthError(req, 'csrf_state_unreadable');
+      }
+    }
+
+    const tokens = await resolveCallbackTokens(req, parsedState.codeVerifier);
     const accessToken = tokens?.accessToken;
     const refreshToken = tokens?.refreshToken;
-    // Nonce comes from `client_state_nonce` on the hosted UI flow, or our
-    // `NONCE_PARAM` query for SP-initiated (which Authio doesn't synthesise; we
-    // round-tripped it through the redirect_uri).
     const urlNonce =
       req.nextUrl.searchParams.get('client_state_nonce') ||
       req.nextUrl.searchParams.get(NONCE_PARAM);
 
     if (!accessToken || !refreshToken) {
+      if (req.nextUrl.searchParams.get('code')) {
+        return redirectWithAuthError(req, 'token_exchange_failed');
+      }
       return hashTokenBootstrapResponse();
     }
 
     // CSRF: cookie nonce must equal the URL nonce.
-    const stateCookie = req.cookies.get(CALLBACK_STATE_COOKIE)?.value;
     let nextPath = opts.signedInRedirect ?? '/';
     if (stateCookie) {
       try {
-        const { nonce: cookieNonce, next } = JSON.parse(stateCookie) as {
-          nonce?: string;
-          next?: string;
-        };
+        const { nonce: cookieNonce, next } = parsedState;
         if (!cookieNonce || !urlNonce || !constantTimeEqual(cookieNonce, urlNonce)) {
-          return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_mismatch`));
+          return redirectWithAuthError(req, 'csrf_mismatch');
         }
         const safe = safeNext(next);
         if (safe !== '/') {
           nextPath = safe;
         }
       } catch {
-        return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_state_unreadable`));
+        return redirectWithAuthError(req, 'csrf_state_unreadable');
       }
     } else {
-      // Per the docs, pre-v0.3 SDKs degraded to a warned legacy path. We refuse
-      // because our admin app is greenfield and there's no legacy traffic.
-      return NextResponse.redirect(publicUrl(req, `/sign-in?error=csrf_state_missing`));
+      return redirectWithAuthError(req, 'csrf_state_missing');
     }
 
-    // Defense in depth on top of the cookie-bound CSRF nonce: verify the access
-    // JWT's signature (issuer/audience/kind, alg pinned to EdDSA) against
-    // Authio's JWKS before persisting it, so a forged token planted via a
-    // crafted callback URL can never reach the session cookie.
     const verified = await verifyAccessToken(accessToken);
     if (!verified) {
-      const bad = NextResponse.redirect(publicUrl(req, `/sign-in?error=invalid_token`));
+      const bad = redirectWithAuthError(req, 'invalid_token');
       bad.cookies.set({ name: CALLBACK_STATE_COOKIE, value: '', path: '/', maxAge: 0 });
       return bad;
     }
@@ -293,9 +300,7 @@ export function createAuthioRefreshHandler() {
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
       if (!apiRes.ok) {
-        const res = NextResponse.redirect(
-          publicUrl(req, `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}&error=refresh_failed`),
-        );
+        const res = redirectWithAuthError(req, 'refresh_failed');
         clearSessionCookies(res);
         return res;
       }
@@ -312,9 +317,7 @@ export function createAuthioRefreshHandler() {
       });
       return res;
     } catch {
-      const res = NextResponse.redirect(
-        publicUrl(req, `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}&error=refresh_threw`),
-      );
+      const res = redirectWithAuthError(req, 'refresh_threw');
       clearSessionCookies(res);
       return res;
     }
