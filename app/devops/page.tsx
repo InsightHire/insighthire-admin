@@ -7,6 +7,7 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { DevopsIncidentDetailPanel } from '@/components/devops/incident-detail-panel';
+import { DevopsMonitoringPanel } from '@/components/devops/monitoring-panel';
 import {
   Activity,
   AlertTriangle,
@@ -83,7 +84,7 @@ function DevopsPageContent() {
             AI DevOps
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            Incidents from E2E failures and platform signals — logs in Axiom, fixes via Cursor (Phase 2).
+            Uptime, Railway health, incidents, and Cursor auto-fix — all in admin. No separate devops URL needed.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -132,6 +133,13 @@ function DevopsPageContent() {
           <p className="mt-1 text-sm font-mono text-gray-900">{config?.axiomDataset ?? '—'}</p>
         </div>
       </div>
+
+      {config?.enabled && (
+        <DevopsMonitoringPanel
+          worker={healthQuery.data?.worker}
+          workerInfo={healthQuery.data?.workerInfo}
+        />
+      )}
 
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
