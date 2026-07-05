@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
@@ -12,6 +13,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowLeft,
+  BookOpen,
   CheckCircle2,
   ExternalLink,
   RefreshCw,
@@ -98,6 +100,12 @@ function DevopsPageContent() {
               Axiom logs <ExternalLink className="h-4 w-4" />
             </a>
           )}
+          <Link
+            href="/devops/skills"
+            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <BookOpen className="h-4 w-4" /> Skills
+          </Link>
           <button
             type="button"
             onClick={() => {

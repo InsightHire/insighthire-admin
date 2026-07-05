@@ -24,6 +24,7 @@ import {
   Images,
   FlaskConical,
   Wrench,
+  Globe,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 
@@ -244,6 +245,18 @@ export function PlatformAdminNav() {
                     >
                       <Images className="h-4 w-4 mr-2" />
                       HeyGen avatars
+                    </Link>
+                    <Link
+                      href="/settings/i18n"
+                      onClick={() => setSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                        pathname === '/settings/i18n'
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Globe className="h-4 w-4 mr-2" />
+                      Languages (i18n)
                     </Link>
                     <Link
                       href="/integrations"

@@ -95,6 +95,7 @@ const EVENT_META: Record<string, { label: string; color: string }> = {
   slack_sent: { label: 'Slack notified', color: 'text-violet-600 bg-violet-50' },
   github_issue: { label: 'GitHub issue', color: 'text-gray-700 bg-gray-100' },
   agent_spawn: { label: 'Agent spawned', color: 'text-indigo-600 bg-indigo-50' },
+  skills_applied: { label: 'Skills applied', color: 'text-violet-600 bg-violet-50' },
   pr_opened: { label: 'PR opened', color: 'text-emerald-600 bg-emerald-50' },
   agent_finished: { label: 'Agent finished', color: 'text-emerald-600 bg-emerald-50' },
   agent_failed: { label: 'Agent failed', color: 'text-red-600 bg-red-50' },
@@ -228,6 +229,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
   const incident = detail?.incident;
   const events = detail?.events ?? [];
   const agentRuns = detail?.agentRuns ?? [];
+  const appliedSkills = detail?.appliedSkills ?? [];
   const pr = detail?.pr ?? null;
   const status = incident?.status;
   const closed = status === 'closed' || status === 'false_positive';
@@ -526,6 +528,29 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
           <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded bg-violet-50/40 p-4 text-sm leading-relaxed text-gray-800">
             {latestReply}
           </pre>
+        </Card>
+      )}
+
+      {/* Applied skills */}
+      {appliedSkills.length > 0 && (
+        <Card title="Skills applied" icon={<Sparkles className="h-4 w-4 text-violet-600" />}>
+          <div className="flex flex-wrap gap-2">
+            {appliedSkills.map((skill: { slug: string; name: string; description?: string | null }) => (
+              <span
+                key={skill.slug}
+                title={skill.description ?? undefined}
+                className="inline-flex items-center rounded-full bg-violet-50 border border-violet-200 px-2.5 py-1 text-xs font-medium text-violet-800"
+              >
+                {skill.name}
+              </span>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            Playbooks injected into the agent prompt.{' '}
+            <a href="/devops/skills" className="text-indigo-600 hover:underline">
+              Edit skills
+            </a>
+          </p>
         </Card>
       )}
 

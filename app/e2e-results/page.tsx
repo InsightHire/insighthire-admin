@@ -399,7 +399,7 @@ export default function E2eResultsPage() {
             <p className="text-sm text-gray-500 mt-1">
               Production Playwright suite from{' '}
               <a
-                href="https://github.com/tcast/insighthire-e2e/actions"
+                href="https://github.com/InsightHire/insighthire-e2e/actions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-indigo-600 hover:underline inline-flex items-center gap-0.5"

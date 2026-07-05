@@ -13,6 +13,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.E2E_DISPATCH_TOKEN }}
-          repository: tcast/insighthire-e2e
+          repository: InsightHire/insighthire-e2e
           event-type: deploy-complete
           client-payload: '{"service":"insighthire-admin"}'

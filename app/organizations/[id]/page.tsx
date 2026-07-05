@@ -425,6 +425,9 @@ export default function OrganizationDetailPage() {
               onSaved={refetch}
             />
 
+            {/* Per-org language settings */}
+            <OrgI18nSettingsSection organizationId={orgId} onSaved={refetch} />
+
             {/* Per-org positions readiness summary */}
             <OrgPositionsReadinessSection organizationId={orgId} />
 
@@ -1421,6 +1424,158 @@ function OrgAuthoringSettingsSection({
           </p>
         </div>
       </label>
+    </div>
+  );
+}
+
+/**
+ * Per-org language settings (platform admin override).
+ *
+ * Mirrors org admin controls on the customer dashboard so support can
+ * configure candidate-facing locales without impersonation.
+ */
+function OrgI18nSettingsSection({
+  organizationId,
+  onSaved,
+}: {
+  organizationId: string;
+  onSaved: () => void;
+}) {
+  const { data, isLoading } = trpc.i18n.getEffectiveForOrganization.useQuery(
+    { organizationId },
+    { refetchOnWindowFocus: false },
+  );
+  const { data: platformData } = trpc.i18n.getPlatformConfig.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+
+  const [defaultLocale, setDefaultLocale] = useState('en');
+  const [enabledLocales, setEnabledLocales] = useState<string[]>(['en']);
+  const [languagePicker, setLanguagePicker] = useState(true);
+
+  useEffect(() => {
+    if (!data) return;
+    setDefaultLocale(data.defaultLocale);
+    setEnabledLocales([...data.enabledLocales]);
+    setLanguagePicker(data.languagePicker);
+  }, [data]);
+
+  const setOrgSettings = trpc.i18n.setOrgSettings.useMutation({
+    onSuccess: () => onSaved(),
+  });
+
+  const platformLocales =
+    platformData?.config.enabledLocales ?? ['en', 'es', 'fr', 'de', 'ja'];
+
+  const toggleLocale = (code: string) => {
+    setEnabledLocales((prev) => {
+      if (prev.includes(code)) {
+        const next = prev.filter((c) => c !== code);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, code];
+    });
+  };
+
+  const handleSave = () => {
+    const locales = enabledLocales.length > 0 ? enabledLocales : ['en'];
+    const defaultLoc = locales.includes(defaultLocale) ? defaultLocale : locales[0];
+    setOrgSettings.mutate({
+      organizationId,
+      defaultLocale: defaultLoc as 'en' | 'es' | 'fr' | 'de' | 'ja',
+      enabledLocales: locales as Array<'en' | 'es' | 'fr' | 'de' | 'ja'>,
+      candidateLanguagePicker: languagePicker,
+    });
+  };
+
+  const LOCALE_LABELS: Record<string, string> = {
+    en: 'English',
+    es: 'Spanish',
+    fr: 'French',
+    de: 'German',
+    ja: 'Japanese',
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Language settings</h2>
+        <p className="text-sm text-gray-500">Loading…</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">Language settings</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Candidate-facing locales for this org. Only platform-enabled languages can be selected.
+      </p>
+
+      {!platformData?.config.candidateExperienceEnabled && (
+        <p className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          Platform candidate translations are currently disabled — UI will stay English.
+        </p>
+      )}
+
+      <div className="space-y-4">
+        <div>
+          <p className="text-sm font-medium text-gray-900 mb-2">Enabled languages</p>
+          <div className="space-y-2">
+            {platformLocales.map((code) => (
+              <label
+                key={code}
+                className="flex items-center gap-3 rounded-md border border-gray-200 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={enabledLocales.includes(code)}
+                  onChange={() => toggleLocale(code)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-900">{LOCALE_LABELS[code] ?? code}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-900 mb-1">Default for candidates</label>
+          <select
+            value={enabledLocales.includes(defaultLocale) ? defaultLocale : enabledLocales[0]}
+            onChange={(e) => setDefaultLocale(e.target.value)}
+            className="block w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm"
+          >
+            {enabledLocales.map((code) => (
+              <option key={code} value={code}>
+                {LOCALE_LABELS[code] ?? code}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={languagePicker}
+            onChange={(e) => setLanguagePicker(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+          <div>
+            <span className="text-sm font-medium text-gray-900">Show language picker on candidate pages</span>
+            <p className="text-xs text-gray-600 mt-0.5">When off, candidates see the default locale only.</p>
+          </div>
+        </label>
+
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={setOrgSettings.isLoading}
+          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {setOrgSettings.isLoading ? 'Saving…' : 'Save language settings'}
+        </button>
+      </div>
     </div>
   );
 }
