@@ -18,6 +18,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '@/lib/authio/config';
+import { accessCookieLooksValid } from '@/lib/authio/access-cookie-gate';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -26,7 +27,7 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').re
 
 async function proxy(req: NextRequest, ctx: { params: { trpc?: string[] } }): Promise<NextResponse> {
   const token = cookies().get(SESSION_COOKIE)?.value;
-  if (!token) {
+  if (!token || !accessCookieLooksValid(token)) {
     return new NextResponse(null, { status: 401 });
   }
 

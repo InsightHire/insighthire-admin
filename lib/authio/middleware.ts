@@ -5,14 +5,14 @@
  * https://docs.authio.com/sdks/nextjs).
  *
  * Behavior:
- *   - If the access cookie is present, allow the request (we don't verify here to
- *     keep the hot path cheap — verification happens server-side via `auth()`).
- *   - If access is missing but refresh is present, redirect to the refresh handler
- *     which will rotate cookies and bounce back to the original URL.
+ *   - If the access cookie looks valid (present, unexpired, customer kind), allow.
+ *   - If access is missing or expired but refresh is present on a safe GET/HEAD,
+ *     redirect to the refresh handler which rotates cookies and bounces back.
  *   - If both are missing, redirect to the sign-in page with `?next=<original>`.
  *   - Public paths bypass the gate entirely.
  */
 import { NextResponse, type NextRequest } from 'next/server';
+import { accessCookieLooksValid } from './access-cookie-gate';
 import {
   DEFAULT_PUBLIC_PATHS,
   REFRESH_COOKIE,
@@ -51,15 +51,17 @@ export function createAuthioMiddleware(opts: AuthioMiddlewareOptions = {}) {
       return NextResponse.next();
     }
 
-    const hasAccess = req.cookies.has(SESSION_COOKIE);
+    const accessToken = req.cookies.get(SESSION_COOKIE)?.value;
+    const hasValidAccess = accessCookieLooksValid(accessToken);
     const hasRefresh = req.cookies.has(REFRESH_COOKIE);
+    const isSafeMethod = req.method === 'GET' || req.method === 'HEAD';
 
-    if (hasAccess) return NextResponse.next();
+    if (hasValidAccess) return NextResponse.next();
 
     const returnTo = `${pathname}${req.nextUrl.search}`;
     const origin = publicOrigin(req);
 
-    if (hasRefresh) {
+    if (hasRefresh && isSafeMethod) {
       const refresh = new URL(refreshPath, origin);
       refresh.searchParams.set('return_to', returnTo);
       return NextResponse.redirect(refresh);

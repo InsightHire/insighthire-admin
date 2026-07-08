@@ -1,5 +1,6 @@
 import { createTRPCReact } from '@trpc/react-query';
 import { httpBatchLink } from '@trpc/client';
+import { REFRESH_PATH } from '@/lib/authio/config';
 
 export const trpc = createTRPCReact<any>();
 
@@ -20,6 +21,14 @@ const TRPC_URL =
     ? '/api/trpc'
     : `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3011').replace(/\/$/, '')}/api/trpc`;
 
+function redirectToSessionRefresh() {
+  if (typeof window === 'undefined') return;
+  const returnTo = window.location.pathname + window.location.search;
+  const refresh = new URL(REFRESH_PATH, window.location.origin);
+  refresh.searchParams.set('return_to', returnTo);
+  window.location.href = refresh.toString();
+}
+
 export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
@@ -29,15 +38,10 @@ export const trpcClient = trpc.createClient({
           ...options,
           credentials: 'include',
         }).then(async (res) => {
-          // Hard 401/403 — token rotated, revoked, or the session cookie aged
-          // out. Bounce to sign-in; middleware will do the silent refresh if a
-          // refresh cookie is still around.
+          // Hard 401/403 — access JWT expired or revoked. Route through the BFF
+          // refresh handler so the refresh cookie can rotate a new access token.
           if (res.status === 401 || res.status === 403) {
-            if (typeof window !== 'undefined') {
-              window.location.href = `/sign-in?next=${encodeURIComponent(
-                window.location.pathname + window.location.search,
-              )}`;
-            }
+            redirectToSessionRefresh();
             return res;
           }
 
@@ -51,10 +55,8 @@ export const trpcClient = trpc.createClient({
               (r: any) =>
                 r?.error?.data?.code === 'UNAUTHORIZED' || r?.error?.data?.code === 'FORBIDDEN',
             );
-            if (hasAuthError && typeof window !== 'undefined') {
-              window.location.href = `/sign-in?next=${encodeURIComponent(
-                window.location.pathname + window.location.search,
-              )}`;
+            if (hasAuthError) {
+              redirectToSessionRefresh();
             }
           } catch {
             /* not JSON — let tRPC handle */

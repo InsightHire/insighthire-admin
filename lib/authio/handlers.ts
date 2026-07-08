@@ -30,6 +30,7 @@ import {
   authCoreHeaders,
   safeNext,
 } from './config';
+import { accessTokenRemainingSec } from './access-cookie-gate';
 import { verifyAccessToken } from './session';
 import { exchangeAuthorizationCode, hashBootstrapHtml } from './token-exchange';
 import { redirectWithAuthError } from './auth-errors';
@@ -85,7 +86,7 @@ function setSessionCookies(
     secure: isProd(),
     sameSite: 'lax',
     path: '/',
-    maxAge: tokens.accessExpiresInSec ?? 60 * 60, // 1h default; silent refresh rotates
+    maxAge: tokens.accessExpiresInSec ?? 15 * 60, // ~15m access JWT; silent refresh rotates
   });
   res.cookies.set({
     name: REFRESH_COOKIE,
@@ -184,11 +185,19 @@ function hashTokenBootstrapResponse(): NextResponse {
 async function resolveCallbackTokens(
   req: NextRequest,
   codeVerifier?: string,
-): Promise<{ accessToken: string; refreshToken: string } | null> {
+): Promise<{
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresInSec?: number;
+} | null> {
   let accessToken = req.nextUrl.searchParams.get('access_token');
   let refreshToken = req.nextUrl.searchParams.get('refresh_token');
   if (accessToken && refreshToken) {
-    return { accessToken, refreshToken };
+    return {
+      accessToken,
+      refreshToken,
+      accessExpiresInSec: accessTokenRemainingSec(accessToken),
+    };
   }
 
   const code = req.nextUrl.searchParams.get('code');
@@ -271,7 +280,12 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
     }
 
     const res = NextResponse.redirect(publicUrl(req, nextPath));
-    setSessionCookies(res, { accessToken, refreshToken });
+    setSessionCookies(res, {
+      accessToken,
+      refreshToken,
+      accessExpiresInSec:
+        tokens.accessExpiresInSec ?? accessTokenRemainingSec(accessToken),
+    });
     res.cookies.set({ name: CALLBACK_STATE_COOKIE, value: '', path: '/', maxAge: 0 });
     return res;
   };
