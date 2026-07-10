@@ -27,6 +27,13 @@ export default function MailgunEventsPage() {
 
   return (
     <div className="space-y-4">
+      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900">
+        <strong className="font-semibold">Ephemeral provider debug:</strong> Mailgun events and stored
+        messages expire (~3 days). For durable bodies use{' '}
+        <a href="/email-monitoring/sent-emails" className="underline font-medium">Sent Emails</a>
+        {' '}or{' '}
+        <a href="/email-monitoring/inbound" className="underline font-medium">Inbound</a>.
+      </div>
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-center">
         <span className="text-sm font-medium text-gray-700">Mailgun domain:</span>
         <span className="font-mono text-sm text-gray-900">{mailgunData?.domain ?? '—'}</span>

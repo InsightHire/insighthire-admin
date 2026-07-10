@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { ArrowPathIcon, FunnelIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
@@ -9,12 +10,20 @@ import { formatDate, getStatusBadge, getDeliveryBadge, MiniStat } from '../_util
 type DigestStatus = 'PENDING' | 'SENT' | 'FAILED' | 'CANCELLED' | 'ALL';
 type DeliveryMethod = 'IMMEDIATE' | 'DAILY_DIGEST' | 'WEEKLY_DIGEST' | 'ALL';
 
-export default function DigestQueuePage() {
+function DigestQueueInner() {
   const { isLoading: authLoading } = useAdminAuth();
+  const searchParams = useSearchParams();
   const [digestStatus, setDigestStatus] = useState<DigestStatus>('ALL');
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('ALL');
   const [digestPage, setDigestPage] = useState(1);
   const [expandedDigest, setExpandedDigest] = useState<string | null>(null);
+
+  useEffect(() => {
+    const status = searchParams.get('status');
+    if (status === 'PENDING' || status === 'SENT' || status === 'FAILED' || status === 'CANCELLED' || status === 'ALL') {
+      setDigestStatus(status);
+    }
+  }, [searchParams]);
 
   const { data: digestData, isLoading: digestLoading, refetch: refetchDigest } = trpc.platformAdmin.getDigestQueue.useQuery(
     { status: digestStatus, deliveryMethod, page: digestPage, limit: 25 },
@@ -156,5 +165,19 @@ export default function DigestQueuePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DigestQueuePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[40vh]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        </div>
+      }
+    >
+      <DigestQueueInner />
+    </Suspense>
   );
 }

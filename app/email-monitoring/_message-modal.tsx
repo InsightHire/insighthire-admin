@@ -3,8 +3,9 @@
 import { trpc } from '@/lib/trpc';
 
 type Props = {
-  type: 'sent' | 'mailgun';
+  type: 'sent' | 'mailgun' | 'inbound';
   sentEmailId: string | null;
+  inboundEmailId?: string | null;
   mailgunStorageKey: string | null;
   mailgunMeta: { subject?: string; from?: string; to?: string; event?: string; timestamp?: string } | null;
   /** For Mailgun: lookup body from our DB by recipient + subject + time (tried first before Mailgun API) */
@@ -17,10 +18,22 @@ function formatDate(date: string | Date | null) {
   return new Date(date).toLocaleString();
 }
 
-export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgunMeta, mailgunEventLookup, onClose }: Props) {
+export function EmailMessageModal({
+  type,
+  sentEmailId,
+  inboundEmailId,
+  mailgunStorageKey,
+  mailgunMeta,
+  mailgunEventLookup,
+  onClose,
+}: Props) {
   const { data: sentBody, isLoading: sentLoading } = trpc.platformAdmin.getEmailSendBody.useQuery(
     { id: sentEmailId! },
     { enabled: type === 'sent' && !!sentEmailId }
+  );
+  const { data: inboundBody, isLoading: inboundLoading } = (trpc.platformAdmin as any).getInboundEmailBody.useQuery(
+    { id: inboundEmailId! },
+    { enabled: type === 'inbound' && !!inboundEmailId }
   );
   const { data: dbEventBody, isLoading: dbEventLoading } = trpc.platformAdmin.getEmailBodyForEvent.useQuery(
     {
@@ -35,13 +48,42 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
     { enabled: type === 'mailgun' && !!mailgunStorageKey && !(dbEventBody?.bodyHtml || dbEventBody?.bodyText) }
   );
 
-  const isLoading = type === 'sent' ? sentLoading : (dbEventLoading || (mailgunStorageKey && !(dbEventBody?.bodyHtml || dbEventBody?.bodyText) ? mailgunLoading : false));
-  const subject = type === 'sent' ? sentBody?.subject : (dbEventBody?.subject ?? mailgunBody?.subject ?? mailgunMeta?.subject);
-  const bodyHtml = type === 'sent' ? sentBody?.bodyHtml : (dbEventBody?.bodyHtml ?? mailgunBody?.bodyHtml);
-  const bodyPlain = type === 'sent' ? sentBody?.bodyText : (dbEventBody?.bodyText ?? mailgunBody?.bodyPlain);
+  const isLoading =
+    type === 'sent'
+      ? sentLoading
+      : type === 'inbound'
+        ? inboundLoading
+        : dbEventLoading || (mailgunStorageKey && !(dbEventBody?.bodyHtml || dbEventBody?.bodyText) ? mailgunLoading : false);
+
+  const subject =
+    type === 'sent'
+      ? sentBody?.subject
+      : type === 'inbound'
+        ? inboundBody?.subject
+        : (dbEventBody?.subject ?? mailgunBody?.subject ?? mailgunMeta?.subject);
+
+  const bodyHtml =
+    type === 'sent'
+      ? sentBody?.bodyHtml
+      : type === 'inbound'
+        ? inboundBody?.bodyHtml
+        : (dbEventBody?.bodyHtml ?? mailgunBody?.bodyHtml);
+
+  const bodyPlain =
+    type === 'sent'
+      ? sentBody?.bodyText
+      : type === 'inbound'
+        ? inboundBody?.bodyText
+        : (dbEventBody?.bodyText ?? mailgunBody?.bodyPlain);
+
   const hasMailgunBody = type === 'mailgun' && (bodyHtml || bodyPlain);
   const noMailgunBody = type === 'mailgun' && !(dbEventBody?.bodyHtml || dbEventBody?.bodyText) && !mailgunStorageKey;
-  const mailgunBodyFailed = type === 'mailgun' && !(dbEventBody?.bodyHtml || dbEventBody?.bodyText) && mailgunStorageKey && !isLoading && (mailgunError || (!mailgunBody?.bodyHtml && !mailgunBody?.bodyPlain));
+  const mailgunBodyFailed =
+    type === 'mailgun' &&
+    !(dbEventBody?.bodyHtml || dbEventBody?.bodyText) &&
+    mailgunStorageKey &&
+    !isLoading &&
+    (mailgunError || (!mailgunBody?.bodyHtml && !mailgunBody?.bodyPlain));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
@@ -54,6 +96,11 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
             {type === 'mailgun' && mailgunMeta?.event && (
               <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800 mr-2">
                 {mailgunMeta.event}
+              </span>
+            )}
+            {type === 'inbound' && (
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 mr-2">
+                Inbound
               </span>
             )}
             {subject || 'Event details'}
@@ -79,6 +126,18 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
             {mailgunMeta.subject && <div><strong>Subject:</strong> {mailgunMeta.subject}</div>}
           </div>
         )}
+        {type === 'inbound' && inboundBody && (
+          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-700 space-y-1">
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              <span><strong>From:</strong> {inboundBody.fromEmail}</span>
+              <span><strong>To:</strong> {inboundBody.toEmail}</span>
+              <span><strong>Time:</strong> {formatDate(inboundBody.receivedAt)}</span>
+              {inboundBody.status && (
+                <span><strong>Status:</strong> {inboundBody.status}</span>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex-1 overflow-auto p-4 min-h-[200px]">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
@@ -98,7 +157,7 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
               Message body isn’t stored by Mailgun for this event.
             </p>
           )}
-          {!isLoading && (type === 'sent' || hasMailgunBody) && (
+          {!isLoading && (type === 'sent' || type === 'inbound' || hasMailgunBody) && (
             <>
               {bodyHtml ? (
                 <iframe
@@ -111,7 +170,7 @@ export function EmailMessageModal({ type, sentEmailId, mailgunStorageKey, mailgu
                 <pre className="p-4 text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg overflow-auto max-h-[60vh]">
                   {bodyPlain}
                 </pre>
-              ) : type === 'sent' ? (
+              ) : type === 'sent' || type === 'inbound' ? (
                 <p className="text-gray-500">No message body available.</p>
               ) : null}
             </>
