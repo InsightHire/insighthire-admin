@@ -43,6 +43,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 const FEATURE_FLAG_SLUGS = new Set<string>([
   'meetings_microsoft_teams',
   'culture_fit_scoring',
+  'insighthire_live_interviews',
+  'talent_network',
 ]);
 
 type ConfigField = {
