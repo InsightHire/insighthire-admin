@@ -41,6 +41,8 @@ export default function BackgroundJobsAdmin() {
   const [activeTab, setActiveTab] = useState<'failed' | 'pending' | 'completed'>('failed');
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
 
   // Filters
   const [filters, setFilters] = useState({
@@ -91,6 +93,18 @@ export default function BackgroundJobsAdmin() {
   });
 
   const retryMutation = trpc.platformAdmin.retryJob.useMutation();
+  const dismissMutation = (trpc.platformAdmin as any).dismissFailedJob.useMutation({
+    onSuccess: () => {
+      void refetchFailed();
+      setSelected(new Set());
+    },
+  });
+  const bulkDismissMutation = (trpc.platformAdmin as any).bulkDismissFailedJobs.useMutation({
+    onSuccess: () => {
+      void refetchFailed();
+      setSelected(new Set());
+    },
+  });
   
   // AI Feedback Backfill
   const [backfillRunning, setBackfillRunning] = useState(false);
@@ -142,8 +156,63 @@ export default function BackgroundJobsAdmin() {
     });
   };
 
-  const filteredFailedJobs = filterJobs(failedData?.jobs as FailedJob[] | undefined);
-  const filteredPendingJobs = filterJobs(pendingData?.jobs as FailedJob[] | undefined);
+  const sortJobs = (jobs: FailedJob[]) =>
+    [...jobs].sort((a, b) => {
+      const at = a.failedAt ? new Date(a.failedAt).getTime() : 0;
+      const bt = b.failedAt ? new Date(b.failedAt).getTime() : 0;
+      return sortDir === 'desc' ? bt - at : at - bt;
+    });
+
+  const filteredFailedJobs = sortJobs(filterJobs(failedData?.jobs as FailedJob[] | undefined));
+  const filteredPendingJobs = sortJobs(filterJobs(pendingData?.jobs as FailedJob[] | undefined));
+
+  const jobKey = (job: FailedJob) => `${job.type}:${job.id}`;
+  const toggleSelect = (job: FailedJob) => {
+    const k = jobKey(job);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+  };
+  const selectAllVisible = () => {
+    setSelected(new Set(filteredFailedJobs.map(jobKey)));
+  };
+  const clearSelection = () => setSelected(new Set());
+
+  const dismissOne = async (job: FailedJob) => {
+    if (!confirm(`Remove this ${job.type} failure from the queue?\n\n${job.candidateName}\n${job.error?.slice(0, 120) || ''}\n\n(Does not delete the underlying response — only hides it here.)`)) {
+      return;
+    }
+    try {
+      await dismissMutation.mutateAsync({
+        jobId: job.id,
+        jobType: job.type,
+        reason: 'Dismissed from Pipeline UI',
+      });
+    } catch (e: any) {
+      alert(e?.message || 'Dismiss failed');
+    }
+  };
+
+  const dismissSelected = async () => {
+    const jobs = filteredFailedJobs
+      .filter((j) => selected.has(jobKey(j)))
+      .map((j) => ({ jobId: j.id, jobType: j.type }));
+    if (jobs.length === 0) return;
+    if (!confirm(`Remove ${jobs.length} failed job(s) from this queue?\n\nThey stay in the DB; they just stop showing here.`)) {
+      return;
+    }
+    try {
+      await bulkDismissMutation.mutateAsync({
+        jobs,
+        reason: 'Bulk dismissed from Pipeline UI',
+      });
+    } catch (e: any) {
+      alert(e?.message || 'Bulk dismiss failed');
+    }
+  };
 
   // DEBUG: Check what data we're getting
 
@@ -502,9 +571,45 @@ export default function BackgroundJobsAdmin() {
       {/* Failed Jobs */}
       {activeTab === 'failed' && (
         <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium">Failed Jobs - Detailed View</h2>
-            <p className="text-sm text-gray-500">Click on a job to see full details and troubleshoot</p>
+          <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-medium">Failed Jobs</h2>
+              <p className="text-sm text-gray-500">Sorted by date · dismiss hides from this queue (keeps the response)</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
+              </button>
+              {selected.size > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={dismissSelected}
+                    disabled={bulkDismissMutation.isPending}
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                    Dismiss {selected.size} selected
+                  </button>
+                  <button type="button" onClick={clearSelection} className="text-sm text-gray-500 hover:text-gray-800">
+                    Clear
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={selectAllVisible}
+                  disabled={filteredFailedJobs.length === 0}
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40"
+                >
+                  Select all visible
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="divide-y divide-gray-200">
@@ -517,10 +622,14 @@ export default function BackgroundJobsAdmin() {
                 <DetailedJobRow
                   key={job.id}
                   job={job}
+                  selected={selected.has(jobKey(job))}
+                  onToggleSelect={() => toggleSelect(job)}
                   isExpanded={expandedJob === job.id}
                   onToggleExpand={() => setExpandedJob(expandedJob === job.id ? null : job.id)}
                   onRetry={() => retryTranscription(job.responseId || job.id, job.type as any)}
+                  onDismiss={() => dismissOne(job)}
                   isRetrying={retrying.has(job.responseId || job.id)}
+                  isDismissing={dismissMutation.isPending}
                 />
               ))
             ) : (
@@ -701,21 +810,38 @@ export default function BackgroundJobsAdmin() {
 
 function DetailedJobRow({
   job,
+  selected,
+  onToggleSelect,
   isExpanded,
   onToggleExpand,
   onRetry,
-  isRetrying
+  onDismiss,
+  isRetrying,
+  isDismissing,
 }: {
   job: FailedJob;
+  selected: boolean;
+  onToggleSelect: () => void;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onRetry: () => void;
+  onDismiss: () => void;
   isRetrying: boolean;
+  isDismissing: boolean;
 }) {
   return (
     <div className="px-6 py-4 hover:bg-gray-50">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
+      <div className="flex items-start justify-between gap-3">
+        <div className="pt-1">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            className="h-4 w-4 rounded border-gray-300 text-teal-700 focus:ring-teal-600"
+            aria-label={`Select ${job.candidateName}`}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center space-x-3 mb-2">
             <span className="text-2xl">
@@ -770,7 +896,7 @@ function DetailedJobRow({
                   <span>{job.journeyName}</span>
                 </span>
               )}
-              <span className="flex items-center space-x-1">
+              <span className="flex items-center space-x-1 font-medium text-gray-800">
                 <span>⏰</span>
                 <span>{new Date(job.failedAt).toLocaleString()}</span>
               </span>
@@ -829,7 +955,7 @@ function DetailedJobRow({
           )}
         </div>
 
-        <div className="ml-auto flex items-center space-x-2">
+        <div className="ml-auto flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <button
             onClick={onToggleExpand}
             className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
@@ -837,10 +963,18 @@ function DetailedJobRow({
             {isExpanded ? 'Hide Details' : 'Show Details'}
           </button>
           <button
+            onClick={onDismiss}
+            disabled={isDismissing}
+            className="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+            title="Hide from this queue without deleting the response"
+          >
+            Dismiss
+          </button>
+          <button
             onClick={onRetry}
-            disabled={isRetrying}
+            disabled={isRetrying || job.type === 'video_generation'}
             className={`px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2 ${
-              isRetrying
+              isRetrying || job.type === 'video_generation'
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
