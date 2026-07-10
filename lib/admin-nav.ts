@@ -100,7 +100,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       { name: 'Admins', href: '/settings/admins', icon: Users, match: ['/settings/admins'] },
       { name: 'Languages', href: '/settings/i18n', icon: Globe, match: ['/settings/i18n'] },
       {
-        name: 'HeyGen avatars',
+        name: 'Avatars',
         href: '/admin/personas/heygen-catalog',
         icon: Images,
         match: ['/admin/personas'],

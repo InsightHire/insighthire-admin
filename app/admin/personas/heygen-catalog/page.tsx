@@ -18,7 +18,7 @@ export default function PlatformHeygenAvatarCatalogPage() {
   const syncMutation = trpc.platformAdmin.syncHeygenAvatarCatalog.useMutation({
     onMutate: () => setSyncNotice(null),
     onSuccess: (data) => {
-      setSyncNotice(`Saved ${data.upserted} avatars (${data.totalReturned} from HeyGen).`);
+      setSyncNotice(`Saved ${data.upserted} avatars (${data.totalReturned} synced).`);
       listQuery.refetch();
     },
   });
@@ -71,9 +71,9 @@ export default function PlatformHeygenAvatarCatalogPage() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">HeyGen avatar catalog</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Avatars</h1>
               <p className="text-gray-600">
-                Platform-wide cache for customer persona pickers. Sync from HeyGen, then curate which avatars appear.
+                Platform-wide catalog for customer persona pickers. Sync the latest AI avatars, then curate which ones appear.
                 New rows default to <span className="font-medium">office-style</span> names in the picker until you
                 change checkboxes.
               </p>
@@ -91,7 +91,7 @@ export default function PlatformHeygenAvatarCatalogPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             <ArrowPathIcon className={`h-5 w-5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            {syncMutation.isPending ? 'Syncing from HeyGen…' : 'Sync from HeyGen'}
+            {syncMutation.isPending ? 'Syncing avatars…' : 'Sync avatars'}
           </button>
           <button
             type="button"
@@ -147,7 +147,7 @@ export default function PlatformHeygenAvatarCatalogPage() {
             </div>
           ) : !listQuery.data?.total ? (
             <p className="text-gray-600">
-              No rows yet. Run <strong>Sync from HeyGen</strong> once (may take up to a minute).
+              No rows yet. Run <strong>Sync avatars</strong> once (may take up to a minute).
             </p>
           ) : (
             <div className="overflow-x-auto max-h-[70vh] overflow-y-auto border border-gray-200 rounded-lg">
@@ -218,7 +218,7 @@ export default function PlatformHeygenAvatarCatalogPage() {
 
         <p className="text-sm text-gray-500">
           Customer app persona create/edit reads this catalog first (checked rows, then office-style, then full catalog);
-          if empty, it calls HeyGen live.
+          if empty, it fetches avatars live.
         </p>
       </div>
     </div>

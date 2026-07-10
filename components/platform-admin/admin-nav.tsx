@@ -244,7 +244,7 @@ export function PlatformAdminNav() {
                       }`}
                     >
                       <Images className="h-4 w-4 mr-2" />
-                      HeyGen avatars
+                      Avatars
                     </Link>
                     <Link
                       href="/settings/i18n"

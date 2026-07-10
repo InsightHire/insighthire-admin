@@ -41,7 +41,7 @@ export default function OrganizationPersonasPage() {
               href="/admin/personas/heygen-catalog"
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-800"
             >
-              HeyGen catalog
+              Avatar catalog
             </Link>
             <Link
               href={`/admin/personas/create?orgId=${orgId}`}
@@ -85,7 +85,7 @@ export default function OrganizationPersonasPage() {
 
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">HeyGen Avatar:</span>
+                  <span className="text-gray-600">Avatar:</span>
                   <span className="font-medium text-gray-900">
                     {persona.heygen_avatar_name || 'Not set'}
                   </span>

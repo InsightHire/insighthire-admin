@@ -1432,7 +1432,7 @@ function OrgAuthoringSettingsSection({
             {setAuthoringSettings.isLoading && <span className="text-xs text-gray-500">Saving…</span>}
           </div>
           <p className="text-xs text-gray-600 mt-1">
-            When on, saving a video question kicks off HeyGen+ElevenLabs rendering automatically.
+            When on, saving a video question kicks off AI avatar video rendering automatically.
             Turn off if this org is hitting quota or persona issues.
           </p>
         </div>
