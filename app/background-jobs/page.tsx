@@ -96,12 +96,14 @@ export default function BackgroundJobsAdmin() {
   const dismissMutation = (trpc.platformAdmin as any).dismissFailedJob.useMutation({
     onSuccess: () => {
       void refetchFailed();
+      void refetchPending();
       setSelected(new Set());
     },
   });
   const bulkDismissMutation = (trpc.platformAdmin as any).bulkDismissFailedJobs.useMutation({
     onSuccess: () => {
       void refetchFailed();
+      void refetchPending();
       setSelected(new Set());
     },
   });
@@ -166,6 +168,9 @@ export default function BackgroundJobsAdmin() {
   const filteredFailedJobs = sortJobs(filterJobs(failedData?.jobs as FailedJob[] | undefined));
   const filteredPendingJobs = sortJobs(filterJobs(pendingData?.jobs as FailedJob[] | undefined));
 
+  const visibleJobsForTab =
+    activeTab === 'pending' ? filteredPendingJobs : filteredFailedJobs;
+
   const jobKey = (job: FailedJob) => `${job.type}:${job.id}`;
   const toggleSelect = (job: FailedJob) => {
     const k = jobKey(job);
@@ -177,19 +182,26 @@ export default function BackgroundJobsAdmin() {
     });
   };
   const selectAllVisible = () => {
-    setSelected(new Set(filteredFailedJobs.map(jobKey)));
+    setSelected(new Set(visibleJobsForTab.map(jobKey)));
   };
   const clearSelection = () => setSelected(new Set());
 
+  const switchTab = (tab: 'failed' | 'pending' | 'completed') => {
+    setActiveTab(tab);
+    setSelected(new Set());
+    setExpandedJob(null);
+  };
+
   const dismissOne = async (job: FailedJob) => {
-    if (!confirm(`Remove this ${job.type} failure from the queue?\n\n${job.candidateName}\n${job.error?.slice(0, 120) || ''}\n\n(Does not delete the underlying response — only hides it here.)`)) {
+    const label = activeTab === 'pending' ? 'pending job' : 'failure';
+    if (!confirm(`Remove this ${job.type} ${label} from the queue?\n\n${job.candidateName}\n${job.error?.slice(0, 120) || ''}\n\n(Does not delete or cancel the underlying response — only hides it here. Workers can still process it.)`)) {
       return;
     }
     try {
       await dismissMutation.mutateAsync({
         jobId: job.id,
         jobType: job.type,
-        reason: 'Dismissed from Pipeline UI',
+        reason: activeTab === 'pending' ? 'Dismissed pending from Pipeline UI' : 'Dismissed from Pipeline UI',
       });
     } catch (e: any) {
       alert(e?.message || 'Dismiss failed');
@@ -197,17 +209,18 @@ export default function BackgroundJobsAdmin() {
   };
 
   const dismissSelected = async () => {
-    const jobs = filteredFailedJobs
+    const jobs = visibleJobsForTab
       .filter((j) => selected.has(jobKey(j)))
       .map((j) => ({ jobId: j.id, jobType: j.type }));
     if (jobs.length === 0) return;
-    if (!confirm(`Remove ${jobs.length} failed job(s) from this queue?\n\nThey stay in the DB; they just stop showing here.`)) {
+    const kind = activeTab === 'pending' ? 'pending' : 'failed';
+    if (!confirm(`Remove ${jobs.length} ${kind} job(s) from this queue?\n\nThey stay in the DB and can still be processed; they just stop showing here.`)) {
       return;
     }
     try {
       await bulkDismissMutation.mutateAsync({
         jobs,
-        reason: 'Bulk dismissed from Pipeline UI',
+        reason: activeTab === 'pending' ? 'Bulk dismissed pending from Pipeline UI' : 'Bulk dismissed from Pipeline UI',
       });
     } catch (e: any) {
       alert(e?.message || 'Bulk dismiss failed');
@@ -536,7 +549,7 @@ export default function BackgroundJobsAdmin() {
       <div className="border-b border-gray-200 mb-6">
         <nav className="-mb-px flex space-x-8">
           <button
-            onClick={() => setActiveTab('failed')}
+            onClick={() => switchTab('failed')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'failed'
                 ? 'border-red-500 text-red-600'
@@ -546,7 +559,7 @@ export default function BackgroundJobsAdmin() {
             ❌ Failed Jobs {failedData?.jobs ? `(${filteredFailedJobs.length})` : ''}
           </button>
           <button
-            onClick={() => setActiveTab('pending')}
+            onClick={() => switchTab('pending')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'pending'
                 ? 'border-yellow-500 text-yellow-600'
@@ -556,7 +569,7 @@ export default function BackgroundJobsAdmin() {
             ⏳ Pending Jobs {pendingData?.jobs ? `(${filteredPendingJobs.length})` : ''}
           </button>
           <button
-            onClick={() => setActiveTab('completed')}
+            onClick={() => switchTab('completed')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'completed'
                 ? 'border-green-500 text-green-600'
@@ -659,9 +672,47 @@ export default function BackgroundJobsAdmin() {
       {/* Pending Jobs */}
       {activeTab === 'pending' && (
         <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium">Pending Jobs ({filteredPendingJobs.length})</h2>
-            <p className="text-sm text-gray-500">Jobs waiting to be processed by background workers</p>
+          <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-medium">Pending Jobs ({filteredPendingJobs.length})</h2>
+              <p className="text-sm text-gray-500">
+                Waiting/processing · dismiss hides from this queue (does not cancel workers)
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
+              </button>
+              {selected.size > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={dismissSelected}
+                    disabled={bulkDismissMutation.isPending}
+                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                    Dismiss {selected.size} selected
+                  </button>
+                  <button type="button" onClick={clearSelection} className="text-sm text-gray-500 hover:text-gray-800">
+                    Clear
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={selectAllVisible}
+                  disabled={filteredPendingJobs.length === 0}
+                  className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40"
+                >
+                  Select all visible
+                </button>
+              )}
+            </div>
           </div>
           {loadingPending ? (
             <div className="px-6 py-8 text-center text-gray-500">
@@ -672,16 +723,29 @@ export default function BackgroundJobsAdmin() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">
+                      <span className="sr-only">Select</span>
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Organization</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question/Assessment</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredPendingJobs.map(job => (
                     <tr key={job.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(jobKey(job))}
+                          onChange={() => toggleSelect(job)}
+                          className="h-4 w-4 rounded border-gray-300 text-teal-700 focus:ring-teal-600"
+                          aria-label={`Select ${job.candidateName}`}
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
                           {job.type}
@@ -702,6 +766,17 @@ export default function BackgroundJobsAdmin() {
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {job.failedAt ? new Date(job.failedAt).toLocaleString() : 'N/A'}
                       </td>
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => dismissOne(job)}
+                          disabled={dismissMutation.isPending}
+                          className="px-3 py-1.5 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+                          title="Hide from this queue without cancelling processing"
+                        >
+                          Dismiss
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -709,7 +784,19 @@ export default function BackgroundJobsAdmin() {
             </div>
           ) : (
             <div className="px-6 py-8 text-center text-gray-500">
-              <p>✅ No pending jobs - all caught up!</p>
+              {hasActiveFilters ? (
+                <>
+                  <p className="text-lg">🔍 No jobs match your filters</p>
+                  <button
+                    onClick={clearFilters}
+                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              ) : (
+                <p>✅ No pending jobs - all caught up!</p>
+              )}
             </div>
           )}
         </div>
