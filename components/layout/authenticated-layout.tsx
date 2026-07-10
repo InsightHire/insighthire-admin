@@ -1,26 +1,22 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { PlatformAdminNav } from '../platform-admin/admin-nav';
-import { AlertBanner } from './alert-banner';
+import { AppShell } from '@/components/admin/app-shell';
 
 /**
- * Auth gating now lives in `middleware.ts` (Authio session cookie). By the time this
- * layout renders, the user is signed in — we just chrome the page.
+ * Auth gating lives in middleware.ts. This layout only provides chrome.
+ * Sign-in / login / accept-invite render without the ops shell.
  */
 export function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // /sign-in (and /login redirect) render their own shell.
-  if (pathname === '/sign-in' || pathname === '/login') {
+  if (
+    pathname === '/sign-in' ||
+    pathname === '/login' ||
+    pathname === '/accept-invite'
+  ) {
     return <>{children}</>;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <AlertBanner />
-      <PlatformAdminNav />
-      {children}
-    </div>
-  );
+  return <AppShell>{children}</AppShell>;
 }

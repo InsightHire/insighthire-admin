@@ -62,6 +62,17 @@ function AuditLogsContent() {
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(true); // Expanded by default for discoverability
 
+  const ATTENTION_TRIAGE_ACTIONS = [
+    'dismiss_stuck_candidate',
+    'clear_stuck_dismissal',
+    'retry_stuck_candidate',
+    'bulk_retry_stuck_candidates',
+  ] as const;
+
+  const isAttentionTriage =
+    actionFilter === 'stuck' ||
+    ATTENTION_TRIAGE_ACTIONS.some((a) => actionFilter === a);
+
   const orgAuditQuery = trpc.platformAdmin.getOrgAuditLogs.useQuery(
     {
       orgId: orgId!,
@@ -69,7 +80,7 @@ function AuditLogsContent() {
       limit,
       sourceType,
       userId: userId || undefined,
-      action: actionFilter || undefined,
+      action: actionFilter === 'stuck' ? 'stuck' : actionFilter || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     },
@@ -83,7 +94,7 @@ function AuditLogsContent() {
       orgId,
       adminUserId: userId || undefined,
       adminRole: (adminRole as 'PLATFORM_ADMIN' | 'PLATFORM_SUPPORT') || undefined,
-      action: actionFilter || undefined,
+      action: actionFilter === 'stuck' ? 'stuck' : actionFilter || undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     },
@@ -110,24 +121,53 @@ function AuditLogsContent() {
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            <ShieldCheckIcon className="h-8 w-8 text-indigo-600" />
+            <ShieldCheckIcon className="h-8 w-8 text-teal-700" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
-              <p className="text-sm text-gray-500">
-                {orgId ? 'Platform admin actions + org user activity for this organization' : 'Track all platform admin actions and changes'}
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Trackability</p>
+              <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
+              <p className="text-sm text-slate-500">
+                {orgId
+                  ? 'Platform admin actions + org user activity for this organization'
+                  : 'Platform admin actions — including Attention triage (dismiss / retry / undo)'}
               </p>
             </div>
           </div>
           {orgId && (
             <Link
               href="/audit"
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg"
             >
               <XMarkIcon className="h-4 w-4" />
               View all logs
             </Link>
           )}
         </div>
+
+        {!orgId && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-slate-500">Quick filters:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setActionFilter('stuck');
+                setPage(1);
+              }}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold border ${
+                isAttentionTriage
+                  ? 'border-teal-600 bg-teal-50 text-teal-800'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              Attention triage
+            </button>
+            <Link
+              href="/attention"
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Open Attention →
+            </Link>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
@@ -225,6 +265,7 @@ function AuditLogsContent() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">All actions</option>
+                  <option value="stuck">Attention triage (dismiss / retry / undo)</option>
                   {actionTypes.map((a: string) => (
                     <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
                   ))}

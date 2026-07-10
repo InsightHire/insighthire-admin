@@ -1,30 +1,21 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { trpc } from '@/lib/trpc';
-import {
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import { AlertCircle, AlertTriangle, X } from 'lucide-react';
 import { useState } from 'react';
+import { trpc } from '@/lib/trpc';
 
 export function AlertBanner() {
   const router = useRouter();
   const [dismissed, setDismissed] = useState(false);
 
-  // Fetch journey health summary for alert counts
-  const { data: healthData } = trpc.platformAdmin.getJourneyHealthSummary.useQuery(
-    undefined,
-    {
-      refetchInterval: 30000, // Refresh every 30 seconds
-      retry: false,
-    }
-  );
+  const { data: healthData } = trpc.platformAdmin.getJourneyHealthSummary.useQuery(undefined, {
+    refetchInterval: 30_000,
+    retry: false,
+  });
 
   const alerts = healthData?.alerts || { critical: 0, warning: 0, info: 0, total: 0 };
 
-  // Don't show if no issues or dismissed
   if (dismissed || alerts.total === 0) {
     return null;
   }
@@ -35,50 +26,43 @@ export function AlertBanner() {
   return (
     <div
       className={`${
-        hasCritical
-          ? 'bg-red-600'
-          : hasWarning
-          ? 'bg-yellow-500'
-          : 'bg-blue-600'
-      } text-white px-4 py-2`}
+        hasCritical ? 'bg-admin-danger' : hasWarning ? 'bg-admin-warn' : 'bg-admin-info'
+      } px-4 py-2 text-white`}
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          {hasCritical ? (
-            <ExclamationCircleIcon className="h-5 w-5" />
-          ) : (
-            <ExclamationTriangleIcon className="h-5 w-5" />
-          )}
-          <span className="text-sm font-medium">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => router.push('/attention')}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-medium"
+        >
+          {hasCritical ? <AlertCircle className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
+          <span className="truncate">
             {hasCritical && (
               <>
-                <strong>{alerts.critical}</strong> candidate{alerts.critical !== 1 ? 's' : ''} with critical issues (failed AI processing)
+                <strong>{alerts.critical}</strong> session{alerts.critical !== 1 ? 's' : ''} with failed or stuck
+                processing
               </>
             )}
             {hasWarning && (
               <>
-                <strong>{alerts.warning}</strong> journey location anomal{alerts.warning !== 1 ? 'ies' : 'y'} (7d)—review for fraud / VPN patterns
+                <strong>{alerts.warning}</strong> location anomal{alerts.warning !== 1 ? 'ies' : 'y'} (7d)
               </>
             )}
             {!hasCritical && !hasWarning && alerts.info > 0 && (
               <>
-                <strong>{alerts.info}</strong> session{alerts.info !== 1 ? 's' : ''} with video in the processing queue &gt;1h—check workers / scoring
+                <strong>{alerts.info}</strong> session{alerts.info !== 1 ? 's' : ''} with queue delay &gt;1h
               </>
             )}
+            <span className="ml-2 opacity-80">· Open attention</span>
           </span>
-          <button
-            onClick={() => router.push('/stuck-candidates')}
-            className="ml-4 px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-sm font-medium transition-colors"
-          >
-            View Details
-          </button>
-        </div>
+        </button>
         <button
+          type="button"
           onClick={() => setDismissed(true)}
-          className="p-1 hover:bg-white/20 rounded transition-colors"
-          title="Dismiss for now"
+          className="rounded p-1 hover:bg-white/20"
+          aria-label="Dismiss banner"
         >
-          <XMarkIcon className="h-5 w-5" />
+          <X className="h-4 w-4" />
         </button>
       </div>
     </div>

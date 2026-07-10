@@ -5,6 +5,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { ReliabilitySubnav } from '@/components/admin/reliability-subnav';
 import {
   CheckCircle2,
   XCircle,
@@ -390,10 +391,11 @@ export default function E2eResultsPage() {
   return (
     <AuthenticatedLayout>
       <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <ReliabilitySubnav />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <FlaskConical className="h-7 w-7 text-indigo-600" />
+              <FlaskConical className="h-7 w-7 text-teal-700" />
               E2E Test Results
             </h1>
             <p className="text-sm text-gray-500 mt-1">

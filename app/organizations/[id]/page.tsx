@@ -163,14 +163,14 @@ export default function OrganizationDetailPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-admin-accent border-t-transparent" />
       </div>
     );
   }
 
   if (!data) {
-    return <div>Organization not found</div>;
+    return <div className="p-6 text-sm text-admin-muted">Organization not found</div>;
   }
 
   const { organization, usage } = data;
@@ -179,36 +179,43 @@ export default function OrganizationDetailPage() {
     (organization.name || organization.domain || '').trim() || '(organization has no name or domain — set one before permanent delete)';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div>
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="border-b border-admin-border bg-admin-panel">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link
                 href="/organizations"
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                className="rounded-admin-sm p-2 hover:bg-slate-100"
               >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                <ArrowLeftIcon className="h-5 w-5 text-admin-muted" />
               </Link>
               <div className="flex items-center space-x-3">
-                <BuildingOfficeIcon className="h-8 w-8 text-blue-600" />
+                <BuildingOfficeIcon className="h-8 w-8 text-admin-accent" />
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-admin-ink">
                       {organization.name || '(Onboarding Incomplete)'}
                     </h1>
                     {isArchived && (
-                      <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-white uppercase tracking-wide">
+                      <span className="rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-admin-ink text-white">
                         Archived
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">{organization.domain}</p>
+                  <p className="text-sm text-admin-muted">{organization.domain}</p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-3 flex-wrap gap-2 justify-end">
+            <div className="flex flex-wrap items-center justify-end gap-2 space-x-3">
+              <Link
+                href={`/attention?org=${orgId}`}
+                className="inline-flex items-center gap-2 rounded-admin-sm border border-admin-warn/40 bg-admin-warn-soft px-3 py-2 text-sm font-medium text-admin-warn hover:bg-amber-100"
+              >
+                <ExclamationTriangleIcon className="h-4 w-4" />
+                Attention
+              </Link>
               <button
                 type="button"
                 onClick={() =>
@@ -219,7 +226,7 @@ export default function OrganizationDetailPage() {
                 }
                 disabled={backfillOrgDefaultsMutation.isPending || isArchived}
                 title="Adds missing default email templates, rejection reasons, and rating categories (idempotent)"
-                className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-800 text-sm font-medium rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-admin-sm border border-admin-border bg-white px-3 py-2 text-sm font-medium text-admin-ink hover:bg-slate-50 disabled:opacity-50"
               >
                 <SparklesIcon className="h-4 w-4 text-amber-500" />
                 {backfillOrgDefaultsMutation.isPending ? 'Seeding…' : 'Seed org defaults'}
@@ -229,7 +236,7 @@ export default function OrganizationDetailPage() {
                 onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
                 disabled={impersonateMutation.isPending || isArchived}
                 title={isArchived ? 'Archived organizations cannot be opened via Login as Admin' : undefined}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
               >
                 <ArrowTopRightOnSquareIcon className="h-4 w-4" />
                 {impersonateMutation.isPending ? 'Opening...' : 'Login as Admin'}
@@ -237,7 +244,7 @@ export default function OrganizationDetailPage() {
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(organization.subscriptionStatus)}`}>
                 {organization.subscriptionStatus}
               </span>
-              <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              <span className="rounded-full bg-admin-info-soft px-3 py-1 text-sm font-medium text-admin-info">
                 {organization.subscriptionPlan}
               </span>
             </div>
@@ -601,12 +608,18 @@ export default function OrganizationDetailPage() {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+            <div className="rounded-admin border border-admin-border bg-admin-panel p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-semibold text-admin-ink">Quick Actions</h2>
               <div className="space-y-2">
                 <Link
+                  href={`/attention?org=${orgId}`}
+                  className="block w-full rounded-admin-sm px-4 py-2 text-left text-sm font-medium text-admin-warn hover:bg-admin-warn-soft"
+                >
+                  Open attention queue →
+                </Link>
+                <Link
                   href={`/organizations/${orgId}/candidates`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-4 py-2 text-left text-sm text-admin-secondary hover:bg-slate-50"
                 >
                   View Candidates ({usage.total_candidates || 0})
                 </Link>

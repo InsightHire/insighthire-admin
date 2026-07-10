@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { ReliabilitySubnav } from '@/components/admin/reliability-subnav';
 import { DevopsIncidentDetailPanel } from '@/components/devops/incident-detail-panel';
 import { DevopsMonitoringPanel } from '@/components/devops/monitoring-panel';
 import {
@@ -79,10 +80,11 @@ function DevopsPageContent() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <ReliabilitySubnav />
       <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Wrench className="h-7 w-7 text-indigo-600" />
+            <Wrench className="h-7 w-7 text-teal-700" />
             AI DevOps
           </h1>
           <p className="mt-1 text-sm text-gray-600">

@@ -740,28 +740,29 @@ export default function IntegrationsAdminPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Puzzle className="h-7 w-7 text-purple-600" />
+              <Puzzle className="h-7 w-7 text-admin-accent" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Integration Settings</h1>
-                <p className="text-gray-500 text-sm">Define, configure, and control integrations available to customers</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-admin-muted">Platform</p>
+                <h1 className="text-2xl font-bold text-admin-ink">Integrations</h1>
+                <p className="text-sm text-admin-muted">Define, configure, and control integrations available to customers</p>
               </div>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => seedMutation.mutate()}
                 disabled={seedMutation.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                className="flex items-center gap-2 rounded-admin-sm bg-admin-accent px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
               >
                 <Zap className="h-4 w-4" />
                 {seedMutation.isPending ? 'Seeding...' : 'Initialize Defaults'}
               </button>
               <button
                 onClick={() => setShowAdd(!showAdd)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800"
+                className="flex items-center gap-2 rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
               >
                 <Plus className="h-4 w-4" />
                 Add Integration

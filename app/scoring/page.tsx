@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { PipelineSubnav } from '@/components/admin/pipeline-subnav';
 import {
   ArrowPathIcon,
   ChartBarIcon,
@@ -19,7 +20,7 @@ export default function ScoringObservabilityPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [calibratingOrg, setCalibratingOrg] = useState<string | null>(null);
 
-  const { data: orgs } = trpc.platformAdmin.listOrganizations.useQuery({ page: 1, limit: 200 });
+  const { data: orgs } = trpc.platformAdmin.listOrganizations.useQuery({ page: 1, limit: 100 });
   const { data: overview, refetch: refetchOverview, error: overviewErr } = trpc.platformAdmin.getScoringOverview.useQuery(
     { organizationId: selectedOrgId || undefined, days: 30 },
     { refetchInterval: 30000, retry: 1 }
@@ -48,6 +49,7 @@ export default function ScoringObservabilityPage() {
   return (
     <AuthenticatedLayout>
     <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <PipelineSubnav />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">

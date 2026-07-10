@@ -49,13 +49,16 @@ export function CandidateForensicsView({ data, onSessionChange, onRefresh }: Pro
         sessions={sessions}
         selected={selected}
         onSessionChange={onSessionChange}
-        onRetryStuck={() => selected?.id && retryMutation.mutate({ sessionId: selected.id })}
+        onRetryStuck={() => {
+          const candidateId = selected?.candidateId || data?.candidate?.id || data?.candidateId;
+          if (candidateId) retryMutation.mutate({ candidateId, retryType: 'all' });
+        }}
         hasStuck={hasStuck}
         retryBusy={retryMutation.isLoading}
       />
 
       <Tabs value={tab} onValueChange={setTab} defaultValue="overview">
-        <TabsList className="bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+        <TabsList className="rounded-admin border border-admin-border bg-admin-panel p-1 shadow-sm">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="perQuestion">Per-question ({responses.length})</TabsTrigger>
@@ -125,23 +128,23 @@ function ForensicsHeader({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex-1 min-w-0">
+    <div className="rounded-admin border border-admin-border bg-admin-panel p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">Candidate</span>
-            <span className="text-base font-semibold text-gray-900">
+            <span className="text-sm text-admin-muted">Candidate</span>
+            <span className="text-base font-semibold text-admin-ink">
               {(cand.firstName || '') + ' ' + (cand.lastName || '') || cand.email || 'Unknown'}
             </span>
-            <span className="text-xs text-gray-400">·  {cand.email || '—'}</span>
+            <span className="text-xs text-admin-muted">·  {cand.email || '—'}</span>
           </div>
-          <div className="text-xs text-gray-500 mt-0.5 font-mono">{cand.id}</div>
-          <div className="mt-2 flex items-center space-x-2 flex-wrap">
-            <span className="text-xs text-gray-500">Session</span>
+          <div className="admin-mono mt-0.5 text-xs text-admin-muted">{cand.id}</div>
+          <div className="mt-2 flex flex-wrap items-center space-x-2">
+            <span className="text-xs text-admin-muted">Session</span>
             <select
               value={selected?.id || ''}
               onChange={(e) => onSessionChange?.(e.target.value)}
-              className="px-2 py-1 border rounded-md text-xs text-gray-900 bg-white"
+              className="rounded-admin-sm border border-admin-border bg-white px-2 py-1 text-xs text-admin-ink"
             >
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>
@@ -155,14 +158,14 @@ function ForensicsHeader({
 
         <div className="flex items-center space-x-3">
           <div className="text-right">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide" title="AI score for this candidate's current session">AI</div>
-            <div className="text-xl font-bold text-blue-700 tabular-nums">
+            <div className="text-[10px] uppercase tracking-wide text-admin-muted" title="AI score for this candidate's current session">AI</div>
+            <div className="admin-mono text-xl font-bold text-admin-accent-ink tabular-nums">
               {aiScore != null ? Number(aiScore).toFixed(0) : '—'}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] text-gray-500 uppercase tracking-wide" title="Human reviewer score for this candidate (0-100)">Human</div>
-            <div className="text-xl font-bold text-emerald-700 tabular-nums">
+            <div className="text-[10px] uppercase tracking-wide text-admin-muted" title="Human reviewer score for this candidate (0-100)">Human</div>
+            <div className="admin-mono text-xl font-bold text-admin-ok tabular-nums">
               {humanScore != null ? humanScore.toFixed(0) : '—'}
             </div>
           </div>
@@ -171,7 +174,7 @@ function ForensicsHeader({
             <button
               onClick={onRetryStuck}
               disabled={retryBusy}
-              className="px-3 py-2 text-xs rounded-md border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+              className="rounded-admin-sm border border-admin-warn/40 bg-admin-warn-soft px-3 py-2 text-xs text-admin-warn hover:bg-amber-100 disabled:opacity-50"
               title="Retry any stuck responses in this session"
             >
               {retryBusy ? 'Retrying…' : 'Retry stuck'}

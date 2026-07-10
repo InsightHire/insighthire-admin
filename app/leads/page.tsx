@@ -74,62 +74,62 @@ export default function LeadsPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-admin-accent border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Contact Leads</h1>
-            <p className="text-gray-600 mt-1">Manage sales inquiries and demo requests</p>
-          </div>
-          <Link
-            href="/"
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Back to Dashboard</span>
-          </Link>
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-admin-muted">Growth</p>
+          <h1 className="text-2xl font-bold tracking-tight text-admin-ink">Contact Leads</h1>
+          <p className="mt-1 text-sm text-admin-muted">Sales inquiries and demo requests</p>
         </div>
+        <Link
+          href="/"
+          className="flex items-center space-x-2 text-admin-muted hover:text-admin-ink"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span>Back to Dashboard</span>
+        </Link>
+      </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex space-x-2">
-            {['all', 'new', 'contacted', 'qualified'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status as any)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filter === status
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
-          </div>
+      {/* Filters */}
+      <div className="admin-panel mb-6 p-4">
+        <div className="flex space-x-2">
+          {['all', 'new', 'contacted', 'qualified'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status as any)}
+              className={`rounded-admin-sm px-4 py-2 font-medium transition-colors ${
+                filter === status
+                  ? 'bg-admin-ink text-white'
+                  : 'bg-slate-100 text-admin-secondary hover:bg-slate-200'
+              }`}
+            >
+              {status.charAt(0).toUpperCase() + status.slice(1)}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {/* Leads List */}
-        <div className="bg-white rounded-lg shadow">
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading leads...</p>
-            </div>
-          ) : leads && leads.length > 0 ? (
-            <div className="divide-y divide-gray-200">
-              {leads.map((lead: any) => (
-                <div key={lead.id} className="p-6 hover:bg-gray-50">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
+      {/* Leads List */}
+      <div className="admin-panel overflow-hidden">
+        {isLoading ? (
+          <div className="p-8 text-center">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-admin-accent border-t-transparent" />
+            <p className="text-admin-muted">Loading leads...</p>
+          </div>
+        ) : leads && leads.length > 0 ? (
+          <div className="divide-y divide-admin-border">
+            {leads.map((lead: any) => (
+              <div key={lead.id} className="p-6 hover:bg-slate-50/80">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
                         <Building2 className="h-5 w-5 text-gray-400" />
                         <h3 className="text-lg font-semibold text-gray-900">
                           {lead.companyName || 'Unknown Company'}
@@ -228,7 +228,6 @@ export default function LeadsPage() {
             </div>
           )}
         </div>
-      </div>
     </div>
   );
 }
