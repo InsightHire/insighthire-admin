@@ -8,7 +8,6 @@ import { trpc } from '@/lib/trpc';
 import Link from 'next/link';
 import { 
   ShieldCheckIcon, 
-  MagnifyingGlassIcon,
   UserCircleIcon,
   ComputerDesktopIcon,
   GlobeAltIcon,
@@ -49,6 +48,9 @@ const getDefaultDates = () => {
   };
 };
 
+type GlobalView = 'main_app' | 'platform_admin';
+type OrgSource = 'all' | 'platform_admin' | 'org_user';
+
 function AuditLogsContent() {
   const searchParams = useSearchParams();
   const orgId = searchParams.get('org') || undefined;
@@ -56,11 +58,14 @@ function AuditLogsContent() {
   const [limit, setLimit] = useState(20);
   const [userId, setUserId] = useState('');
   const [adminRole, setAdminRole] = useState('');
-  const [sourceType, setSourceType] = useState<'all' | 'platform_admin' | 'org_user'>('all');
+  /** Global /audit default: main customer app only. */
+  const [globalView, setGlobalView] = useState<GlobalView>('main_app');
+  /** Org-scoped default: org users (main app) only. */
+  const [sourceType, setSourceType] = useState<OrgSource>('org_user');
   const [actionFilter, setActionFilter] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [showFilters, setShowFilters] = useState(true); // Expanded by default for discoverability
+  const [showFilters, setShowFilters] = useState(true);
 
   const ATTENTION_TRIAGE_ACTIONS = [
     'dismiss_stuck_candidate',
@@ -69,9 +74,13 @@ function AuditLogsContent() {
     'bulk_retry_stuck_candidates',
   ] as const;
 
+  const isPlatformAdminView = !orgId && globalView === 'platform_admin';
+  const isMainAppView = !orgId && globalView === 'main_app';
+
   const isAttentionTriage =
-    actionFilter === 'stuck' ||
-    ATTENTION_TRIAGE_ACTIONS.some((a) => actionFilter === a);
+    isPlatformAdminView &&
+    (actionFilter === 'stuck' ||
+      ATTENTION_TRIAGE_ACTIONS.some((a) => actionFilter === a));
 
   const orgAuditQuery = trpc.platformAdmin.getOrgAuditLogs.useQuery(
     {
@@ -87,6 +96,18 @@ function AuditLogsContent() {
     { enabled: !!orgId }
   );
 
+  const mainAppAuditQuery = (trpc.platformAdmin as any).getMainAppAuditLogs.useQuery(
+    {
+      page,
+      limit,
+      userId: userId || undefined,
+      action: actionFilter || undefined,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+    },
+    { enabled: isMainAppView }
+  );
+
   const platformAuditQuery = trpc.platformAdmin.getAuditLogs.useQuery(
     {
       page,
@@ -98,23 +119,70 @@ function AuditLogsContent() {
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     },
-    { enabled: !orgId }
+    { enabled: isPlatformAdminView }
   );
 
-  const data = orgId ? orgAuditQuery.data : platformAuditQuery.data;
-  const isLoading = orgId ? orgAuditQuery.isLoading : platformAuditQuery.isLoading;
-  const error = orgId ? orgAuditQuery.error : platformAuditQuery.error;
+  const data = orgId
+    ? orgAuditQuery.data
+    : isMainAppView
+      ? mainAppAuditQuery.data
+      : platformAuditQuery.data;
+  const isLoading = orgId
+    ? orgAuditQuery.isLoading
+    : isMainAppView
+      ? mainAppAuditQuery.isLoading
+      : platformAuditQuery.isLoading;
+  const error = orgId
+    ? orgAuditQuery.error
+    : isMainAppView
+      ? mainAppAuditQuery.error
+      : platformAuditQuery.error;
 
-  const { data: platformAdmins = [] } = trpc.platformAdmin.listPlatformAdmins.useQuery(undefined, { enabled: !orgId });
-  const { data: orgUsers = [] } = trpc.platformAdmin.listOrgUsers.useQuery({ orgId: orgId! }, { enabled: !!orgId });
+  const { data: platformAdmins = [] } = trpc.platformAdmin.listPlatformAdmins.useQuery(
+    undefined,
+    { enabled: isPlatformAdminView }
+  );
+  const { data: orgUsers = [] } = trpc.platformAdmin.listOrgUsers.useQuery(
+    { orgId: orgId! },
+    { enabled: !!orgId }
+  );
+
+  const actionSource: 'main_app' | 'platform_admin' | 'all' = orgId
+    ? sourceType === 'org_user'
+      ? 'main_app'
+      : sourceType === 'platform_admin'
+        ? 'platform_admin'
+        : 'all'
+    : globalView === 'main_app'
+      ? 'main_app'
+      : 'platform_admin';
+
   const { data: actionTypes = [] } = trpc.platformAdmin.getAuditActionTypes.useQuery({
     orgId,
-    includeOrgActivity: !!orgId,
+    includeOrgActivity: orgId ? sourceType !== 'platform_admin' : globalView === 'main_app',
+    ...( { source: actionSource } as any ),
   });
 
-  const userOptions = orgId ? orgUsers : platformAdmins;
+  const userOptions = orgId ? orgUsers : isPlatformAdminView ? platformAdmins : [];
   const totalPages = data?.total ? Math.ceil(data.total / limit) : 0;
-  const hasFilters = userId || adminRole || sourceType !== 'all' || actionFilter || startDate || endDate;
+  const hasFilters =
+    userId ||
+    adminRole ||
+    (orgId && sourceType !== 'org_user') ||
+    (!orgId && globalView !== 'main_app') ||
+    actionFilter ||
+    startDate ||
+    endDate;
+
+  const subtitle = orgId
+    ? sourceType === 'org_user'
+      ? 'Customer app activity for this organization'
+      : sourceType === 'platform_admin'
+        ? 'Platform admin actions targeting this organization'
+        : 'Customer app activity + platform admin actions for this organization'
+    : globalView === 'main_app'
+      ? 'Customer app (insighthire-web) activity across organizations'
+      : 'Platform admin console actions (mutations & triage — not navigation)';
 
   return (
       <div className="p-6 max-w-7xl mx-auto">
@@ -125,11 +193,7 @@ function AuditLogsContent() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Trackability</p>
               <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
-              <p className="text-sm text-slate-500">
-                {orgId
-                  ? 'Platform admin actions + org user activity for this organization'
-                  : 'Platform admin actions — including Attention triage (dismiss / retry / undo)'}
-              </p>
+              <p className="text-sm text-slate-500">{subtitle}</p>
             </div>
           </div>
           {orgId && (
@@ -145,27 +209,66 @@ function AuditLogsContent() {
 
         {!orgId && (
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs font-medium text-slate-500">Quick filters:</span>
+            <span className="text-xs font-medium text-slate-500">View:</span>
             <button
               type="button"
               onClick={() => {
-                setActionFilter('stuck');
+                setGlobalView('main_app');
+                setActionFilter('');
+                setUserId('');
+                setAdminRole('');
                 setPage(1);
               }}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold border ${
-                isAttentionTriage
+                globalView === 'main_app'
                   ? 'border-teal-600 bg-teal-50 text-teal-800'
                   : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              Attention triage
+              Main app
             </button>
-            <Link
-              href="/attention"
-              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            <button
+              type="button"
+              onClick={() => {
+                setGlobalView('platform_admin');
+                setActionFilter('');
+                setUserId('');
+                setPage(1);
+              }}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold border ${
+                globalView === 'platform_admin'
+                  ? 'border-indigo-600 bg-indigo-50 text-indigo-800'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
             >
-              Open Attention →
-            </Link>
+              Platform admin
+            </button>
+            {isPlatformAdminView && (
+              <>
+                <span className="text-slate-300 mx-1">|</span>
+                <span className="text-xs font-medium text-slate-500">Quick filters:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionFilter('stuck');
+                    setPage(1);
+                  }}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold border ${
+                    isAttentionTriage
+                      ? 'border-teal-600 bg-teal-50 text-teal-800'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  Attention triage
+                </button>
+                <Link
+                  href="/attention"
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Open Attention →
+                </Link>
+              </>
+            )}
           </div>
         )}
 
@@ -214,36 +317,38 @@ function AuditLogsContent() {
           </button>
           {showFilters && (
             <div className="px-4 pb-4 pt-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 border-t">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  {orgId ? 'User' : 'Admin User'}
-                </label>
-                <select
-                  value={userId}
-                  onChange={(e) => { setUserId(e.target.value); setPage(1); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">All {orgId ? 'users' : 'admins'}</option>
-                  {userOptions.map((a: { id: string; email: string; name: string }) => (
-                    <option key={a.id} value={a.id}>{a.name || a.email}</option>
-                  ))}
-                </select>
-              </div>
+              {(orgId || isPlatformAdminView) && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">
+                    {orgId ? 'User' : 'Admin User'}
+                  </label>
+                  <select
+                    value={userId}
+                    onChange={(e) => { setUserId(e.target.value); setPage(1); }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">All {orgId ? 'users' : 'admins'}</option>
+                    {userOptions.map((a: { id: string; email: string; name: string }) => (
+                      <option key={a.id} value={a.id}>{a.name || a.email}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {orgId && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Source</label>
                   <select
                     value={sourceType}
-                    onChange={(e) => { setSourceType(e.target.value as any); setPage(1); }}
+                    onChange={(e) => { setSourceType(e.target.value as OrgSource); setPage(1); }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="all">All (Admin + Org Users)</option>
+                    <option value="org_user">Main app (org users)</option>
                     <option value="platform_admin">Platform Admin only</option>
-                    <option value="org_user">Org Users only</option>
+                    <option value="all">All (Admin + Org Users)</option>
                   </select>
                 </div>
               )}
-              {!orgId && (
+              {isPlatformAdminView && (
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Admin Role</label>
                   <select
@@ -265,7 +370,9 @@ function AuditLogsContent() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">All actions</option>
-                  <option value="stuck">Attention triage (dismiss / retry / undo)</option>
+                  {isPlatformAdminView && (
+                    <option value="stuck">Attention triage (dismiss / retry / undo)</option>
+                  )}
                   {actionTypes.map((a: string) => (
                     <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
                   ))}
@@ -294,7 +401,8 @@ function AuditLogsContent() {
                   onClick={() => {
                     setUserId('');
                     setAdminRole('');
-                    setSourceType('all');
+                    setGlobalView('main_app');
+                    setSourceType('org_user');
                     setActionFilter('');
                     const { startDate: s, endDate: e } = getDefaultDates();
                     setStartDate(s);
@@ -338,7 +446,7 @@ function AuditLogsContent() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Resource
                     </th>
-                    {orgId && (
+                    {orgId && sourceType === 'all' && (
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Source
                       </th>
@@ -403,7 +511,7 @@ function AuditLogsContent() {
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>
-                        {orgId && (
+                        {orgId && sourceType === 'all' && (
                           <td className="px-4 py-4">
                             <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
                               log.sourceType === 'platform_admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
@@ -508,9 +616,13 @@ function AuditLogsContent() {
               <ShieldCheckIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-500 font-medium">No audit logs found</p>
               <p className="text-sm text-gray-400 mt-1">
-                {hasFilters ? 'Try adjusting your filters or date range' : orgId
-                  ? 'No platform admin actions on this org yet (e.g. view, update subscription, invite user)'
-                  : 'Platform admin actions will appear here when admins create orgs, update subscriptions, invite users, etc.'}
+                {hasFilters
+                  ? 'Try adjusting your filters or date range'
+                  : orgId
+                    ? 'No customer-app activity for this org yet'
+                    : globalView === 'main_app'
+                      ? 'Customer app actions (invites, questions, positions, etc.) will appear here'
+                      : 'Platform admin mutations will appear here when admins create orgs, update subscriptions, triage Attention, etc.'}
               </p>
             </div>
           )}
