@@ -567,21 +567,24 @@ export function ConsentDisclaimerPanel() {
 
       {showPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl">
-            <div className="bg-[#0a5fc4] px-8 py-6 text-white">
-              <h1 className="text-2xl font-bold">{form.title}</h1>
-              <p className="text-white/85 mt-1 text-sm">
+          <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl border border-gray-200">
+            <div className="px-8 pt-7 pb-5 border-b border-gray-200">
+              <p className="text-[11px] font-extrabold tracking-[0.12em] uppercase text-blue-700 mb-2">
+                InsightHire
+              </p>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">{form.title}</h1>
+              <p className="text-sm text-gray-500 mt-1">
                 Example Org uses InsightHire to manage this assessment.
               </p>
             </div>
-            <div className="px-8 py-6 space-y-4">
+            <div className="px-8 py-6 space-y-3">
               <p className="text-sm text-gray-600">{form.introText}</p>
               {form.items.map((item) => (
-                <div key={item.purpose} className="rounded-xl border-2 border-gray-200 p-4">
+                <div key={item.purpose} className="rounded-xl border border-gray-200 p-4">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{item.label}</span>
+                    <span className="font-semibold text-gray-900 text-sm">{item.label}</span>
                     {item.required && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                         Required
                       </span>
                     )}
@@ -589,23 +592,23 @@ export function ConsentDisclaimerPanel() {
                   <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                 </div>
               ))}
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">{form.rightsTitle}</h3>
                 <ul className="text-xs text-gray-600 space-y-1 list-disc pl-4">
                   {form.rightsBullets.filter(Boolean).map((b, i) => (
                     <li key={i}>{b}</li>
                   ))}
                 </ul>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-400 mt-2">
                   Contact {form.privacyEmail} · Policy {form.privacyPolicyPath}
                 </p>
               </div>
             </div>
-            <div className="px-8 py-4 border-t border-gray-100 flex justify-end">
+            <div className="px-8 py-4 border-t border-gray-100 flex justify-end bg-gray-50">
               <button
                 type="button"
                 onClick={() => setShowPreview(false)}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 hover:bg-white"
               >
                 Close preview
               </button>
