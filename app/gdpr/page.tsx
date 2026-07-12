@@ -15,7 +15,9 @@ import {
   Database,
   ShieldAlert,
   Settings,
+  ScrollText,
 } from 'lucide-react';
+import { ConsentDisclaimerPanel } from '@/components/gdpr/consent-disclaimer-panel';
 
 type RequestStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'DENIED';
 type RequestType = 'ACCESS' | 'ERASURE' | 'RECTIFICATION' | 'PORTABILITY' | 'RESTRICTION' | 'OBJECTION';
@@ -41,7 +43,7 @@ export default function GDPRDashboardPage() {
   const [newRequestEmail, setNewRequestEmail] = useState('');
   const [newRequestType, setNewRequestType] = useState<RequestType>('ACCESS');
   const [showNewForm, setShowNewForm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'requests' | 'breach' | 'retention'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'breach' | 'retention' | 'consent'>('requests');
 
   // Breach form state
   const [breachForm, setBreachForm] = useState({
@@ -107,6 +109,7 @@ export default function GDPRDashboardPage() {
         <div className="flex items-center gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
           {([
             { key: 'requests' as const, label: 'Data Requests', icon: FileText },
+            { key: 'consent' as const, label: 'Candidate consent', icon: ScrollText },
             { key: 'breach' as const, label: 'Breach Reporting', icon: ShieldAlert },
             { key: 'retention' as const, label: 'Retention Policies', icon: Settings },
           ]).map(tab => (
@@ -272,6 +275,9 @@ export default function GDPRDashboardPage() {
         </div>
 
         </>)}
+
+        {/* ──────── Candidate Consent Tab ──────── */}
+        {activeTab === 'consent' && <ConsentDisclaimerPanel />}
 
         {/* ──────── Breach Reporting Tab ──────── */}
         {activeTab === 'breach' && (
