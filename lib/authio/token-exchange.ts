@@ -6,6 +6,42 @@ export interface AuthioTokenPair {
   accessExpiresInSec?: number;
 }
 
+/** Exchange Authio Lobby/magic-link session-handoff `code` for session tokens. */
+export async function exchangeSessionHandoff(
+  code: string,
+  redirectUri: string,
+  clientStateNonce?: string | null,
+): Promise<AuthioTokenPair | null> {
+  try {
+    const res = await fetch(
+      `${AUTHIO_AUTH_CORE_URL}/v1/auth/session-handoff/exchange`,
+      {
+        method: 'POST',
+        headers: authCoreHeaders(),
+        body: JSON.stringify({
+          code,
+          redirect_uri: redirectUri,
+          ...(clientStateNonce ? { client_state_nonce: clientStateNonce } : {}),
+        }),
+      },
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      access_token?: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
+    if (!body.access_token || !body.refresh_token) return null;
+    return {
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token,
+      accessExpiresInSec: body.expires_in,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Exchange an OAuth authorization code from the hosted UI callback for session tokens. */
 export async function exchangeAuthorizationCode(
   code: string,

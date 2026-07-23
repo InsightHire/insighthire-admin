@@ -32,7 +32,7 @@ import {
 } from './config';
 import { accessTokenRemainingSec } from './access-cookie-gate';
 import { verifyAccessToken } from './session';
-import { exchangeAuthorizationCode, hashBootstrapHtml } from './token-exchange';
+import { exchangeAuthorizationCode, exchangeSessionHandoff, hashBootstrapHtml } from './token-exchange';
 import { redirectWithAuthError } from './auth-errors';
 import { generatePkcePair } from './pkce';
 
@@ -201,13 +201,21 @@ async function resolveCallbackTokens(
   }
 
   const code = req.nextUrl.searchParams.get('code');
-  if (code && codeVerifier) {
-    const exchanged = await exchangeAuthorizationCode(
-      code,
-      callbackUrl(req),
-      codeVerifier,
-    );
-    if (exchanged) return exchanged;
+  if (code) {
+    const redirectUri = callbackUrl(req);
+    const nonce =
+      req.nextUrl.searchParams.get('client_state_nonce') ||
+      req.nextUrl.searchParams.get(NONCE_PARAM);
+    const handoff = await exchangeSessionHandoff(code, redirectUri, nonce);
+    if (handoff) return handoff;
+    if (codeVerifier) {
+      const exchanged = await exchangeAuthorizationCode(
+        code,
+        redirectUri,
+        codeVerifier,
+      );
+      if (exchanged) return exchanged;
+    }
   }
 
   return null;
