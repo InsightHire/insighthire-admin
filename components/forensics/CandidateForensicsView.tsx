@@ -760,7 +760,7 @@ function PerQuestionTab({
   const filtered = responses.filter(r => {
     if (filter === 'failed') return (r.status || '').toUpperCase() === 'FAILED' || !!r.processingError;
     if (filter === 'unscored') return r.score == null;
-    if (filter === 'video') return !!r.videoUrl;
+    if (filter === 'video') return !!(r.videoUrl || r.muxPlaybackUrl || (r.metadata as any)?.muxPlaybackUrl);
     return true;
   });
 

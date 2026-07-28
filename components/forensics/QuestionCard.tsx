@@ -41,8 +41,16 @@ export function QuestionCard({
   videoDiagnostics?: { attempts: any[]; timeline: any[] };
   defaultOpen?: boolean;
 }) {
+  const hasMedia =
+    !!(
+      response.videoUrl ||
+      response.muxPlaybackUrl ||
+      response.fileUrl ||
+      response.textResponse ||
+      response.choiceSelected
+    );
   const [open, setOpen] = useState(defaultOpen);
-  const [innerTab, setInnerTab] = useState<InnerTabId>('evaluation');
+  const [innerTab, setInnerTab] = useState<InnerTabId>(hasMedia ? 'response' : 'evaluation');
 
   const q = response.question;
   const nodeLabel = response.nodeType || 'Response';
@@ -60,6 +68,7 @@ export function QuestionCard({
   const hasOrch = (response.orchestrator?.turns?.length ?? 0) > 0
     || (response.orchestrator?.questionAssessments && Object.keys(response.orchestrator.questionAssessments).length > 0);
   const hasEval = !!response.aiEvaluation || !!response.aiAnalysis;
+  const hasMux = !!(response.muxPlaybackUrl || response.muxPlaybackId || (response.metadata as any)?.muxPlaybackUrl);
 
   const statusIsFailed = (response.status || '').toUpperCase() === 'FAILED';
 
@@ -80,6 +89,11 @@ export function QuestionCard({
                 {nodeLabel}
               </span>
               <StatusChip status={response.status} />
+              {hasMux && (
+                <span className="inline-flex px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-medium">
+                  Mux
+                </span>
+              )}
               {hasOrch && (
                 <span className="inline-flex px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-medium">
                   Conv. LLM
@@ -375,18 +389,72 @@ function PromptPanel({ responseId, fallback }: { responseId: string; fallback: a
 // ---------- Panel: Response ----------
 
 function ResponsePanel({ response }: { response: any }) {
+  const meta = (response.metadata as any) || {};
+  const muxPlaybackUrl =
+    response.muxPlaybackUrl ||
+    meta.muxPlaybackUrl ||
+    (response.muxPlaybackId
+      ? `https://stream.mux.com/${response.muxPlaybackId}.m3u8`
+      : meta.muxPlaybackId
+        ? `https://stream.mux.com/${meta.muxPlaybackId}.m3u8`
+        : null);
+  const muxPlaybackId =
+    response.muxPlaybackId ||
+    meta.muxPlaybackId ||
+    (typeof muxPlaybackUrl === 'string'
+      ? muxPlaybackUrl.match(/stream\.mux\.com\/([^/?]+)(?:\.m3u8|\/)/)?.[1] ?? null
+      : null);
+  const playbackUrl = muxPlaybackUrl || response.videoUrl || null;
+  const storageUrl =
+    response.storageVideoUrl && response.storageVideoUrl !== playbackUrl
+      ? response.storageVideoUrl
+      : response.videoUrl &&
+          response.videoUrl !== muxPlaybackUrl &&
+          !String(response.videoUrl).includes('stream.mux.com')
+        ? response.videoUrl
+        : null;
+  const mp4Url = response.mp4Url || meta.mp4Url || null;
+
   return (
     <div className="space-y-4">
-      {response.videoUrl && (
+      {playbackUrl && (
         <div>
-          <SectionHeading title="Candidate video" subtitle={response.videoUrl} />
-          <HlsVideo src={response.videoUrl} />
+          <SectionHeading
+            title={muxPlaybackUrl ? 'Mux playback' : 'Candidate video'}
+            subtitle={playbackUrl}
+          />
+          <div className="mb-2 flex flex-wrap items-center gap-3 text-xs">
+            <a
+              href={playbackUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-700 hover:underline break-all"
+            >
+              {playbackUrl}
+            </a>
+            {muxPlaybackId && (
+              <span className="text-gray-500">
+                playbackId: <code className="text-[10px] bg-gray-100 px-1 rounded">{muxPlaybackId}</code>
+              </span>
+            )}
+          </div>
+          <HlsVideo src={playbackUrl} />
         </div>
       )}
-      {(response.metadata as any)?.muxPlaybackUrl && (response.metadata as any).muxPlaybackUrl !== response.videoUrl && (
+      {mp4Url && mp4Url !== playbackUrl && (
         <div>
-          <SectionHeading title="Mux playback" subtitle={(response.metadata as any).muxPlaybackUrl} />
-          <HlsVideo src={(response.metadata as any).muxPlaybackUrl} />
+          <SectionHeading title="Mux MP4" subtitle={mp4Url} />
+          <a href={mp4Url} target="_blank" rel="noreferrer" className="text-sm text-blue-700 hover:underline break-all">
+            {mp4Url}
+          </a>
+        </div>
+      )}
+      {storageUrl && (
+        <div>
+          <SectionHeading title="Storage URL (S3)" subtitle="Placeholder / archive copy — prefer Mux playback above" />
+          <a href={storageUrl} target="_blank" rel="noreferrer" className="text-sm text-gray-600 hover:underline break-all">
+            {storageUrl}
+          </a>
         </div>
       )}
       {response.fileUrl && (
