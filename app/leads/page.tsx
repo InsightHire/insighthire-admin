@@ -179,6 +179,35 @@ export default function LeadsPage() {
                           <Calendar className="h-4 w-4" />
                           <span>{new Date(lead.createdAt).toLocaleString()}</span>
                         </p>
+                        {(lead.source || lead.attribution) && (
+                          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                            {lead.source && (
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                                {lead.source}
+                              </span>
+                            )}
+                            {lead.attribution?.utm_campaign && (
+                              <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-800">
+                                {lead.attribution.utm_campaign}
+                              </span>
+                            )}
+                            {lead.attribution?.utm_medium && (
+                              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-800">
+                                {lead.attribution.utm_medium}
+                              </span>
+                            )}
+                            {lead.attribution?.utm_content && (
+                              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-900">
+                                {lead.attribution.utm_content}
+                              </span>
+                            )}
+                            {lead.attribution?.landing_path && (
+                              <span className="text-admin-muted">
+                                via {lead.attribution.landing_path}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
