@@ -34,6 +34,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   automation: 'Automation',
   meetings: 'Meetings & Calendar',
   hiring_intelligence: 'Hiring Intelligence',
+  background_checks: 'Background Checks',
 };
 
 // Slugs that route through the per-tenant feature-grant gate. Mirrors
