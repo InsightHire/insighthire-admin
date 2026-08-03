@@ -127,6 +127,7 @@ function AuditLogsContent() {
     : isMainAppView
       ? mainAppAuditQuery.data
       : platformAuditQuery.data;
+  const auditOrganizationName = orgId ? orgAuditQuery.data?.organization?.name : null;
   const isLoading = orgId
     ? orgAuditQuery.isLoading
     : isMainAppView
@@ -193,6 +194,11 @@ function AuditLogsContent() {
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Trackability</p>
               <h1 className="text-2xl font-bold text-slate-900">Audit Logs</h1>
+              {auditOrganizationName && (
+                <p className="text-sm font-semibold text-teal-700">
+                  Tenant: {auditOrganizationName}
+                </p>
+              )}
               <p className="text-sm text-slate-500">{subtitle}</p>
             </div>
           </div>
@@ -500,7 +506,12 @@ function AuditLogsContent() {
                         <td className="px-4 py-4">
                           {log.resource ? (
                             <div>
-                              <span className="text-sm text-gray-900 capitalize">{(log.resource || '').replace(/_/g, ' ')}</span>
+                              {log.resourceName && (
+                                <div className="text-sm font-medium text-gray-900">
+                                  {log.resourceName}
+                                </div>
+                              )}
+                              <span className="text-xs text-gray-600 capitalize">{(log.resource || '').replace(/_/g, ' ')}</span>
                               {log.resourceId && (
                                 <div className="text-xs text-gray-500 font-mono mt-1">
                                   {String(log.resourceId).slice(0, 12)}…
