@@ -46,6 +46,8 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'culture_fit_scoring',
   'insighthire_live_interviews',
   'talent_network',
+  'custom_fields',
+  'job_governance',
 ]);
 
 type ConfigField = {
