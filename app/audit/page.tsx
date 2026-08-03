@@ -538,7 +538,7 @@ function AuditLogsContent() {
                                 href={`/audit?org=${log.targetOrgId}`}
                                 className="text-sm text-indigo-600 hover:text-indigo-800 font-mono"
                               >
-                                {log.targetOrgId.slice(0, 12)}…
+                                {log.targetOrgName || log.targetOrgId.slice(0, 12)}
                               </Link>
                             ) : (
                               <span className="text-xs text-gray-400">—</span>
