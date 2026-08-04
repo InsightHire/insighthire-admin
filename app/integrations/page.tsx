@@ -50,6 +50,9 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'job_governance',
   'custom_pipelines',
   'structured_interviews',
+  'custom_reports',
+  'dei_compliance',
+  'candidate_surveys',
 ]);
 
 type ConfigField = {
