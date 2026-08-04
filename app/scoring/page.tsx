@@ -1,7 +1,7 @@
 'use client';
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
@@ -15,10 +15,15 @@ import {
   BoltIcon,
 } from '@heroicons/react/24/outline';
 
+type Leniency = 'HARSH' | 'BALANCED' | 'GENEROUS';
+
 export default function ScoringObservabilityPage() {
   useAdminAuth();
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [calibratingOrg, setCalibratingOrg] = useState<string | null>(null);
+  const [leniencyDraft, setLeniencyDraft] = useState<Leniency>('BALANCED');
+  const [offsetDraft, setOffsetDraft] = useState(0);
+  const [calibrationDirty, setCalibrationDirty] = useState(false);
 
   const { data: orgs } = trpc.platformAdmin.listOrganizations.useQuery({ page: 1, limit: 100 });
   const { data: overview, refetch: refetchOverview, error: overviewErr } = trpc.platformAdmin.getScoringOverview.useQuery(
@@ -37,11 +42,31 @@ export default function ScoringObservabilityPage() {
     { organizationId: selectedOrgId || undefined },
     { retry: 1 }
   );
+  const {
+    data: scoringCalibration,
+    refetch: refetchScoringCalibration,
+    error: scoringCalibErr,
+  } = trpc.platformAdmin.getScoringCalibration.useQuery(
+    { organizationId: selectedOrgId },
+    { enabled: !!selectedOrgId, retry: 1 },
+  );
 
-  const queryErrors = [overviewErr, rescoresErr, eventsErr, calibErr].filter(Boolean);
+  useEffect(() => {
+    if (!scoringCalibration || calibrationDirty) return;
+    setLeniencyDraft(scoringCalibration.calibration.leniency);
+    setOffsetDraft(scoringCalibration.calibration.scoreOffset);
+  }, [scoringCalibration, calibrationDirty]);
+
+  const queryErrors = [overviewErr, rescoresErr, eventsErr, calibErr, scoringCalibErr].filter(Boolean);
 
   const generateSnapshotMutation = trpc.platformAdmin.generateCalibrationSnapshot.useMutation({
     onSuccess: () => { refetchCalibrations(); refetchOverview(); },
+  });
+  const setCalibrationMutation = trpc.platformAdmin.setScoringCalibration.useMutation({
+    onSuccess: async () => {
+      setCalibrationDirty(false);
+      await refetchScoringCalibration();
+    },
   });
 
   const orgList = orgs?.organizations || orgs || [];
@@ -60,7 +85,10 @@ export default function ScoringObservabilityPage() {
         </div>
         <select
           value={selectedOrgId}
-          onChange={(e) => setSelectedOrgId(e.target.value)}
+          onChange={(e) => {
+            setSelectedOrgId(e.target.value);
+            setCalibrationDirty(false);
+          }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900"
         >
           <option value="">All Organizations</option>
@@ -69,6 +97,117 @@ export default function ScoringObservabilityPage() {
           ))}
         </select>
       </div>
+
+      {selectedOrgId && (
+        <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">AI Bias / Leniency Control</h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Adjust how harshly AI scores this tenant. Applies to new scores and rescored responses.
+              {scoringCalibration?.organizationName
+                ? ` Current tenant: ${scoringCalibration.organizationName}.`
+                : ''}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Prompt leniency</label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['HARSH', 'Harsh'],
+                  ['BALANCED', 'Balanced'],
+                  ['GENEROUS', 'Generous'],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setLeniencyDraft(value);
+                      setCalibrationDirty(true);
+                    }}
+                    className={`px-3 py-1.5 text-sm rounded-lg border ${
+                      leniencyDraft === value
+                        ? 'bg-purple-600 text-white border-purple-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {leniencyDraft === 'HARSH' && 'Strict bar — prefers the low side of a score band when evidence is incomplete.'}
+                {leniencyDraft === 'BALANCED' && 'Default calibrated recruiter bar (no extra prompt bias).'}
+                {leniencyDraft === 'GENEROUS' && 'Lenient bar — prefers the high side when substance is clear (good for harsh-AI complaints).'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Score offset: {offsetDraft > 0 ? '+' : ''}{offsetDraft} pts
+              </label>
+              <input
+                type="range"
+                min={-15}
+                max={15}
+                step={1}
+                value={offsetDraft}
+                onChange={(e) => {
+                  setOffsetDraft(Number(e.target.value));
+                  setCalibrationDirty(true);
+                }}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>−15 (harsher)</span>
+                <span>0</span>
+                <span>+15 (more lenient)</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Applied after the model scores, before the score gate. Clamped to 0–100.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              disabled={!calibrationDirty || setCalibrationMutation.isPending}
+              onClick={async () => {
+                try {
+                  await setCalibrationMutation.mutateAsync({
+                    organizationId: selectedOrgId,
+                    leniency: leniencyDraft,
+                    scoreOffset: offsetDraft,
+                  });
+                } catch (err: any) {
+                  alert(err.message || 'Failed to save calibration');
+                }
+              }}
+              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+            >
+              {setCalibrationMutation.isPending ? 'Saving...' : 'Save bias settings'}
+            </button>
+            {calibrationDirty && (
+              <button
+                type="button"
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
+                onClick={() => {
+                  setLeniencyDraft(scoringCalibration?.calibration.leniency ?? 'BALANCED');
+                  setOffsetDraft(scoringCalibration?.calibration.scoreOffset ?? 0);
+                  setCalibrationDirty(false);
+                }}
+              >
+                Reset
+              </button>
+            )}
+            {setCalibrationMutation.isSuccess && !calibrationDirty && (
+              <span className="text-sm text-green-700">Saved. Rescore candidates to apply to existing scores.</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {queryErrors.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
