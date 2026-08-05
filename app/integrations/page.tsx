@@ -55,6 +55,7 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'candidate_surveys',
   'scheduling_coordination',
   'new_hire_onboarding',
+  'offers_closing',
 ]);
 
 type ConfigField = {
