@@ -54,6 +54,7 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'dei_compliance',
   'candidate_surveys',
   'scheduling_coordination',
+  'new_hire_onboarding',
 ]);
 
 type ConfigField = {
