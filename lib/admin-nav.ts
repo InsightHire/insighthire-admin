@@ -11,6 +11,7 @@ import {
   Images,
   Lock,
   Mail,
+  Megaphone,
   Puzzle,
   Shield,
   Users,
@@ -99,6 +100,12 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       { name: 'Integrations', href: '/integrations', icon: Puzzle, match: ['/integrations'] },
       { name: 'Admins', href: '/settings/admins', icon: Users, match: ['/settings/admins'] },
       { name: 'Languages', href: '/settings/i18n', icon: Globe, match: ['/settings/i18n'] },
+      {
+        name: 'Marketing tags',
+        href: '/settings/marketing',
+        icon: Megaphone,
+        match: ['/settings/marketing'],
+      },
       {
         name: 'Avatars',
         href: '/admin/personas/heygen-catalog',
