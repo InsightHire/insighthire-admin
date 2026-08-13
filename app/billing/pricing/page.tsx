@@ -9,7 +9,10 @@ type Plan = {
   id: string;
   name: string;
   price: number;
+  annualPrice?: number;
   priceId: string;
+  annualPriceId?: string;
+  contactSales?: boolean;
   candidatesLimit: number;
   featuresIncluded?: string[];
   featuresExcluded?: string[];
@@ -23,6 +26,7 @@ export default function BillingPricingPage() {
     name: '',
     price: 0,
     stripePriceId: '',
+    stripeAnnualPriceId: '',
     candidatesLimit: 50,
     featuresIncluded: '',
     featuresExcluded: '',
@@ -79,6 +83,7 @@ export default function BillingPricingPage() {
       name: plan.name,
       price: plan.price,
       stripePriceId: plan.priceId || '',
+      stripeAnnualPriceId: plan.annualPriceId || '',
       candidatesLimit: plan.candidatesLimit,
       featuresIncluded: (plan.featuresIncluded || []).join('\n'),
       featuresExcluded: (plan.featuresExcluded || []).join('\n'),
@@ -93,6 +98,7 @@ export default function BillingPricingPage() {
       name: form.name,
       price: form.price,
       stripePriceId: form.stripePriceId || undefined,
+      stripeAnnualPriceId: form.stripeAnnualPriceId || undefined,
       candidatesLimit: form.candidatesLimit,
       featuresIncluded: form.featuresIncluded.split('\n').map((s) => s.trim()).filter(Boolean),
       featuresExcluded: form.featuresExcluded.split('\n').map((s) => s.trim()).filter(Boolean),
@@ -116,8 +122,8 @@ export default function BillingPricingPage() {
           <h2 className="text-lg font-semibold text-gray-900">Pricing plans</h2>
           <p className="text-gray-500 mt-1 max-w-2xl">
             Catalog amounts live in the database. Use <strong>Sync plans to Stripe</strong> to create matching
-            Products and monthly Prices in Stripe and link <code className="text-xs bg-gray-100 px-1 rounded">price_…</code>{' '}
-            IDs automatically — then Checkout and webhooks can resolve plan ↔ price.
+            Products plus monthly and annual Prices (annual is 10 months prepaid, ~17% off). Enterprise is
+            contact-us — it is not synced to a self-serve Stripe price. Checkout accepts Stripe promotion codes.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
@@ -274,9 +280,20 @@ export default function BillingPricingPage() {
                 )}
                 <h3 className="text-xl font-bold text-gray-900 pr-10">{plan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-gray-900">${plan.price}</span>
-                  <span className="text-gray-500">/month</span>
+                  {plan.contactSales || plan.price <= 0 ? (
+                    <span className="text-3xl font-bold text-gray-900">Contact us</span>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold text-gray-900">${plan.price.toLocaleString()}</span>
+                      <span className="text-gray-500">/month</span>
+                    </>
+                  )}
                 </div>
+                {plan.annualPrice != null && plan.annualPrice > 0 && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    ${plan.annualPrice.toLocaleString()}/year (save 17%)
+                  </p>
+                )}
                 {plan.candidatesLimit > 0 && (
                   <p className="text-sm text-gray-500 mt-1">{plan.candidatesLimit} candidates/month</p>
                 )}
@@ -285,10 +302,15 @@ export default function BillingPricingPage() {
                 )}
                 {plan.priceId && (
                   <p className="text-xs text-gray-500 mt-2 font-mono break-all" title={plan.priceId}>
-                    Stripe price: {plan.priceId}
+                    Monthly Stripe: {plan.priceId}
                   </p>
                 )}
-                {!plan.priceId && (
+                {plan.annualPriceId && (
+                  <p className="text-xs text-gray-500 mt-1 font-mono break-all" title={plan.annualPriceId}>
+                    Annual Stripe: {plan.annualPriceId}
+                  </p>
+                )}
+                {!plan.priceId && !plan.contactSales && plan.price > 0 && (
                   <p className="text-xs text-amber-700 mt-2 font-medium">Not linked — run &quot;Sync plans to Stripe&quot;</p>
                 )}
                 <div className="mt-6 space-y-4">
@@ -381,6 +403,19 @@ export default function BillingPricingPage() {
                   </p>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stripe annual Price ID</label>
+                  <input
+                    type="text"
+                    value={form.stripeAnnualPriceId}
+                    onChange={(e) => setForm((f) => ({ ...f, stripeAnnualPriceId: e.target.value }))}
+                    placeholder="price_xxx"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Yearly price (10 months prepaid). Created automatically by sync.
+                  </p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Features included (one per line)</label>
                   <textarea
                     value={form.featuresIncluded}
@@ -423,7 +458,7 @@ export default function BillingPricingPage() {
 
       <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-2">
         <p className="text-sm text-gray-700">
-          <strong>Stripe Dashboard:</strong> After syncing, open Products in Stripe — you should see <em>InsightHire — Starter / Professional / Enterprise</em> with recurring monthly prices matching the amounts above.
+          <strong>Stripe Dashboard:</strong> After syncing, open Products in Stripe — you should see <em>InsightHire — Starter / Professional</em> with monthly and annual prices. Enterprise is Contact us (no self-serve checkout). Checkout allows Stripe promotion codes for extra discounts.
         </p>
         <p className="text-sm text-gray-600">
           WorkOS handles identity; Stripe handles payments. The link between app plan and Stripe is the <strong>Price ID</strong> stored in the database and in webhook events.
