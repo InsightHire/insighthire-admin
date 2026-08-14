@@ -24,7 +24,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   }, ref) => {
     const buttonClasses = clsx(
       // Base styles
-      'inline-flex items-center justify-center rounded-lg font-medium transition-colors',
+      'inline-flex items-center justify-center whitespace-nowrap shrink-0 rounded-lg font-medium transition-colors',
       'focus:outline-none focus:ring-2 focus:ring-offset-2',
       'disabled:opacity-50 disabled:pointer-events-none',
       fullWidth && 'w-full',
