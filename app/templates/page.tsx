@@ -143,7 +143,7 @@ export default function TemplatesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-admin-border bg-white">
-              {templates.map((row) => (
+              {templates.map((row: any) => (
                 <tr key={`${row.kind}-${row.id}`} className="hover:bg-slate-50/80">
                   <Td>{kindBadge(row.kind)}</Td>
                   <Td>
@@ -170,7 +170,7 @@ export default function TemplatesPage() {
                       <span className="text-admin-muted">Unassigned</span>
                     ) : (
                       <div className="flex max-w-xs flex-col gap-0.5">
-                        {row.positions.slice(0, 3).map((p) => (
+                        {row.positions.slice(0, 3).map((p: any) => (
                           <span key={p.id} className="truncate text-admin-ink" title={p.title}>
                             {p.title}
                             <span className="ml-1 text-xs text-admin-muted">({p.status})</span>
