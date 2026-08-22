@@ -6,17 +6,19 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LogOut, Menu, Search, User, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { ADMIN_NAV_SECTIONS, isNavItemActive } from '@/lib/admin-nav';
+import { ADMIN_NAV_SECTIONS, PUBLISHER_NAV_SECTIONS, type AdminNavSection, isNavItemActive } from '@/lib/admin-nav';
 import { cn } from '@/lib/cn';
 import { AlertBanner } from '@/components/layout/alert-banner';
 
 function NavSections({
+  sections,
   pathname,
   attentionCount,
   anomalyCount,
   onNavigate,
   compact,
 }: {
+  sections: AdminNavSection[];
   pathname: string | null;
   attentionCount: number;
   anomalyCount: number;
@@ -25,7 +27,7 @@ function NavSections({
 }) {
   return (
     <div className={cn('flex flex-col gap-6', compact && 'gap-4')}>
-      {ADMIN_NAV_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <div key={section.id}>
           {section.label ? (
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-admin-rail-muted">
@@ -114,18 +116,33 @@ function GlobalSearch() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [adminDisplayName, setAdminDisplayName] = useState('Admin');
 
+  // blogAdmin.whoAmI (not platformAdmin.me) because platformAdminProcedure
+  // deliberately rejects the platform_publisher role — every platform-admin
+  // role, publisher included, is allowed to call this one, so it's safe to
+  // fire before we know which role we're dealing with.
+  const { data: who } = trpc.blogAdmin.whoAmI.useQuery(undefined, { retry: false });
+  const isPublisher = who?.isPublisher ?? false;
+
+  // Never call platformAdmin.* for a publisher: platformAdminMiddleware
+  // rejects it with FORBIDDEN, and the tRPC client's fetch wrapper treats any
+  // FORBIDDEN as an expired session and redirects to session refresh — which
+  // bounces right back here and loops. Only enable once we positively know
+  // the caller isn't a publisher.
   const { data: me } = trpc.platformAdmin.me.useQuery(undefined, {
     retry: false,
     staleTime: 60_000,
+    enabled: who !== undefined && !isPublisher,
   });
 
   const { data: healthData } = trpc.platformAdmin.getJourneyHealthSummary.useQuery(undefined, {
     refetchInterval: 30_000,
     retry: false,
+    enabled: who !== undefined && !isPublisher,
   });
 
   useEffect(() => {
@@ -135,22 +152,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [me]);
 
   useEffect(() => {
+    if (who) {
+      const name = [who.firstName, who.lastName].filter(Boolean).join(' ').trim();
+      if (isPublisher) setAdminDisplayName(name || who.email || 'Publisher');
+    }
+  }, [who, isPublisher]);
+
+  useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
 
-  const attentionCount = healthData?.alerts?.total ?? 0;
-  const anomalyCount = healthData?.metrics?.locationAnomalies ?? 0;
+  // Publisher is scoped to blog management only — bounce anywhere else in
+  // the console back to the one section they're allowed to use.
+  useEffect(() => {
+    if (isPublisher && pathname && !pathname.startsWith('/blog')) {
+      router.replace('/blog');
+    }
+  }, [isPublisher, pathname, router]);
+
+  const attentionCount = isPublisher ? 0 : (healthData?.alerts?.total ?? 0);
+  const anomalyCount = isPublisher ? 0 : (healthData?.metrics?.locationAnomalies ?? 0);
+  const navSections = isPublisher ? PUBLISHER_NAV_SECTIONS : ADMIN_NAV_SECTIONS;
 
   const rail = useMemo(
     () => (
       <NavSections
+        sections={navSections}
         pathname={pathname}
         attentionCount={attentionCount}
         anomalyCount={anomalyCount}
         onNavigate={() => setDrawerOpen(false)}
       />
     ),
-    [pathname, attentionCount, anomalyCount],
+    [navSections, pathname, attentionCount, anomalyCount],
   );
 
   return (

@@ -13,6 +13,7 @@ import {
   Lock,
   Mail,
   Megaphone,
+  Newspaper,
   Puzzle,
   Shield,
   Users,
@@ -57,6 +58,12 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
         href: '/templates',
         icon: ClipboardList,
         match: ['/templates'],
+      },
+      {
+        name: 'Blog',
+        href: '/blog',
+        icon: Newspaper,
+        match: ['/blog'],
       },
     ],
   },
@@ -122,6 +129,16 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
       { name: 'GDPR', href: '/gdpr', icon: Lock, match: ['/gdpr'] },
       { name: 'DevOps skills', href: '/devops/skills', icon: Wrench, match: ['/devops/skills'] },
     ],
+  },
+];
+
+// The platform_publisher role is scoped to blog management only — see
+// platformBlogMiddleware in insighthire-api. Publishers get this trimmed rail
+// instead of ADMIN_NAV_SECTIONS.
+export const PUBLISHER_NAV_SECTIONS: AdminNavSection[] = [
+  {
+    id: 'main',
+    items: [{ name: 'Blog', href: '/blog', icon: Newspaper, match: ['/blog'] }],
   },
 ];
 
