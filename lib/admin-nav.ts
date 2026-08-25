@@ -102,7 +102,6 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     id: 'business',
     label: 'Business',
     items: [
-      { name: 'Growth', href: '/leads', icon: Mail, match: ['/leads'] },
       { name: 'Billing', href: '/billing', icon: CreditCard, match: ['/billing'] },
       { name: 'Audit', href: '/audit', icon: Shield, match: ['/audit'] },
     ],
