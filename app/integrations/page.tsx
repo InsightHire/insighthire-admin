@@ -43,6 +43,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 // have their own per-org connection model and don't use this gate.
 const FEATURE_FLAG_SLUGS = new Set<string>([
   'meetings_microsoft_teams',
+  'meetings_google_meet',
   'culture_fit_scoring',
   'insighthire_live_interviews',
   'talent_network',
@@ -56,6 +57,12 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'scheduling_coordination',
   'new_hire_onboarding',
   'offers_closing',
+  'video_facial_emotion_analysis',
+  'pipeline_crm',
+  'interview_schedule',
+  'sequences',
+  'referrals',
+  'candidate_sms',
 ]);
 
 type ConfigField = {
@@ -85,6 +92,8 @@ type Integration = {
   webhookUrl: string | null;
   /** Sidecar populated by listIntegrationSettings; counts orgs with granted=true. */
   grantedTenantCount?: number;
+  /** True when this slug uses org_feature_grants (CRM, Approvals, …). */
+  supportsTenantAccess?: boolean;
 };
 
 type TenantGrantRow = {
@@ -379,7 +388,10 @@ function IntegrationEditPanel({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const supportsTenantAccess = FEATURE_FLAG_SLUGS.has(integration.slug);
+  const supportsTenantAccess =
+    typeof integration.supportsTenantAccess === 'boolean'
+      ? integration.supportsTenantAccess
+      : FEATURE_FLAG_SLUGS.has(integration.slug);
   const [activeTab, setActiveTab] = useState<'details' | 'config' | 'features' | 'tenants'>(
     'details'
   );
@@ -934,7 +946,9 @@ export default function IntegrationsAdminPage() {
                                 {configuredCount}/{schema.length} configured
                               </span>
                             )}
-                            {FEATURE_FLAG_SLUGS.has(setting.slug) && (
+                            {(typeof setting.supportsTenantAccess === 'boolean'
+                              ? setting.supportsTenantAccess
+                              : FEATURE_FLAG_SLUGS.has(setting.slug)) && (
                               <span
                                 className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
                                   (setting.grantedTenantCount ?? 0) > 0

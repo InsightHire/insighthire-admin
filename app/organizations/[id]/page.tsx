@@ -22,6 +22,7 @@ import {
   SparklesIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
+import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
 
@@ -376,6 +377,8 @@ export default function OrganizationDetailPage() {
                 </div>
               )}
             </div>
+
+            <OrgFeatureGrantsSection organizationId={orgId} />
 
             {/* Payment History */}
             {data.paymentHistory && data.paymentHistory.length > 0 && (
