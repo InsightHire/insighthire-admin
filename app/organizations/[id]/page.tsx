@@ -586,29 +586,12 @@ export default function OrganizationDetailPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Organization Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Details</h2>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-gray-600">Industry</p>
-                  <p className="text-sm font-medium text-gray-900">{organization.industry}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Company Size</p>
-                  <p className="text-sm font-medium text-gray-900">{organization.size}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Created</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {new Date(organization.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Organization ID</p>
-                  <p className="text-xs font-mono text-gray-500">{organization.id}</p>
-                </div>
-              </div>
-            </div>
+            <OrgDetailsSection
+              organizationId={orgId}
+              organization={organization}
+              isArchived={isArchived}
+              onSaved={refetch}
+            />
 
             {/* Quick Actions */}
             <div className="rounded-admin border border-admin-border bg-admin-panel p-6 shadow-sm">
@@ -1384,6 +1367,209 @@ function getStatusColor(status: string) {
     case 'EXPIRED': return 'bg-gray-100 text-gray-800';
     default: return 'bg-gray-100 text-gray-800';
   }
+}
+
+const INDUSTRY_OPTIONS = [
+  'TECHNOLOGY', 'HEALTHCARE', 'FINANCE', 'EDUCATION', 'RETAIL', 'MANUFACTURING',
+  'CONSULTING', 'MARKETING', 'SALES', 'HUMAN_RESOURCES', 'LEGAL', 'REAL_ESTATE',
+  'HOSPITALITY', 'TRANSPORTATION', 'ENERGY', 'MEDIA', 'NONPROFIT', 'GOVERNMENT', 'OTHER',
+] as const;
+
+const SIZE_OPTIONS = [
+  { value: 'STARTUP', label: 'Startup (1-10)' },
+  { value: 'SMALL', label: 'Small (11-50)' },
+  { value: 'MEDIUM', label: 'Medium (51-200)' },
+  { value: 'LARGE', label: 'Large (201-1000)' },
+  { value: 'ENTERPRISE', label: 'Enterprise (1000+)' },
+] as const;
+
+function OrgDetailsSection({
+  organizationId,
+  organization,
+  isArchived,
+  onSaved,
+}: {
+  organizationId: string;
+  organization: {
+    id: string;
+    name: string | null;
+    domain: string | null;
+    industry: string;
+    size: string;
+    website?: string | null;
+    createdAt: string | Date;
+  };
+  isArchived: boolean;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(organization.name ?? '');
+  const [domain, setDomain] = useState(organization.domain ?? '');
+  const [industry, setIndustry] = useState(organization.industry);
+  const [size, setSize] = useState(organization.size);
+  const [website, setWebsite] = useState(organization.website ?? '');
+  const [error, setError] = useState<string | null>(null);
+
+  const updateOrganization = trpc.platformAdmin.updateOrganization.useMutation({
+    onSuccess: () => {
+      setEditing(false);
+      setError(null);
+      onSaved();
+    },
+    onError: (e) => setError(e.message),
+  });
+
+  const startEdit = () => {
+    setName(organization.name ?? '');
+    setDomain(organization.domain ?? '');
+    setIndustry(organization.industry);
+    setSize(organization.size);
+    setWebsite(organization.website ?? '');
+    setError(null);
+    setEditing(true);
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Details</h2>
+        {!editing && !isArchived && (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Domain</label>
+            <input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="acme.com"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Tenant identity domain (unique). Does not change the public careers slug.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <select
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+            >
+              {INDUSTRY_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company size</label>
+            <select
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+            >
+              {SIZE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+            <input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://acme.com"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
+          </div>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex space-x-3">
+            <button
+              type="button"
+              onClick={() => {
+                if (!name.trim()) {
+                  setError('Name is required.');
+                  return;
+                }
+                updateOrganization.mutate({
+                  organizationId,
+                  name: name.trim(),
+                  domain: domain.trim() || null,
+                  industry: industry as any,
+                  size: size as any,
+                  website: website.trim() || null,
+                });
+              }}
+              disabled={updateOrganization.isLoading}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+            >
+              {updateOrganization.isLoading ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setError(null);
+              }}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm text-gray-600">Name</p>
+            <p className="text-sm font-medium text-gray-900">{organization.name || '—'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Domain</p>
+            <p className="text-sm font-medium text-gray-900">{organization.domain || '—'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Industry</p>
+            <p className="text-sm font-medium text-gray-900">{organization.industry}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Company Size</p>
+            <p className="text-sm font-medium text-gray-900">{organization.size}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Website</p>
+            <p className="text-sm font-medium text-gray-900">{organization.website || '—'}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Created</p>
+            <p className="text-sm font-medium text-gray-900">
+              {new Date(organization.createdAt).toLocaleDateString()}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Organization ID</p>
+            <p className="text-xs font-mono text-gray-500">{organization.id}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
