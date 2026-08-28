@@ -1463,8 +1463,12 @@ function OrgDetailsSection({
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Tenant identity domain (unique). Does not change the public careers slug.
+              Customer tenant identity (unique among tenants). The platform shell does not count.
+              Does not change the public careers slug.
             </p>
+            {error && error.toLowerCase().includes('domain') && (
+              <p className="text-sm text-red-600 mt-1">{error}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
@@ -1498,8 +1502,11 @@ function OrgDetailsSection({
               placeholder="https://acme.com"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
+            <p className="text-xs text-gray-500 mt-1">Public marketing URL. Not unique; not the tenant domain.</p>
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && !error.toLowerCase().includes('domain') && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
           <div className="flex space-x-3">
             <button
               type="button"
