@@ -24,7 +24,7 @@ export function StatStrip({ items, className }: { items: StatItem[]; className?:
         const inner = (
           <div
             className={cn(
-              'admin-panel border-l-4 p-4 transition-colors',
+              'admin-panel h-full border-l-4 p-4 transition-colors',
               severityBorder[item.severity ?? 'muted'],
               item.href && 'hover:border-admin-accent/40',
             )}
@@ -39,11 +39,13 @@ export function StatStrip({ items, className }: { items: StatItem[]; className?:
           </div>
         );
         return item.href ? (
-          <a key={item.label} href={item.href} className="block">
+          <a key={item.label} href={item.href} className="block h-full">
             {inner}
           </a>
         ) : (
-          <div key={item.label}>{inner}</div>
+          <div key={item.label} className="h-full">
+            {inner}
+          </div>
         );
       })}
     </div>

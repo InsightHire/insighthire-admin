@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, Menu, Search, User, X } from 'lucide-react';
+import { LogOut, Menu, PanelLeft, PanelLeftClose, Search, User, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { ADMIN_NAV_SECTIONS, PUBLISHER_NAV_SECTIONS, type AdminNavSection, isNavItemActive } from '@/lib/admin-nav';
 import { cn } from '@/lib/cn';
 import { AlertBanner } from '@/components/layout/alert-banner';
+import { readSideNavCollapsed, writeSideNavCollapsed } from '@/lib/side-nav-collapsed';
 
 function NavSections({
   sections,
@@ -17,6 +18,7 @@ function NavSections({
   anomalyCount,
   onNavigate,
   compact,
+  mini,
 }: {
   sections: AdminNavSection[];
   pathname: string | null;
@@ -24,12 +26,13 @@ function NavSections({
   anomalyCount: number;
   onNavigate?: () => void;
   compact?: boolean;
+  mini?: boolean;
 }) {
   return (
     <div className={cn('flex flex-col gap-6', compact && 'gap-4')}>
       {sections.map((section) => (
         <div key={section.id}>
-          {section.label ? (
+          {section.label && !mini ? (
             <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-admin-rail-muted">
               {section.label}
             </p>
@@ -49,27 +52,48 @@ function NavSections({
                   <Link
                     href={item.href}
                     onClick={onNavigate}
+                    title={mini ? item.name : undefined}
                     className={cn(
                       'group relative flex items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm transition-colors',
+                      mini && 'justify-center px-0',
                       active
                         ? 'bg-admin-rail-active text-white'
                         : 'text-admin-rail-ink hover:bg-admin-rail-hover hover:text-white',
                     )}
                   >
                     {active ? (
-                      <span className="nav-indicator absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300" />
-                    ) : null}
-                    <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
-                    <span className="flex-1 truncate font-medium">{item.name}</span>
-                    {badge > 0 ? (
                       <span
                         className={cn(
-                          'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                          item.badgeKey === 'attention' ? 'bg-admin-danger' : 'bg-admin-warn',
+                          'nav-indicator absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300',
+                          mini ? '-left-0.5' : 'left-0',
                         )}
-                      >
-                        {badge > 99 ? '99+' : badge}
-                      </span>
+                      />
+                    ) : null}
+                    <span className="relative shrink-0">
+                      <Icon className={cn('h-4 w-4', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
+                      {mini && badge > 0 ? (
+                        <span
+                          className={cn(
+                            'absolute -right-1 -top-1 h-2 w-2 rounded-full',
+                            item.badgeKey === 'attention' ? 'bg-admin-danger' : 'bg-admin-warn',
+                          )}
+                        />
+                      ) : null}
+                    </span>
+                    {!mini ? (
+                      <>
+                        <span className="flex-1 truncate font-medium">{item.name}</span>
+                        {badge > 0 ? (
+                          <span
+                            className={cn(
+                              'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                              item.badgeKey === 'attention' ? 'bg-admin-danger' : 'bg-admin-warn',
+                            )}
+                          >
+                            {badge > 99 ? '99+' : badge}
+                          </span>
+                        ) : null}
+                      </>
                     ) : null}
                   </Link>
                 </li>
@@ -120,6 +144,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [adminDisplayName, setAdminDisplayName] = useState('Admin');
+  const [railCollapsed, setRailCollapsed] = useState(true);
+
+  useEffect(() => {
+    setRailCollapsed(readSideNavCollapsed());
+  }, []);
+
+  const toggleRailCollapsed = () => {
+    setRailCollapsed((prev) => {
+      const next = !prev;
+      writeSideNavCollapsed(next);
+      return next;
+    });
+  };
 
   // blogAdmin.whoAmI (not platformAdmin.me) because platformAdminProcedure
   // deliberately rejects the platform_publisher role — every platform-admin
@@ -182,36 +219,88 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         attentionCount={attentionCount}
         anomalyCount={anomalyCount}
         onNavigate={() => setDrawerOpen(false)}
+        mini={railCollapsed}
+      />
+    ),
+    [navSections, pathname, attentionCount, anomalyCount, railCollapsed],
+  );
+
+  const mobileRail = useMemo(
+    () => (
+      <NavSections
+        sections={navSections}
+        pathname={pathname}
+        attentionCount={attentionCount}
+        anomalyCount={anomalyCount}
+        onNavigate={() => setDrawerOpen(false)}
       />
     ),
     [navSections, pathname, attentionCount, anomalyCount],
   );
 
   return (
-    <div className="admin-shell-bg min-h-screen">
+    <div className="min-h-screen bg-white">
       <AlertBanner />
       <div className="flex min-h-[calc(100vh-0px)]">
         {/* Desktop rail */}
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-admin-rail text-admin-rail-ink lg:flex">
-          <div className="flex h-14 items-center gap-2 border-b border-white/10 px-4">
-            <Link href="/" className="flex min-w-0 items-center gap-2">
-              <Image
-                src="/logo-insighthire-white.png"
-                alt="InsightHire"
-                width={160}
-                height={40}
-                className="h-7 w-auto object-contain object-left"
-                priority
-              />
-              <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-200">
-                Admin
-              </span>
+        <aside
+          className={cn(
+            'sticky top-0 hidden h-screen shrink-0 flex-col bg-admin-rail text-admin-rail-ink transition-[width] duration-150 lg:flex',
+            railCollapsed ? 'w-16' : 'w-60',
+          )}
+        >
+          <div
+            className={cn(
+              'flex h-14 items-center gap-2 border-b border-white/10',
+              railCollapsed ? 'justify-center px-0' : 'px-4',
+            )}
+          >
+            <Link href="/" className="flex min-w-0 items-center gap-2" title="InsightHire">
+              {railCollapsed ? (
+                // eslint-disable-next-line @next/next/no-img-element -- SVG source; next/image optimizer rejects local SVGs
+                <img src="/favicon.svg" alt="InsightHire" className="h-8 w-8 shrink-0" />
+              ) : (
+                <>
+                  <Image
+                    src="/brand/insighthire-logo-dark.png"
+                    alt="InsightHire"
+                    width={1834}
+                    height={360}
+                    className="h-6 w-auto object-contain object-left"
+                    priority
+                  />
+                  <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-200">
+                    Admin
+                  </span>
+                </>
+              )}
             </Link>
           </div>
           <nav className="flex-1 overflow-y-auto px-2 py-4">{rail}</nav>
-          <div className="border-t border-white/10 p-3 text-[10px] text-admin-rail-muted">
-            Ops console · sessions not candidates
+          <div className="border-t border-white/10 p-2">
+            <button
+              type="button"
+              onClick={toggleRailCollapsed}
+              title={railCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+              aria-label={railCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+              className={cn(
+                'flex w-full items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm font-medium text-admin-rail-ink transition-colors hover:bg-admin-rail-hover hover:text-white',
+                railCollapsed && 'justify-center px-0',
+              )}
+            >
+              {railCollapsed ? (
+                <PanelLeft className="h-4 w-4 shrink-0 text-admin-rail-muted" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4 shrink-0 text-admin-rail-muted" />
+              )}
+              {!railCollapsed ? <span>Collapse</span> : null}
+            </button>
           </div>
+          {!railCollapsed ? (
+            <div className="border-t border-white/10 p-3 text-[10px] text-admin-rail-muted">
+              Ops console · sessions not candidates
+            </div>
+          ) : null}
         </aside>
 
         {/* Mobile drawer */}
@@ -234,7 +323,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <nav className="flex-1 overflow-y-auto px-2 py-4">{rail}</nav>
+              <nav className="flex-1 overflow-y-auto px-2 py-4">{mobileRail}</nav>
             </aside>
           </div>
         ) : null}
@@ -250,7 +339,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </button>
             <Link href="/" className="flex items-center gap-1.5 lg:hidden">
-              <span className="text-sm font-semibold text-admin-ink">InsightHire</span>
+              <Image
+                src="/brand/insighthire-logo-light.png"
+                alt="InsightHire"
+                width={1834}
+                height={360}
+                className="h-5 w-auto object-contain"
+                priority
+              />
               <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-admin-muted">
                 Admin
               </span>

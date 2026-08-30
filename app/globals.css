@@ -5,7 +5,6 @@
 /* InsightHire Admin — dense ops console (always light for form contrast) */
 :root {
   --bg: #f1f4f7;
-  --bg-grid: rgba(15, 23, 42, 0.035);
   --panel: #ffffff;
   --panel-elevated: #ffffff;
   --ink: #0f172a;
@@ -55,14 +54,6 @@
 }
 
 @layer components {
-  .admin-shell-bg {
-    background-color: var(--bg);
-    background-image:
-      linear-gradient(var(--bg-grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
   .admin-panel {
     background: var(--panel);
     border: 1px solid var(--border);
