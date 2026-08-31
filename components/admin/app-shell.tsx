@@ -257,8 +257,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <Link href="/" className="flex min-w-0 items-center gap-2" title="InsightHire">
               {railCollapsed ? (
-                // eslint-disable-next-line @next/next/no-img-element -- SVG source; next/image optimizer rejects local SVGs
-                <img src="/favicon.svg" alt="InsightHire" className="h-8 w-8 shrink-0" />
+                <Image
+                  src="/brand/insighthire-mark-circle.png"
+                  alt="InsightHire"
+                  width={512}
+                  height={512}
+                  className="h-8 w-8 shrink-0 rounded-full"
+                  priority
+                />
               ) : (
                 <>
                   <Image
