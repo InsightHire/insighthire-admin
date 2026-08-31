@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_NAV_GROUPS,
@@ -82,6 +84,24 @@ describe('isNavGroupActive', () => {
     const system = ADMIN_NAV_GROUPS.find((group) => group.id === 'system')!;
     expect(isNavGroupActive('/devops/skills', operations)).toBe(false);
     expect(isNavGroupActive('/devops/skills', system)).toBe(true);
+  });
+
+  it('marks Content active on /templates', () => {
+    const content = ADMIN_NAV_GROUPS.find((group) => group.id === 'content')!;
+    const templates = flattenNavItems(ADMIN_NAV_GROUPS).find((item) => item.href === '/templates');
+    expect(templates).toBeTruthy();
+    expect(isNavItemActive('/templates', templates!)).toBe(true);
+    expect(isNavGroupActive('/templates', content)).toBe(true);
+    expect(isNavGroupActive('/templates/foo', content)).toBe(true);
+  });
+});
+
+describe('admin chrome', () => {
+  it('wraps /templates (and nested template routes) in AuthenticatedLayout', () => {
+    const layoutPath = join(__dirname, '..', 'app', 'templates', 'layout.tsx');
+    expect(existsSync(layoutPath)).toBe(true);
+    const source = readFileSync(layoutPath, 'utf8');
+    expect(source).toContain('AuthenticatedLayout');
   });
 });
 
