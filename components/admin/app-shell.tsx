@@ -4,104 +4,256 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, Menu, PanelLeft, PanelLeftClose, Search, User, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, PanelLeft, PanelLeftClose, Search, User, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { ADMIN_NAV_SECTIONS, PUBLISHER_NAV_SECTIONS, type AdminNavSection, isNavItemActive } from '@/lib/admin-nav';
+import {
+  ADMIN_NAV_GROUPS,
+  PUBLISHER_NAV_GROUPS,
+  type AdminNavBadge,
+  type AdminNavGroup,
+  type AdminNavItem,
+  isNavGroupActive,
+  isNavItemActive,
+  navGroupBadge,
+  navItemBadge,
+} from '@/lib/admin-nav';
 import { cn } from '@/lib/cn';
 import { AlertBanner } from '@/components/layout/alert-banner';
 import { readSideNavCollapsed, writeSideNavCollapsed } from '@/lib/side-nav-collapsed';
 
-function NavSections({
-  sections,
+function badgeToneClass(tone: AdminNavBadge['tone']) {
+  return tone === 'danger' ? 'bg-admin-danger' : 'bg-admin-warn';
+}
+
+function NavItemLink({
+  item,
   pathname,
   attentionCount,
   anomalyCount,
   onNavigate,
-  compact,
   mini,
+  nested,
 }: {
-  sections: AdminNavSection[];
+  item: AdminNavItem;
   pathname: string | null;
   attentionCount: number;
   anomalyCount: number;
   onNavigate?: () => void;
-  compact?: boolean;
+  mini?: boolean;
+  nested?: boolean;
+}) {
+  const Icon = item.icon;
+  const active = isNavItemActive(pathname, item);
+  const badge = navItemBadge(item, attentionCount, anomalyCount);
+
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      title={mini ? item.name : undefined}
+      className={cn(
+        'group relative flex items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm transition-colors',
+        mini && 'justify-center px-0',
+        nested && !mini && 'py-1.5 pl-9',
+        active
+          ? 'bg-admin-rail-active text-white'
+          : 'text-admin-rail-ink hover:bg-admin-rail-hover hover:text-white',
+      )}
+    >
+      {active ? (
+        <span
+          className={cn(
+            'nav-indicator absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300',
+            mini ? '-left-0.5' : 'left-0',
+          )}
+        />
+      ) : null}
+      <span className="relative shrink-0">
+        <Icon className={cn('h-4 w-4', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
+        {mini && badge ? (
+          <span className={cn('absolute -right-1 -top-1 h-2 w-2 rounded-full', badgeToneClass(badge.tone))} />
+        ) : null}
+      </span>
+      {!mini ? (
+        <>
+          <span className="flex-1 truncate font-medium">{item.name}</span>
+          {badge ? (
+            <span
+              className={cn(
+                'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                badgeToneClass(badge.tone),
+              )}
+            >
+              {badge.count > 99 ? '99+' : badge.count}
+            </span>
+          ) : null}
+        </>
+      ) : null}
+    </Link>
+  );
+}
+
+function NavGroups({
+  groups,
+  pathname,
+  attentionCount,
+  anomalyCount,
+  onNavigate,
+  mini,
+}: {
+  groups: AdminNavGroup[];
+  pathname: string | null;
+  attentionCount: number;
+  anomalyCount: number;
+  onNavigate?: () => void;
   mini?: boolean;
 }) {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenGroup(null);
+  }, [pathname, mini]);
+
+  useEffect(() => {
+    if (!mini) return;
+    const onDocClick = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('[data-admin-nav-group]')) {
+        setOpenGroup((prev) => (prev ? '' : prev));
+      }
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [mini]);
+
   return (
-    <div className={cn('flex flex-col gap-6', compact && 'gap-4')}>
-      {sections.map((section) => (
-        <div key={section.id}>
-          {section.label && !mini ? (
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-admin-rail-muted">
-              {section.label}
-            </p>
-          ) : null}
-          <ul className="space-y-0.5">
-            {section.items.map((item) => {
-              const Icon = item.icon;
-              const active = isNavItemActive(pathname, item);
-              const badge =
-                item.badgeKey === 'attention'
-                  ? attentionCount
-                  : item.badgeKey === 'anomalies'
-                    ? anomalyCount
-                    : 0;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onNavigate}
-                    title={mini ? item.name : undefined}
-                    className={cn(
-                      'group relative flex items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm transition-colors',
-                      mini && 'justify-center px-0',
-                      active
-                        ? 'bg-admin-rail-active text-white'
-                        : 'text-admin-rail-ink hover:bg-admin-rail-hover hover:text-white',
-                    )}
-                  >
-                    {active ? (
-                      <span
-                        className={cn(
-                          'nav-indicator absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300',
-                          mini ? '-left-0.5' : 'left-0',
-                        )}
-                      />
-                    ) : null}
-                    <span className="relative shrink-0">
-                      <Icon className={cn('h-4 w-4', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
-                      {mini && badge > 0 ? (
-                        <span
-                          className={cn(
-                            'absolute -right-1 -top-1 h-2 w-2 rounded-full',
-                            item.badgeKey === 'attention' ? 'bg-admin-danger' : 'bg-admin-warn',
-                          )}
-                        />
-                      ) : null}
+    <div className="flex flex-col gap-0.5">
+      {groups.map((group) => {
+        const Icon = group.icon;
+        const children = group.items ?? [];
+        const isLeaf = children.length === 0 && !!group.href;
+        const active = isNavGroupActive(pathname, group);
+        const badge = navGroupBadge(group, attentionCount, anomalyCount);
+        const groupOpen = mini
+          ? openGroup === group.id
+          : openGroup === group.id || (openGroup === null && active);
+
+        if (isLeaf && group.href) {
+          return (
+            <NavItemLink
+              key={group.id}
+              item={{
+                name: group.name,
+                href: group.href,
+                icon: group.icon,
+                match: group.match,
+                exclude: group.exclude,
+                badgeKey: group.badgeKey === 'alerts' ? undefined : group.badgeKey,
+              }}
+              pathname={pathname}
+              attentionCount={attentionCount}
+              anomalyCount={anomalyCount}
+              onNavigate={onNavigate}
+              mini={mini}
+            />
+          );
+        }
+
+        return (
+          <div key={group.id} data-admin-nav-group className="relative">
+            <button
+              type="button"
+              title={mini ? group.name : undefined}
+              aria-expanded={groupOpen}
+              onClick={() => setOpenGroup((prev) => (prev === group.id ? '' : group.id))}
+              className={cn(
+                'group relative flex w-full items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm transition-colors',
+                mini && 'justify-center px-0',
+                active
+                  ? 'bg-admin-rail-active text-white'
+                  : 'text-admin-rail-ink hover:bg-admin-rail-hover hover:text-white',
+              )}
+            >
+              {active ? (
+                <span
+                  className={cn(
+                    'nav-indicator absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300',
+                    mini ? '-left-0.5' : 'left-0',
+                  )}
+                />
+              ) : null}
+              <span className="relative shrink-0">
+                <Icon className={cn('h-4 w-4', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
+                {mini && badge ? (
+                  <span className={cn('absolute -right-1 -top-1 h-2 w-2 rounded-full', badgeToneClass(badge.tone))} />
+                ) : null}
+              </span>
+              {!mini ? (
+                <>
+                  <span className="flex-1 truncate text-left font-medium">{group.name}</span>
+                  {badge ? (
+                    <span
+                      className={cn(
+                        'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
+                        badgeToneClass(badge.tone),
+                      )}
+                    >
+                      {badge.count > 99 ? '99+' : badge.count}
                     </span>
-                    {!mini ? (
-                      <>
-                        <span className="flex-1 truncate font-medium">{item.name}</span>
-                        {badge > 0 ? (
-                          <span
-                            className={cn(
-                              'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                              item.badgeKey === 'attention' ? 'bg-admin-danger' : 'bg-admin-warn',
-                            )}
-                          >
-                            {badge > 99 ? '99+' : badge}
-                          </span>
-                        ) : null}
-                      </>
-                    ) : null}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+                  ) : null}
+                  <ChevronDown
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0 text-admin-rail-muted transition-transform',
+                      groupOpen && 'rotate-180',
+                    )}
+                  />
+                </>
+              ) : null}
+            </button>
+            {groupOpen ? (
+              mini ? (
+                <div
+                  className={cn(
+                    'absolute left-[calc(100%+0.4rem)] z-50 w-56 rounded-admin border border-white/10 bg-admin-rail py-1.5 shadow-lg',
+                    group.flyoutAlign === 'end' ? 'bottom-0 top-auto' : 'top-0',
+                  )}
+                >
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-admin-rail-muted">
+                    {group.name}
+                  </p>
+                  {children.map((item) => (
+                    <NavItemLink
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                      attentionCount={attentionCount}
+                      anomalyCount={anomalyCount}
+                      onNavigate={() => {
+                        setOpenGroup(null);
+                        onNavigate?.();
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-0.5 flex flex-col gap-0.5">
+                  {children.map((item) => (
+                    <NavItemLink
+                      key={item.href}
+                      item={item}
+                      pathname={pathname}
+                      attentionCount={attentionCount}
+                      anomalyCount={anomalyCount}
+                      onNavigate={onNavigate}
+                      nested
+                    />
+                  ))}
+                </div>
+              )
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -209,12 +361,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const attentionCount = isPublisher ? 0 : (healthData?.alerts?.total ?? 0);
   const anomalyCount = isPublisher ? 0 : (healthData?.metrics?.locationAnomalies ?? 0);
-  const navSections = isPublisher ? PUBLISHER_NAV_SECTIONS : ADMIN_NAV_SECTIONS;
+  const navGroups = isPublisher ? PUBLISHER_NAV_GROUPS : ADMIN_NAV_GROUPS;
 
   const rail = useMemo(
     () => (
-      <NavSections
-        sections={navSections}
+      <NavGroups
+        groups={navGroups}
         pathname={pathname}
         attentionCount={attentionCount}
         anomalyCount={anomalyCount}
@@ -222,20 +374,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         mini={railCollapsed}
       />
     ),
-    [navSections, pathname, attentionCount, anomalyCount, railCollapsed],
+    [navGroups, pathname, attentionCount, anomalyCount, railCollapsed],
   );
 
   const mobileRail = useMemo(
     () => (
-      <NavSections
-        sections={navSections}
+      <NavGroups
+        groups={navGroups}
         pathname={pathname}
         attentionCount={attentionCount}
         anomalyCount={anomalyCount}
         onNavigate={() => setDrawerOpen(false)}
       />
     ),
-    [navSections, pathname, attentionCount, anomalyCount],
+    [navGroups, pathname, attentionCount, anomalyCount],
   );
 
   return (
@@ -246,7 +398,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <aside
           className={cn(
             'sticky top-0 hidden h-screen shrink-0 flex-col bg-admin-rail text-admin-rail-ink transition-[width] duration-150 lg:flex',
-            railCollapsed ? 'w-16' : 'w-60',
+            railCollapsed ? 'z-30 w-16 overflow-visible' : 'w-60',
           )}
         >
           <div
@@ -282,7 +434,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </Link>
           </div>
-          <nav className="flex-1 overflow-y-auto px-2 py-4">{rail}</nav>
+          <nav
+            className={cn(
+              'min-h-0 flex-1 px-2 py-4',
+              railCollapsed ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden',
+            )}
+          >
+            {rail}
+          </nav>
           <div className="border-t border-white/10 p-2">
             <button
               type="button"
