@@ -103,10 +103,19 @@ describe('admin chrome', () => {
     expect(source).toContain('AuthenticatedLayout');
   });
 
-  it('keeps the avatar catalog off the sidebar', () => {
+  it('keeps the avatar catalog off the sidebar and redirects the old vendor URL', () => {
     const hrefs = flattenNavItems(ADMIN_NAV_GROUPS).map((item) => item.href);
     expect(hrefs).not.toContain('/admin/personas/avatar-library');
     expect(hrefs).not.toContain('/admin/personas/heygen-catalog');
+    expect(existsSync(join(__dirname, '..', 'app', 'admin', 'personas', 'avatar-library', 'page.tsx'))).toBe(true);
+    const redirectPage = readFileSync(
+      join(__dirname, '..', 'app', 'admin', 'personas', 'heygen-catalog', 'page.tsx'),
+      'utf8',
+    );
+    expect(redirectPage).toContain("redirect('/admin/personas/avatar-library')");
+    const nextConfig = readFileSync(join(__dirname, '..', 'next.config.js'), 'utf8');
+    expect(nextConfig).toContain("source: '/admin/personas/heygen-catalog'");
+    expect(nextConfig).toContain("destination: '/admin/personas/avatar-library'");
   });
 });
 

@@ -41,6 +41,15 @@ const nextConfig = {
     ];
   },
   transpilePackages: ['@talentscreen/types', '@talentscreen/ui'],
+  async redirects() {
+    return [
+      {
+        source: '/admin/personas/heygen-catalog',
+        destination: '/admin/personas/avatar-library',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

@@ -6,7 +6,7 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { ArrowLeftIcon, ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
-export default function PlatformHeygenAvatarCatalogPage() {
+export default function PlatformAvatarLibraryPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
   const [filter, setFilter] = useState('');
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
@@ -71,7 +71,7 @@ export default function PlatformHeygenAvatarCatalogPage() {
               <ArrowLeftIcon className="h-5 w-5" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Avatars</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Avatar library</h1>
               <p className="text-gray-600">
                 Platform-wide catalog for customer persona pickers. Sync the latest AI avatars, then curate which ones appear.
                 New rows default to <span className="font-medium">office-style</span> names in the picker until you
