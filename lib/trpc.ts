@@ -29,13 +29,35 @@ function redirectToSessionRefresh() {
   window.location.href = refresh.toString();
 }
 
+/**
+ * tRPC omits the Fetch body when `mutate()` has no input
+ * (`JSON.stringify(undefined)`). Send `{}` so JSON proxies accept the POST.
+ */
+export function ensureJsonPostBody(init?: RequestInit): RequestInit {
+  const method = String(init?.method ?? 'GET').toUpperCase();
+  if (method !== 'POST' && method !== 'PUT' && method !== 'PATCH') {
+    return init ?? {};
+  }
+  if (init?.body != null && init.body !== '') {
+    return init ?? {};
+  }
+  const headers: Record<string, string> = {};
+  new Headers(init?.headers).forEach((value, key) => {
+    headers[key] = value;
+  });
+  if (!Object.keys(headers).some((k) => k.toLowerCase() === 'content-type')) {
+    headers['content-type'] = 'application/json';
+  }
+  return { ...init, headers, body: '{}' };
+}
+
 export const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: TRPC_URL,
       async fetch(url, options) {
         return fetch(url, {
-          ...options,
+          ...ensureJsonPostBody(options),
           credentials: 'include',
         }).then(async (res) => {
           // Hard 401/403 — access JWT expired or revoked. Route through the BFF
