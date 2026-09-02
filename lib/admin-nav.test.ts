@@ -27,7 +27,6 @@ const PREVIOUS_HREFS = [
   '/settings/admins',
   '/settings/i18n',
   '/settings/marketing',
-  '/admin/personas/heygen-catalog',
   '/gdpr',
   '/devops/skills',
 ].sort();
@@ -102,6 +101,12 @@ describe('admin chrome', () => {
     expect(existsSync(layoutPath)).toBe(true);
     const source = readFileSync(layoutPath, 'utf8');
     expect(source).toContain('AuthenticatedLayout');
+  });
+
+  it('keeps the avatar catalog off the sidebar', () => {
+    const hrefs = flattenNavItems(ADMIN_NAV_GROUPS).map((item) => item.href);
+    expect(hrefs).not.toContain('/admin/personas/avatar-library');
+    expect(hrefs).not.toContain('/admin/personas/heygen-catalog');
   });
 });
 
