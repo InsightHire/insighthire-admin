@@ -32,7 +32,7 @@ export default function SalesCallsPage() {
   if (!data?.connected) {
     return (
       <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-        Gong is not connected.{' '}
+        Gong and Dialpad are not connected.{' '}
         <Link href="/sales/connections" className="text-indigo-700 hover:underline">
           Add credentials on the API service
         </Link>
@@ -52,7 +52,7 @@ export default function SalesCallsPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Gong calls</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Calls</h2>
           <p className="text-sm text-gray-500 mt-1">
             {data.from && data.to
               ? `${new Date(data.from).toLocaleDateString()} – ${new Date(data.to).toLocaleDateString()}`
@@ -69,6 +69,7 @@ export default function SalesCallsPage() {
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-2 text-left font-semibold text-gray-600">Call</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Source</th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-600">Started</th>
                   <th className="px-4 py-2 text-right font-semibold text-gray-600">Duration</th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-600">Direction</th>
@@ -77,8 +78,9 @@ export default function SalesCallsPage() {
               </thead>
               <tbody>
                 {calls.map((call) => (
-                  <tr key={call.id} className="border-b border-gray-100">
+                  <tr key={`${call.source ?? 'call'}:${call.id}`} className="border-b border-gray-100">
                     <td className="px-4 py-3 font-medium text-gray-900">{call.title || 'Untitled call'}</td>
+                    <td className="px-4 py-3 text-gray-600 capitalize">{call.source || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{formatWhen(call.started)}</td>
                     <td className="px-4 py-3 text-right tabular-nums text-gray-600">
                       {call.durationSeconds != null ? `${Math.round(call.durationSeconds / 60)} min` : '—'}
@@ -87,7 +89,7 @@ export default function SalesCallsPage() {
                     <td className="px-4 py-3">
                       {call.url ? (
                         <a href={call.url} target="_blank" rel="noreferrer" className="text-indigo-700 hover:underline">
-                          Open in Gong
+                          Open
                         </a>
                       ) : (
                         '—'

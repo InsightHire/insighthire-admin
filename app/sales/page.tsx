@@ -52,7 +52,7 @@ export default function SalesOverviewPage() {
       )}
       {c?.error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Gong: {c.error}
+          Calls: {c.error}
         </div>
       )}
 
@@ -68,7 +68,15 @@ export default function SalesOverviewPage() {
         <Kpi label="Weighted" value={money(p?.weightedPipelineAmount)} sub="Amount × probability" />
         <Kpi label="Won" value={String(p?.wonCount ?? 0)} />
         <Kpi label="Lost" value={String(p?.lostCount ?? 0)} />
-        <Kpi label="Calls this week" value={String(c?.callsThisWeek ?? 0)} sub={c?.connected ? undefined : 'Gong not connected'} />
+        <Kpi
+          label="Calls this week"
+          value={String(c?.callsThisWeek ?? 0)}
+          sub={
+            c?.connected
+              ? [c.gongConnected && 'Gong', c.dialpadConnected && 'Dialpad'].filter(Boolean).join(' + ') || 'Calls'
+              : 'Gong and Dialpad not connected'
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -105,23 +113,28 @@ export default function SalesOverviewPage() {
 
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Gong calls</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Recent calls</h2>
             <Link href="/sales/calls" className="text-sm text-indigo-700 hover:underline">
               View all
             </Link>
           </div>
           {!c?.connected && !calls.isLoading ? (
-            <DisconnectedBanner title="Gong is not connected" href="/sales/connections" />
+            <DisconnectedBanner title="Gong and Dialpad are not connected" href="/sales/connections" />
           ) : recentCalls.length === 0 ? (
             <p className="text-sm text-gray-500">No calls in the last 14 days.</p>
           ) : (
             <ul className="divide-y divide-gray-100">
               {recentCalls.map((call) => (
-                <li key={call.id} className="py-3 first:pt-0">
+                <li key={`${call.source ?? 'call'}:${call.id}`} className="py-3 first:pt-0">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {call.title || 'Untitled call'}
+                        {call.source && (
+                          <span className="ml-2 text-[10px] uppercase tracking-wide text-gray-400">
+                            {call.source}
+                          </span>
+                        )}
                       </p>
                       <p className="text-xs text-gray-500 mt-0.5">
                         {formatWhen(call.started)}
@@ -148,7 +161,7 @@ export default function SalesOverviewPage() {
 
       {connections.data && (
         <div className="text-xs text-gray-500">
-          Salesforce {connections.data.salesforce.status} · Gong {connections.data.gong.status} · Apollo {connections.data.apollo.status} · Sales Nav {connections.data.linkedinSalesNav.status}
+          Salesforce {connections.data.salesforce.status} · Gong {connections.data.gong.status} · Dialpad {connections.data.dialpad.status} · Apollo {connections.data.apollo.status} · Sales Nav {connections.data.linkedinSalesNav.status}
         </div>
       )}
     </div>

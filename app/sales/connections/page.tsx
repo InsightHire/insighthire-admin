@@ -33,7 +33,7 @@ export default function SalesConnectionsPage() {
   }
 
   const cards = data
-    ? [data.salesforce, data.gong, data.apollo, data.linkedinSalesNav]
+    ? [data.salesforce, data.gong, data.dialpad, data.apollo, data.linkedinSalesNav]
     : [];
 
   return (
@@ -70,6 +70,9 @@ export default function SalesConnectionsPage() {
         <p>
           Gong: <code className="bg-gray-100 px-1 rounded text-xs">GONG_ACCESS_KEY</code>,{' '}
           <code className="bg-gray-100 px-1 rounded text-xs">GONG_ACCESS_KEY_SECRET</code>.
+        </p>
+        <p>
+          Dialpad: <code className="bg-gray-100 px-1 rounded text-xs">DIALPAD_API_KEY</code> (company admin API key).
         </p>
       </div>
     </div>

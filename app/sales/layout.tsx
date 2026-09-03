@@ -31,7 +31,7 @@ export default function SalesLayout({
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
           <p className="text-gray-600 mt-1">
-            Salesforce pipeline with Gong calls. Apollo and Sales Nav are next.
+            Salesforce pipeline with Gong and Dialpad calls. Apollo and Sales Nav are next.
           </p>
         </div>
 
