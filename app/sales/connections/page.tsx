@@ -64,8 +64,8 @@ export default function SalesConnectionsPage() {
         <p>
           Salesforce: <code className="bg-gray-100 px-1 rounded text-xs">SALESFORCE_CLIENT_ID</code>,{' '}
           <code className="bg-gray-100 px-1 rounded text-xs">SALESFORCE_CLIENT_SECRET</code>,{' '}
-          <code className="bg-gray-100 px-1 rounded text-xs">SALESFORCE_USERNAME</code>,{' '}
-          <code className="bg-gray-100 px-1 rounded text-xs">SALESFORCE_PASSWORD</code> (password + security token).
+          <code className="bg-gray-100 px-1 rounded text-xs">SALESFORCE_LOGIN_URL</code> (My Domain, e.g.{' '}
+          <code className="bg-gray-100 px-1 rounded text-xs">https://yourcompany.my.salesforce.com</code>).
         </p>
         <p>
           Gong: <code className="bg-gray-100 px-1 rounded text-xs">GONG_ACCESS_KEY</code>,{' '}
