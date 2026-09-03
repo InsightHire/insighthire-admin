@@ -22,6 +22,7 @@ const PREVIOUS_HREFS = [
   '/email-monitoring',
   '/anomalies',
   '/billing',
+  '/sales',
   '/audit',
   '/integrations',
   '/settings/admins',
@@ -37,7 +38,7 @@ describe('admin nav grouping', () => {
       .map((item) => item.href)
       .sort();
     expect(hrefs).toEqual(PREVIOUS_HREFS);
-    expect(ADMIN_NAV_GROUPS).toHaveLength(7);
+    expect(ADMIN_NAV_GROUPS).toHaveLength(8);
     expect(ADMIN_NAV_GROUPS.map((group) => group.id)).toEqual([
       'home',
       'attention',
@@ -45,6 +46,7 @@ describe('admin nav grouping', () => {
       'content',
       'operations',
       'billing',
+      'sales',
       'system',
     ]);
   });

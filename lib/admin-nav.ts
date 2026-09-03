@@ -16,6 +16,7 @@ import {
   Puzzle,
   Settings,
   Shield,
+  TrendingUp,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -158,6 +159,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     href: '/billing',
     icon: CreditCard,
     match: ['/billing'],
+    flyoutAlign: 'end',
+  },
+  {
+    id: 'sales',
+    name: 'Sales',
+    href: '/sales',
+    icon: TrendingUp,
+    match: ['/sales'],
     flyoutAlign: 'end',
   },
   {
