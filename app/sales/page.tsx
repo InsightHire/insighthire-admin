@@ -20,6 +20,10 @@ export default function SalesOverviewPage() {
   const connections = trpc.platformAdmin.getSalesConnections.useQuery(undefined, {
     enabled,
   });
+  const apollo = trpc.platformAdmin.getSalesApollo.useQuery(undefined, {
+    enabled,
+    refetchInterval: 60_000,
+  });
 
   if (authLoading) {
     return (
@@ -32,7 +36,9 @@ export default function SalesOverviewPage() {
 
   const p = pipeline.data;
   const c = calls.data;
+  const a = apollo.data;
   const recentCalls = (c?.calls ?? []).slice(0, 10);
+  const recentSequences = (a?.sequences ?? []).filter((s) => !s.archived).slice(0, 8);
   const stages = p?.stages ?? [];
   const maxStage = Math.max(1, ...stages.map((s) => s.amount));
 
@@ -53,6 +59,11 @@ export default function SalesOverviewPage() {
       {c?.error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Calls: {c.error}
+        </div>
+      )}
+      {a?.error && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Apollo: {a.error}
         </div>
       )}
 
@@ -157,6 +168,38 @@ export default function SalesOverviewPage() {
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Apollo sequences</h2>
+            {a?.connected && (
+              <p className="text-xs text-gray-500 mt-0.5">{a.emailsThisWeek} emails this week</p>
+            )}
+          </div>
+          <Link href="/sales/outreach" className="text-sm text-indigo-700 hover:underline">
+            View all
+          </Link>
+        </div>
+        {!a?.connected && !apollo.isLoading ? (
+          <DisconnectedBanner title="Apollo is not connected" href="/sales/connections" />
+        ) : recentSequences.length === 0 ? (
+          <p className="text-sm text-gray-500">No sequences yet.</p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {recentSequences.map((seq) => (
+              <li key={seq.id} className="py-3 first:pt-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{seq.name}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {seq.active ? 'Active' : 'Inactive'}
+                  {seq.uniqueDelivered != null ? ` · ${seq.uniqueDelivered} delivered` : ''}
+                  {seq.uniqueReplied != null ? ` · ${seq.uniqueReplied} replied` : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {connections.data && (

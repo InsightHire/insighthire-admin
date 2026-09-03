@@ -74,6 +74,11 @@ export default function SalesConnectionsPage() {
         <p>
           Dialpad: <code className="bg-gray-100 px-1 rounded text-xs">DIALPAD_API_KEY</code> (company admin API key).
         </p>
+        <p>
+          Apollo: <code className="bg-gray-100 px-1 rounded text-xs">APOLLO_API_KEY</code> (Settings → Integrations → API Keys; scope{' '}
+          <code className="bg-gray-100 px-1 rounded text-xs">emailer_campaigns/search</code> and{' '}
+          <code className="bg-gray-100 px-1 rounded text-xs">emailer_messages/search</code>).
+        </p>
       </div>
     </div>
   );

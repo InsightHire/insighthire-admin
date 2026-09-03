@@ -8,6 +8,7 @@ import {
   Plug,
   TrendingUp,
   DollarSign,
+  Mail,
   ChevronRight,
 } from 'lucide-react';
 
@@ -15,6 +16,7 @@ const navItems = [
   { href: '/sales', label: 'Overview', icon: DollarSign },
   { href: '/sales/pipeline', label: 'Pipeline', icon: TrendingUp },
   { href: '/sales/calls', label: 'Calls', icon: Phone },
+  { href: '/sales/outreach', label: 'Outreach', icon: Mail },
   { href: '/sales/connections', label: 'Connections', icon: Plug },
 ];
 
@@ -31,7 +33,7 @@ export default function SalesLayout({
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
           <p className="text-gray-600 mt-1">
-            Salesforce pipeline with Gong and Dialpad calls. Apollo and Sales Nav are next.
+            Salesforce pipeline, Gong and Dialpad calls, Apollo sequences. Sales Nav is next.
           </p>
         </div>
 
