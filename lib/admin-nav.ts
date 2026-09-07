@@ -19,6 +19,7 @@ import {
   TrendingUp,
   Users,
   Wrench,
+  ShieldCheck,
 } from 'lucide-react';
 
 export type AdminNavBadgeKey = 'attention' | 'anomalies' | 'alerts';
@@ -124,6 +125,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/settings/marketing',
         icon: Megaphone,
         match: ['/settings/marketing'],
+      },
+      {
+        name: 'Compliance copy',
+        href: '/settings/compliance',
+        icon: ShieldCheck,
+        match: ['/settings/compliance'],
       },
     ],
   },

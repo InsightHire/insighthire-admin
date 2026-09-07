@@ -28,6 +28,7 @@ const PREVIOUS_HREFS = [
   '/settings/admins',
   '/settings/i18n',
   '/settings/marketing',
+  '/settings/compliance',
   '/gdpr',
   '/devops/skills',
 ].sort();
