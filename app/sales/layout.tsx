@@ -9,12 +9,14 @@ import {
   TrendingUp,
   DollarSign,
   Mail,
+  FileSignature,
   ChevronRight,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/sales', label: 'Overview', icon: DollarSign },
   { href: '/sales/pipeline', label: 'Pipeline', icon: TrendingUp },
+  { href: '/sales/quotes', label: 'Quotes', icon: FileSignature },
   { href: '/sales/calls', label: 'Calls', icon: Phone },
   { href: '/sales/outreach', label: 'Outreach', icon: Mail },
   { href: '/sales/connections', label: 'Connections', icon: Plug },
