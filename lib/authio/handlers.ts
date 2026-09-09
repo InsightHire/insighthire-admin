@@ -148,7 +148,24 @@ export function createAuthioSignInHandler() {
       );
       destination.searchParams.set('project_id', AUTHIO_PROJECT_ID);
       destination.searchParams.set('organization_id', AUTHIO_ORGANIZATION_ID);
-      destination.searchParams.set('redirect_uri', callbackUrl(req, { [NONCE_PARAM]: nonce }));
+      // P0 2026-09-09: use Authio's RESERVED `client_state_nonce` param
+      // instead of the custom `ihx_nonce`. Authio's sso service no longer
+      // echoes the redirect_uri query verbatim — its H-5 tokenless-handoff
+      // redirect strips foreign query params from the callback URL and
+      // attaches its own `client_state_nonce` (server-minted when the
+      // client didn't supply one under the reserved name). With
+      // `ihx_nonce` the nonce was destroyed in transit AND a mismatched
+      // server-minted nonce arrived in its place, so every SP-initiated
+      // sign-in died at the csrf_mismatch check below. The reserved name
+      // is extracted from the redirect_uri by sso's splitRelayState,
+      // bound to the session handoff, and echoed back on the callback —
+      // which is exactly the round-trip this cookie check needs. The
+      // callback's `|| NONCE_PARAM` fallback stays for any in-flight
+      // legacy attempts.
+      destination.searchParams.set(
+        'redirect_uri',
+        callbackUrl(req, { client_state_nonce: nonce }),
+      );
     } else {
       destination = new URL(AUTHIO_HOSTED_UI_URL);
       destination.searchParams.set('project_id', AUTHIO_PROJECT_ID);
