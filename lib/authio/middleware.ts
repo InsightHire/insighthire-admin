@@ -68,7 +68,10 @@ export function createAuthioMiddleware(opts: AuthioMiddlewareOptions = {}) {
     }
 
     const signIn = new URL(signInPath, origin);
-    signIn.searchParams.set('next', returnTo);
+    // Only carry ?next= for deep links; a bare "/" just clutters the URL.
+    if (returnTo && returnTo !== '/') {
+      signIn.searchParams.set('next', returnTo);
+    }
     return NextResponse.redirect(signIn);
   };
 }

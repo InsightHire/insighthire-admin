@@ -30,7 +30,8 @@ export default async function AdminSignInPage({
   const errorMessage = authErrorMessage(flashCode);
 
   const next = searchParams.next && searchParams.next.startsWith('/') ? searchParams.next : '/';
-  const signInHref = `${SIGN_IN_PATH}?next=${encodeURIComponent(next)}`;
+  const signInHref =
+    next === '/' ? SIGN_IN_PATH : `${SIGN_IN_PATH}?next=${encodeURIComponent(next)}`;
 
   return (
     <AuthPageLayout>
@@ -54,7 +55,7 @@ export default async function AdminSignInPage({
           href={signInHref}
           className="block w-full text-center bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 px-6 rounded-lg font-medium hover:from-indigo-500 hover:to-violet-500 transition-colors shadow-lg shadow-indigo-900/20"
         >
-          Continue with Microsoft 365
+          Login
         </a>
 
         <p className="mt-6 pt-6 border-t border-zinc-800 text-center text-xs text-zinc-500">

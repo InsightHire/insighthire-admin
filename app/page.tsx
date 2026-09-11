@@ -47,6 +47,11 @@ export default function DashboardPage() {
     { refetchInterval: 120_000, retry: false },
   );
 
+  const { data: videoTrend } = (trpc as any).platformAdmin.getVideoGenerationTrend.useQuery(
+    { days: 14 },
+    { refetchInterval: 120_000, retry: false },
+  );
+
   const alerts = healthData?.alerts || { critical: 0, warning: 0, info: 0, total: 0 };
   const analytics = healthData?.analytics;
   const techBreakdown = healthData?.technicalSessionBreakdown;
@@ -236,6 +241,59 @@ export default function DashboardPage() {
             )}
           </section>
         </div>
+
+        <section className="admin-panel mb-8 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-admin-ink">AI videos generated</h2>
+              <p className="text-xs text-admin-muted">Question videos rendered per day — last 14 days</p>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-admin-secondary">
+              <span>
+                <span className="admin-mono font-semibold text-admin-ink">{videoTrend?.total ?? '—'}</span> created
+              </span>
+              <span>
+                <span className="admin-mono font-semibold text-admin-ok">{videoTrend?.totalCompleted ?? '—'}</span>{' '}
+                completed
+              </span>
+              <span>
+                <span className="admin-mono font-semibold text-admin-danger">{videoTrend?.totalFailed ?? '—'}</span>{' '}
+                failed
+              </span>
+              <Link
+                href="/background-jobs"
+                className="rounded-admin-sm border border-admin-border px-3 py-1.5 font-medium text-admin-ink hover:bg-slate-50"
+              >
+                Queue
+              </Link>
+            </div>
+          </div>
+          {(videoTrend?.days?.length ?? 0) > 0 ? (
+            <div className="mt-4 flex h-28 items-end gap-1">
+              {videoTrend.days.map((d: any) => {
+                const max = Math.max(1, ...videoTrend.days.map((x: any) => x.created));
+                const pct = Math.round((d.created / max) * 100);
+                return (
+                  <div key={d.date} className="group relative flex h-full flex-1 flex-col justify-end">
+                    <div
+                      className={cn(
+                        'w-full rounded-t-sm',
+                        d.failed > 0 ? 'bg-admin-danger/70' : d.created > 0 ? 'bg-admin-accent-ink/70' : 'bg-slate-100',
+                      )}
+                      style={{ height: d.created > 0 ? `${Math.max(pct, 6)}%` : '3px' }}
+                    />
+                    <p className="mt-1 truncate text-center text-[9px] text-admin-muted">{d.date.slice(5)}</p>
+                    <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-admin-ink px-2 py-1 text-[10px] text-white group-hover:block">
+                      {d.date}: {d.created} created · {d.completed} completed · {d.failed} failed
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-admin-muted">No video generation activity in the last 14 days.</p>
+          )}
+        </section>
 
         <section className="admin-panel p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
