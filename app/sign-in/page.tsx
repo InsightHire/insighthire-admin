@@ -39,9 +39,6 @@ export default async function AdminSignInPage({
 
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-white tracking-tight">Sign in</h1>
-        <p className="text-sm text-zinc-400 mt-2">
-          Use your Microsoft 365 account to access the InsightHire admin.
-        </p>
       </div>
 
       <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-zinc-800">
