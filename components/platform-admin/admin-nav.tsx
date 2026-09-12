@@ -89,6 +89,7 @@ export function PlatformAdminNav() {
     { name: 'AI DevOps', href: '/devops', icon: Wrench },
     { name: 'Email & Digests', href: '/email-monitoring', icon: Mail },
     { name: 'AI Scoring', href: '/scoring', icon: BarChart3 },
+    { name: 'Scoring Runs', href: '/scoring/runs', icon: BarChart3 },
   ];
 
   return (
