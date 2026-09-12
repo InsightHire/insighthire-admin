@@ -2,12 +2,15 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   AlertTriangle,
+  Bot,
   Building2,
   ClipboardList,
+  Coins,
   CreditCard,
   FlaskConical,
   Gauge,
   Globe,
+  HeartPulse,
   Home,
   Lock,
   Mail,
@@ -96,6 +99,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/organizations', '/onboarding'],
       },
       {
+        name: 'Health',
+        href: '/tenant-health',
+        icon: HeartPulse,
+        match: ['/tenant-health'],
+      },
+      {
         name: 'Admins',
         href: '/settings/admins',
         icon: Users,
@@ -144,6 +153,19 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/pipeline',
         icon: Activity,
         match: ['/pipeline', '/background-jobs', '/scoring', '/api-monitoring', '/jobs'],
+        exclude: ['/scoring/runs'],
+      },
+      {
+        name: 'Scoring runs',
+        href: '/scoring/runs',
+        icon: Bot,
+        match: ['/scoring/runs'],
+      },
+      {
+        name: 'AI costs',
+        href: '/ai-costs',
+        icon: Coins,
+        match: ['/ai-costs'],
       },
       {
         name: 'Reliability',
@@ -182,6 +204,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     icon: Settings,
     flyoutAlign: 'end',
     items: [
+      { name: 'Announcements', href: '/announcements', icon: Megaphone, match: ['/announcements'] },
       { name: 'Integrations', href: '/integrations', icon: Puzzle, match: ['/integrations'] },
       { name: 'Languages', href: '/settings/i18n', icon: Globe, match: ['/settings/i18n'] },
       { name: 'Audit', href: '/audit', icon: Shield, match: ['/audit'] },
