@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { QueueTrendsSection } from '@/components/platform-admin/queue-trends';
 import {
   FunnelIcon,
   ArrowPathIcon,
@@ -303,6 +304,8 @@ export default function BackgroundJobsAdmin() {
           ))}
         </div>
       )}
+
+      <QueueTrendsSection />
 
       {/* AI Feedback Backfill */}
       <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-6 mb-8">
