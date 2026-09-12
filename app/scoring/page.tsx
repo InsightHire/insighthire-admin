@@ -6,6 +6,7 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { PipelineSubnav } from '@/components/admin/pipeline-subnav';
+import { ScoringDriftSection } from '@/components/platform-admin/scoring-drift';
 import {
   ArrowPathIcon,
   ChartBarIcon,
@@ -97,6 +98,8 @@ export default function ScoringObservabilityPage() {
           ))}
         </select>
       </div>
+
+      <ScoringDriftSection />
 
       {selectedOrgId && (
         <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-4">

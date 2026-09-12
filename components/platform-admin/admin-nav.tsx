@@ -90,6 +90,7 @@ export function PlatformAdminNav() {
     { name: 'Email & Digests', href: '/email-monitoring', icon: Mail },
     { name: 'AI Scoring', href: '/scoring', icon: BarChart3 },
     { name: 'Scoring Runs', href: '/scoring/runs', icon: BarChart3 },
+    { name: 'AI Costs', href: '/ai-costs', icon: BarChart3 },
   ];
 
   return (
@@ -245,6 +246,18 @@ export function PlatformAdminNav() {
                     >
                       <Users className="h-4 w-4 mr-2" />
                       Admin Users
+                    </Link>
+                    <Link
+                      href="/announcements"
+                      onClick={() => setSettingsOpen(false)}
+                      className={`flex items-center px-4 py-2 text-sm transition-colors ${
+                        pathname === '/announcements'
+                          ? 'bg-gray-700 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Announcements
                     </Link>
                     <Link
                       href="/settings/i18n"

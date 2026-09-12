@@ -84,15 +84,16 @@ export default function TenantHealthPage() {
                 <th className="px-4 py-2.5 font-medium text-right">Seats (active/total)</th>
                 <th className="px-4 py-2.5 font-medium text-right">Journeys 30d</th>
                 <th className="px-4 py-2.5 font-medium text-right">Scoring 30d</th>
+                <th className="px-4 py-2.5 font-medium text-right">AI cost 30d</th>
                 <th className="px-4 py-2.5 font-medium">Last login</th>
                 <th className="px-4 py-2.5 font-medium">Signals</th>
               </tr>
             </thead>
             <tbody>
               {health.isLoading ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading tenant health…</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading tenant health…</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">
                   {onlyAtRisk ? 'No at-risk tenants right now.' : 'No organizations found.'}
                 </td></tr>
               ) : (
@@ -118,6 +119,15 @@ export default function TenantHealthPage() {
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <Trend current={r.scored30} previous={r.scoredPrev30} />
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-gray-900 whitespace-nowrap">
+                      {r.aiCost30 > 0 ? `$${r.aiCost30.toFixed(2)}` : '—'}
+                      {r.aiCostPrev30 > 0 && r.aiCost30 > 0 && (
+                        <span className={`block text-xs ${r.aiCost30 > r.aiCostPrev30 ? 'text-red-500' : 'text-green-600'}`}>
+                          {r.aiCost30 > r.aiCostPrev30 ? '+' : ''}
+                          {Math.round(((r.aiCost30 - r.aiCostPrev30) / r.aiCostPrev30) * 100)}%
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 whitespace-nowrap text-gray-500">
                       {r.lastLoginAt ? new Date(r.lastLoginAt).toLocaleDateString() : 'never'}

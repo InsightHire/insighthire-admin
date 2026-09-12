@@ -262,7 +262,12 @@ function RunDetail({ responseId, onClose }: { responseId: string; onClose: () =>
 
 export default function ScoringRunsPage() {
   useAdminAuth();
-  const [orgFilter, setOrgFilter] = useState('');
+  // Supports deep links like /scoring/runs?org=<id> from the drift alerts.
+  const [orgFilter, setOrgFilter] = useState(() =>
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('org') ?? ''
+      : '',
+  );
   const [statusFilter, setStatusFilter] = useState('');
   const [onlyErrors, setOnlyErrors] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
