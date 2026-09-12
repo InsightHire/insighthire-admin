@@ -20,6 +20,7 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon,
   DocumentChartBarIcon,
+  PaperClipIcon,
   SparklesIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
@@ -980,6 +981,7 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
         const isExpanded = expandedPositions.has(pos.positionId);
         const candidateCount = pos.candidates?.length ?? 0;
         const visitedCount = pos.candidates?.filter(c => c.visited).length ?? 0;
+        const jobResumeCount = pos.candidates?.filter((c: any) => c.hasJobResume).length ?? 0;
         const reportCompleteCount = pos.candidates?.filter(c => c.reportComplete).length ?? 0;
 
         return (
@@ -1001,6 +1003,9 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
                 <span className="text-sm text-gray-600">
                   <span className="font-medium text-gray-900">{candidateCount}</span> candidates
                 </span>
+                <span className="text-sm text-gray-600">
+                  <span className="font-medium text-gray-900">{jobResumeCount}</span> resumes
+                </span>
                 <span className="text-sm text-emerald-600">
                   <span className="font-medium">{visitedCount}</span> visited
                 </span>
@@ -1019,6 +1024,9 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
                         <th className="px-4 py-3 text-left font-semibold text-gray-600">Candidate</th>
                         <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Email sent">
                           <EnvelopeIcon className="h-4 w-4 inline-block" />
+                        </th>
+                        <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Resume attached to this job (amber = resume on candidate profile only)">
+                          <PaperClipIcon className="h-4 w-4 inline-block" />
                         </th>
                         <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Visited">
                           <EyeIcon className="h-4 w-4 inline-block" />
@@ -1079,6 +1087,8 @@ function CandidateRow({
     aiScoredCount: number;
     aiScoredTotal: number;
     reportComplete: boolean;
+    hasJobResume?: boolean;
+    hasProfileResume?: boolean;
     overallScore: number | null;
     applicationStatus: string;
     lastActivityAt: Date | null;
@@ -1138,6 +1148,21 @@ function CandidateRow({
           )}
         </td>
         <td className="px-3 py-3 text-center">
+          {candidate.hasJobResume ? (
+            <span title="Resume attached to this job">
+              <CheckCircleIcon className="h-5 w-5 text-emerald-500 mx-auto" />
+            </span>
+          ) : candidate.hasProfileResume ? (
+            <span title="Resume on candidate profile only — not attached to this job">
+              <PaperClipIcon className="h-5 w-5 text-amber-500 mx-auto" />
+            </span>
+          ) : (
+            <span title="No resume">
+              <XCircleIcon className="h-5 w-5 text-gray-300 mx-auto" />
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-3 text-center">
           {candidate.visited ? (
             <CheckCircleIcon className="h-5 w-5 text-emerald-500 mx-auto" />
           ) : (
@@ -1189,7 +1214,7 @@ function CandidateRow({
       </tr>
       {expanded && candidate.sessionId && (
         <tr className="bg-indigo-50/30 border-b border-gray-100">
-          <td colSpan={8} className="px-4 py-4">
+          <td colSpan={9} className="px-4 py-4">
             <div className="ml-7 pl-4 border-l-2 border-indigo-200">
               <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Step-level progress</h4>
               {loadingNodes ? (
