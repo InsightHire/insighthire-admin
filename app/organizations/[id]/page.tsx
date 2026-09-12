@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import {
   ArrowLeftIcon,
   BuildingOfficeIcon,
@@ -33,6 +34,7 @@ export default function OrganizationDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { isLoading: authLoading } = useAdminAuth();
+  const isSuperAdmin = useIsSuperAdmin();
   const orgId = params.id as string;
 
   const [editingSubscription, setEditingSubscription] = useState(false);
@@ -235,16 +237,18 @@ export default function OrganizationDetailPage() {
                 <SparklesIcon className="h-4 w-4 text-amber-500" />
                 {backfillOrgDefaultsMutation.isPending ? 'Seeding…' : 'Seed org defaults'}
               </button>
-              <button
-                type="button"
-                onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
-                disabled={impersonateMutation.isPending || isArchived}
-                title={isArchived ? 'Archived organizations cannot be opened via Login as Admin' : undefined}
-                className="inline-flex items-center gap-2 rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-              >
-                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                {impersonateMutation.isPending ? 'Opening...' : 'Login as Admin'}
-              </button>
+              {isSuperAdmin && (
+                <button
+                  type="button"
+                  onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
+                  disabled={impersonateMutation.isPending || isArchived}
+                  title={isArchived ? 'Archived organizations cannot be opened via Login as Admin' : undefined}
+                  className="inline-flex items-center gap-2 rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                  {impersonateMutation.isPending ? 'Opening...' : 'Login as Admin'}
+                </button>
+              )}
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(organization.subscriptionStatus)}`}>
                 {organization.subscriptionStatus}
               </span>
@@ -739,41 +743,45 @@ export default function OrganizationDetailPage() {
               <p className="text-xs text-gray-600 mb-4">
                 Suspend, archive, reactivate, or permanently delete. All actions are audited.
               </p>
-              <div className="space-y-2">
-                {!isArchived ? (
-                  <>
+              {!isSuperAdmin ? (
+                <p className="text-sm text-gray-400 italic">Super admin only.</p>
+              ) : (
+                <div className="space-y-2">
+                  {!isArchived ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openDangerModal('suspend')}
+                        className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                      >
+                        Suspend organization
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDangerModal('archive')}
+                        className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                      >
+                        Archive (soft-delete)
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
-                      onClick={() => openDangerModal('suspend')}
-                      className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                      onClick={() => openDangerModal('reactivate')}
+                      className="w-full text-left px-4 py-2 text-sm text-green-800 hover:bg-green-50 rounded-lg border border-green-200"
                     >
-                      Suspend organization
+                      Reactivate organization
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => openDangerModal('archive')}
-                      className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
-                    >
-                      Archive (soft-delete)
-                    </button>
-                  </>
-                ) : (
+                  )}
                   <button
                     type="button"
-                    onClick={() => openDangerModal('reactivate')}
-                    className="w-full text-left px-4 py-2 text-sm text-green-800 hover:bg-green-50 rounded-lg border border-green-200"
+                    onClick={() => openDangerModal('permanent')}
+                    className="w-full text-left px-4 py-2 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg"
                   >
-                    Reactivate organization
+                    Delete permanently…
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => openDangerModal('permanent')}
-                  className="w-full text-left px-4 py-2 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg"
-                >
-                  Delete permanently…
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

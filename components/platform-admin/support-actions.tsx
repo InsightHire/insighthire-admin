@@ -7,6 +7,7 @@
  */
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
+import { useIsSuperAdmin } from '@/lib/use-super-admin';
 
 type Member = {
   id: string;
@@ -16,6 +17,7 @@ type Member = {
 };
 
 export function SupportActionsSection({ organizationId }: { organizationId: string }) {
+  const isSuperAdmin = useIsSuperAdmin();
   const [feedback, setFeedback] = useState<{ userId: string; kind: 'success' | 'error'; text: string } | null>(null);
 
   const members = (trpc as any).platformAdmin.getOrganizationUsers.useQuery(
@@ -43,6 +45,8 @@ export function SupportActionsSection({ organizationId }: { organizationId: stri
 
       {members.isLoading ? (
         <p className="text-sm text-gray-400">Loading members…</p>
+      ) : !isSuperAdmin ? (
+        <p className="text-sm text-gray-400 italic">Super admin only.</p>
       ) : rows.length === 0 ? (
         <p className="text-sm text-gray-400">No members yet.</p>
       ) : (

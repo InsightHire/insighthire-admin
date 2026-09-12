@@ -10,11 +10,13 @@ export const dynamic = 'force-dynamic';
 import { useMemo, useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 
 export default function FlagsPage() {
   useAdminAuth();
+  const isSuperAdmin = useIsSuperAdmin();
   const utils = (trpc as any).useUtils();
   const [key, setKey] = useState('');
   const [description, setDescription] = useState('');
@@ -143,10 +145,11 @@ export default function FlagsPage() {
                     </button>
                     <button
                       onClick={() => update.mutate({ id: f.id, enabled: !f.enabled })}
-                      disabled={update.isPending}
+                      disabled={update.isPending || !isSuperAdmin}
+                      title={isSuperAdmin ? undefined : 'Super admin only'}
                       role="switch"
                       aria-checked={f.enabled}
-                      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${
+                      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
                         f.enabled ? 'bg-green-500' : 'bg-gray-300'
                       }`}
                     >
@@ -175,17 +178,19 @@ export default function FlagsPage() {
                         Updated {new Date(f.updatedAt).toLocaleString()}
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Delete flag ${f.key}? Gated features will read it as OFF.`)) {
-                          remove.mutate({ id: f.id });
-                        }
-                      }}
-                      disabled={remove.isPending}
-                      className="px-2.5 py-1 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50 shrink-0"
-                    >
-                      Delete
-                    </button>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Delete flag ${f.key}? Gated features will read it as OFF.`)) {
+                            remove.mutate({ id: f.id });
+                          }
+                        }}
+                        disabled={remove.isPending}
+                        className="px-2.5 py-1 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50 shrink-0"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
 
                   {isExpanded && (
@@ -203,20 +208,24 @@ export default function FlagsPage() {
                             }`}>
                               {enabled ? 'on' : 'off'}
                             </span>
-                            <button
-                              onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, enabled: !enabled } })}
-                              disabled={update.isPending}
-                              className="px-2 py-0.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-white"
-                            >
-                              Flip
-                            </button>
-                            <button
-                              onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, clear: true } })}
-                              disabled={update.isPending}
-                              className="px-2 py-0.5 text-xs rounded border border-red-200 text-red-700 hover:bg-red-50"
-                            >
-                              Remove
-                            </button>
+                            {isSuperAdmin && (
+                              <>
+                                <button
+                                  onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, enabled: !enabled } })}
+                                  disabled={update.isPending}
+                                  className="px-2 py-0.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-white"
+                                >
+                                  Flip
+                                </button>
+                                <button
+                                  onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, clear: true } })}
+                                  disabled={update.isPending}
+                                  className="px-2 py-0.5 text-xs rounded border border-red-200 text-red-700 hover:bg-red-50"
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            )}
                           </div>
                         ))
                       )}
@@ -252,14 +261,14 @@ export default function FlagsPage() {
                             Cancel
                           </button>
                         </div>
-                      ) : (
+                      ) : isSuperAdmin ? (
                         <button
                           onClick={() => setAddingOverrideFor(f.id)}
                           className="text-xs text-purple-700 hover:text-purple-900 pt-2"
                         >
                           + Add org override
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   )}
                 </div>

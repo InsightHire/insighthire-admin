@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 
 const SEVERITIES = [
@@ -24,6 +25,7 @@ const SEVERITY_STYLE: Record<string, string> = {
 
 export default function AnnouncementsPage() {
   useAdminAuth();
+  const isSuperAdmin = useIsSuperAdmin();
   const utils = (trpc as any).useUtils();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -157,13 +159,15 @@ export default function AnnouncementsPage() {
                     >
                       {a.active ? 'Deactivate' : 'Reactivate'}
                     </button>
-                    <button
-                      onClick={() => remove.mutate({ id: a.id })}
-                      disabled={remove.isPending}
-                      className="px-2.5 py-1 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
-                    >
-                      Delete
-                    </button>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => remove.mutate({ id: a.id })}
+                        disabled={remove.isPending}
+                        className="px-2.5 py-1 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               );

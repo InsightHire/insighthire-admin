@@ -9,10 +9,12 @@ export const dynamic = 'force-dynamic';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 
 export default function TrafficPage() {
   useAdminAuth();
+  const isSuperAdmin = useIsSuperAdmin();
   const utils = (trpc as any).useUtils();
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +81,9 @@ export default function TrafficPage() {
                     <td className="px-4 py-2 text-right text-red-600">{row.count5xx}</td>
                     <td className="px-4 py-2 text-right font-medium text-gray-900">{row.total}</td>
                     <td className="px-4 py-2 text-right">
-                      {row.blocked ? (
+                      {!isSuperAdmin ? (
+                        <span className="text-xs text-gray-400">Super admin only</span>
+                      ) : row.blocked ? (
                         <button
                           onClick={() => unblock.mutate({ ip: row.ip })}
                           disabled={unblock.isPending}
