@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
  * Release status — what is actually live right now. The API pings each
  * service's health endpoint and reports the running commit and latency.
  */
+import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
@@ -32,6 +33,7 @@ export default function ReleasesPage() {
             <h1 className="text-2xl font-bold text-gray-900">Releases</h1>
             <p className="text-sm text-gray-500">
               Live commit and health per service, checked from the API. Refreshes every minute.
+              {' '}<Link href="/incidents" className="text-purple-700 hover:text-purple-900">View incident history →</Link>
             </p>
           </div>
           <button

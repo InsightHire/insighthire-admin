@@ -118,6 +118,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/tenant-health'],
       },
       {
+        name: 'Activation',
+        href: '/activation',
+        icon: Rocket,
+        match: ['/activation'],
+      },
+      {
         name: 'Admins',
         href: '/settings/admins',
         icon: Users,
@@ -185,6 +191,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/releases',
         icon: Rocket,
         match: ['/releases'],
+      },
+      {
+        name: 'Incidents',
+        href: '/incidents',
+        icon: AlertTriangle,
+        match: ['/incidents'],
       },
       {
         name: 'Client errors',

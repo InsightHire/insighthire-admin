@@ -29,6 +29,11 @@ const HEALTH_FLAG_LABELS: Record<string, { label: string; severity: 'danger' | '
   EXPIRED: { label: 'Subscription expired', severity: 'danger' },
 };
 
+const STALL_LABELS: Record<string, string> = {
+  STALLED_NO_POSITION: 'No position created yet',
+  STALLED_NO_CANDIDATE: 'No candidates yet',
+};
+
 export default function AlertsPage() {
   useAdminAuth();
   const utils = (trpc as any).useUtils();
@@ -38,6 +43,7 @@ export default function AlertsPage() {
   const billing = (trpc as any).platformAdmin.getBillingAlerts.useQuery(undefined, { refetchOnWindowFocus: false });
   const drift = (trpc as any).platformAdmin.getScoringDrift.useQuery(undefined, { refetchOnWindowFocus: false });
   const clientErrors = (trpc as any).platformAdmin.listClientErrors.useQuery({ days: 1 }, { refetchOnWindowFocus: false });
+  const activation = (trpc as any).platformAdmin.getActivationFunnel.useQuery(undefined, { refetchOnWindowFocus: false });
   const acks = (trpc as any).platformAdmin.listAlertAcks.useQuery(undefined, { refetchOnWindowFocus: false });
 
   const invalidateAcks = () => (utils as any).platformAdmin.listAlertAcks.invalidate();
@@ -89,8 +95,20 @@ export default function AlertsPage() {
         href: '/client-errors',
       });
     }
+    for (const org of (activation.data as any[]) ?? []) {
+      for (const stall of org.stalls ?? []) {
+        out.push({
+          key: `activation:${stall}:${org.organizationId}`,
+          severity: 'warn',
+          category: 'Activation',
+          title: `${org.organizationName}: ${STALL_LABELS[stall] ?? stall}`,
+          detail: `${org.ageDays} days old`,
+          href: '/activation',
+        });
+      }
+    }
     return out.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'danger' ? -1 : 1));
-  }, [health.data, billing.data, drift.data, clientErrors.data]);
+  }, [health.data, billing.data, drift.data, clientErrors.data, activation.data]);
 
   const ackedKeys = useMemo(
     () => new Set(((acks.data as any[]) ?? []).map((a) => a.alertKey)),
@@ -98,7 +116,7 @@ export default function AlertsPage() {
   );
   const active = alerts.filter((a) => !ackedKeys.has(a.key));
   const acked = alerts.filter((a) => ackedKeys.has(a.key));
-  const loading = health.isLoading || billing.isLoading || drift.isLoading || clientErrors.isLoading;
+  const loading = health.isLoading || billing.isLoading || drift.isLoading || clientErrors.isLoading || activation.isLoading;
 
   const renderRow = (a: InboxAlert, isAcked: boolean) => (
     <div key={a.key} className={`px-4 py-3 flex flex-wrap items-start gap-3 ${isAcked ? 'opacity-60' : ''}`}>
