@@ -13,6 +13,10 @@ export default function OrganizationUsersPage() {
   // Auth gating handled by middleware.ts; we only need the current admin's info
   // to stamp the impersonation handoff payload.
   const { data: me } = trpc.platformAdmin.me.useQuery(undefined, { staleTime: 60_000 });
+  // Impersonation is SUPER_ADMIN only; server-side enforcement is the real
+  // guard (superAdminProcedure) — this only hides the button from everyone else.
+  const isSuperAdmin =
+    (me as any)?.platformRoleName === 'platform_super_admin' || (me as any)?.platformRole === 'SUPER_ADMIN';
   const { data, isLoading, refetch } = trpc.platformAdmin.getOrganizationUsers.useQuery({
     organizationId: orgId,
   });
@@ -156,13 +160,15 @@ export default function OrganizationUsersPage() {
                     {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
                   </td>
                   <td className="px-6 py-4 text-sm space-x-3">
-                    <button
-                      onClick={() => handleImpersonate(user.id)}
-                      disabled={!user.isActive}
-                      className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
-                    >
-                      Impersonate
-                    </button>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => handleImpersonate(user.id)}
+                        disabled={!user.isActive}
+                        className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
+                      >
+                        Impersonate
+                      </button>
+                    )}
                     {user.isActive && (
                       <button
                         onClick={() => handleDeactivate(user.id)}

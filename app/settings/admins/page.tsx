@@ -61,6 +61,10 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (me?.id) setCurrentUserId(me.id);
   }, [me]);
+  // Role changes are SUPER_ADMIN only; server-side enforcement is the real
+  // guard (superAdminProcedure) — this only hides the picker from everyone else.
+  const isSuperAdmin =
+    (me as any)?.platformRoleName === 'platform_super_admin' || (me as any)?.platformRole === 'SUPER_ADMIN';
 
   const { data: admins, isLoading, refetch } = trpc.platformAdmin.listPlatformAdmins.useQuery(
     undefined,
@@ -601,23 +605,29 @@ export default function AdminUsersPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                        <select
-                          name="platform_role_id"
-                          defaultValue={editingAdmin.platform_role_id ?? 'platform_role_admin'}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                        >
-                          {platformRoles?.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.displayName}
-                            </option>
-                          ))}
-                          {(!platformRoles || platformRoles.length === 0) && (
-                            <>
-                              <option value="platform_role_support">Platform Support</option>
-                              <option value="platform_role_admin">Platform Admin</option>
-                            </>
-                          )}
-                        </select>
+                        {isSuperAdmin ? (
+                          <select
+                            name="platform_role_id"
+                            defaultValue={editingAdmin.platform_role_id ?? 'platform_role_admin'}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                          >
+                            {platformRoles?.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                {r.displayName}
+                              </option>
+                            ))}
+                            {(!platformRoles || platformRoles.length === 0) && (
+                              <>
+                                <option value="platform_role_support">Platform Support</option>
+                                <option value="platform_role_admin">Platform Admin</option>
+                              </>
+                            )}
+                          </select>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">
+                            {ROLE_LABELS[editingAdmin.platform_role_id ?? ''] ?? 'Only a Super Admin can change roles.'}
+                          </p>
+                        )}
                       </div>
                     </>
                   )}
