@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/admin/app-shell';
+import { GlobalSearch } from '@/components/platform-admin/global-search';
 
 /**
  * Auth gating lives in middleware.ts. This layout only provides chrome.
@@ -18,5 +19,10 @@ export function AuthenticatedLayout({ children }: { children: React.ReactNode })
     return <>{children}</>;
   }
 
-  return <AppShell>{children}</AppShell>;
+  return (
+    <AppShell>
+      <GlobalSearch />
+      {children}
+    </AppShell>
+  );
 }

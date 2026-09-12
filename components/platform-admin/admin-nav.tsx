@@ -125,6 +125,19 @@ export function PlatformAdminNav() {
                 Organizations
               </Link>
 
+              {/* Tenant Health */}
+              <Link
+                href="/tenant-health"
+                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/tenant-health'
+                    ? 'bg-gray-800 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                }`}
+              >
+                <BarChart3 className="h-4 w-4 mr-1.5" />
+                Health
+              </Link>
+
               {/* Monitoring Dropdown */}
               <div className="relative" ref={dropdownRef}>
                 <button
