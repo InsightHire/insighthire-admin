@@ -25,6 +25,7 @@ import {
 import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
 import { DemoTenantPanel } from '@/components/platform-admin/demo-tenant-panel';
 import { OrgTimelineSection } from '@/components/platform-admin/org-timeline';
+import { SupportActionsSection } from '@/components/platform-admin/support-actions';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
 
@@ -385,6 +386,8 @@ export default function OrganizationDetailPage() {
             )}
 
             <OrgFeatureGrantsSection organizationId={orgId} />
+
+            <SupportActionsSection organizationId={orgId} />
 
             <OrgTimelineSection organizationId={orgId} />
 
