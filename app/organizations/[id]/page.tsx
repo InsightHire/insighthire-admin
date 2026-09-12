@@ -28,6 +28,7 @@ import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature
 import { DemoTenantPanel } from '@/components/platform-admin/demo-tenant-panel';
 import { OrgTimelineSection } from '@/components/platform-admin/org-timeline';
 import { SupportActionsSection } from '@/components/platform-admin/support-actions';
+import { OrgAuthenticationSection } from '@/components/platform-admin/org-authentication';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
 
@@ -393,6 +394,8 @@ export default function OrganizationDetailPage() {
             <OrgFeatureGrantsSection organizationId={orgId} />
 
             <SupportActionsSection organizationId={orgId} />
+
+            <OrgAuthenticationSection organizationId={orgId} />
 
             <OrgTimelineSection organizationId={orgId} />
 
