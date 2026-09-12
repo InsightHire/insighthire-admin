@@ -23,6 +23,7 @@ import {
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
+import { DemoTenantPanel } from '@/components/platform-admin/demo-tenant-panel';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
 
@@ -377,6 +378,10 @@ export default function OrganizationDetailPage() {
                 </div>
               )}
             </div>
+
+            {((data.organization.settings as Record<string, unknown> | null)?.demoTenant === true) && (
+              <DemoTenantPanel organizationId={orgId} />
+            )}
 
             <OrgFeatureGrantsSection organizationId={orgId} />
 
