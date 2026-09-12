@@ -13,7 +13,14 @@ import {
 
 const PREVIOUS_HREFS = [
   '/',
+  '/alerts',
   '/attention',
+  '/releases',
+  '/client-errors',
+  '/traffic',
+  '/revenue',
+  '/flags',
+  '/impersonation',
   '/organizations',
   '/tenant-health',
   '/templates',
