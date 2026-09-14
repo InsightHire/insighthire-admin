@@ -39,6 +39,7 @@ const PREVIOUS_HREFS = [
   '/audit',
   '/integrations',
   '/settings/admins',
+  '/settings/roles',
   '/settings/i18n',
   '/settings/marketing',
   '/settings/compliance',

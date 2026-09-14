@@ -295,7 +295,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [adminDisplayName, setAdminDisplayName] = useState('Admin');
+  // Empty until the role query resolves — showing "Admin" and then swapping
+  // to the real name reads as a glitch.
+  const [adminDisplayName, setAdminDisplayName] = useState('');
   const [railCollapsed, setRailCollapsed] = useState(true);
 
   useEffect(() => {
@@ -314,7 +316,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // deliberately rejects the platform_publisher role — every platform-admin
   // role, publisher included, is allowed to call this one, so it's safe to
   // fire before we know which role we're dealing with.
-  const { data: who } = trpc.blogAdmin.whoAmI.useQuery(undefined, { retry: false });
+  const { data: who, isLoading: whoLoading } = trpc.blogAdmin.whoAmI.useQuery(undefined, { retry: false });
   const isPublisher = who?.isPublisher ?? false;
 
   // Never call platformAdmin.* for a publisher: platformAdminMiddleware
@@ -361,7 +363,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const attentionCount = isPublisher ? 0 : (healthData?.alerts?.total ?? 0);
   const anomalyCount = isPublisher ? 0 : (healthData?.metrics?.locationAnomalies ?? 0);
-  const navGroups = isPublisher ? PUBLISHER_NAV_GROUPS : ADMIN_NAV_GROUPS;
+  // Until we know the caller's role, render no nav at all. Rendering the full
+  // admin rail first and swapping to the publisher rail a beat later is the
+  // "flashing nav" bug — and for publishers, mounting an admin page fires
+  // platformAdmin queries whose FORBIDDEN response bounces the browser
+  // through session refresh in a loop.
+  const navGroups = whoLoading ? [] : isPublisher ? PUBLISHER_NAV_GROUPS : ADMIN_NAV_GROUPS;
+  const publisherOffLimits = isPublisher && !!pathname && !pathname.startsWith('/blog');
 
   const rail = useMemo(
     () => (
@@ -534,13 +542,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="flex items-center gap-1.5 rounded-admin-sm px-2 py-1.5 text-sm text-admin-secondary hover:bg-slate-100"
                 >
                   <User className="h-4 w-4" />
-                  <span className="hidden max-w-[140px] truncate sm:inline">{adminDisplayName}</span>
+                  <span className="hidden max-w-[140px] truncate sm:inline">{adminDisplayName || '…'}</span>
                 </button>
                 {userMenuOpen ? (
                   <div className="absolute right-0 mt-1 w-52 rounded-admin border border-admin-border bg-white py-1 shadow-lg">
                     <div className="border-b border-admin-border px-3 py-2">
                       <p className="text-[10px] uppercase tracking-wide text-admin-muted">Signed in</p>
-                      <p className="truncate text-sm text-admin-ink">{adminDisplayName}</p>
+                      <p className="truncate text-sm text-admin-ink">{adminDisplayName || '…'}</p>
                     </div>
                     <a
                       href="/api/auth/sign-out"
@@ -554,7 +562,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </header>
-          <main className="flex-1">{children}</main>
+          <main className="flex-1">
+            {whoLoading || publisherOffLimits ? (
+              <div className="flex items-center justify-center py-24 text-sm text-admin-muted">
+                Loading…
+              </div>
+            ) : (
+              children
+            )}
+          </main>
         </div>
       </div>
     </div>

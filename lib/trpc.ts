@@ -21,8 +21,22 @@ const TRPC_URL =
     ? '/api/trpc'
     : `${(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3011').replace(/\/$/, '')}/api/trpc`;
 
+const REFRESH_GUARD_KEY = 'ih-admin-refresh-at';
+const REFRESH_GUARD_MS = 30_000;
+
 function redirectToSessionRefresh() {
   if (typeof window === 'undefined') return;
+  // Loop guard: a FORBIDDEN that isn't an expired session (e.g. a publisher
+  // or read-only role hitting an endpoint above its access) would otherwise
+  // bounce refresh → page → FORBIDDEN → refresh forever. One refresh attempt
+  // per 30s window; after that, surface the error instead of redirecting.
+  try {
+    const last = Number(window.sessionStorage.getItem(REFRESH_GUARD_KEY) ?? 0);
+    if (Date.now() - last < REFRESH_GUARD_MS) return;
+    window.sessionStorage.setItem(REFRESH_GUARD_KEY, String(Date.now()));
+  } catch {
+    // sessionStorage unavailable — fall through and redirect as before.
+  }
   const returnTo = window.location.pathname + window.location.search;
   const refresh = new URL(REFRESH_PATH, window.location.origin);
   refresh.searchParams.set('return_to', returnTo);

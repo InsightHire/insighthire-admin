@@ -425,26 +425,28 @@ export default function AdminUsersPage() {
                                       Resend invite
                                     </button>
                                   )}
+                                  {/* Edit is available in every state — with SSO, role fixes
+                                      must not wait for an invite click. */}
+                                  <button
+                                    onClick={() => {
+                                      setEditingAdmin({
+                                        id: admin.id,
+                                        email: admin.email,
+                                        firstName: admin.firstName,
+                                        lastName: admin.lastName,
+                                        role: admin.role,
+                                        platformRole: admin.platformRole,
+                                        platform_role_id: admin.platform_role_id,
+                                      });
+                                      setActionsOpenId(null);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                  >
+                                    <PencilIcon className="h-4 w-4" />
+                                    Edit
+                                  </button>
                                   {(admin.status === 'active' || admin.status === 'suspended') && (
                                     <>
-                                      <button
-                                        onClick={() => {
-                                          setEditingAdmin({
-                                            id: admin.id,
-                                            email: admin.email,
-                                            firstName: admin.firstName,
-                                            lastName: admin.lastName,
-                                            role: admin.role,
-                                            platformRole: admin.platformRole,
-                                            platform_role_id: admin.platform_role_id,
-                                          });
-                                          setActionsOpenId(null);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                      >
-                                        <PencilIcon className="h-4 w-4" />
-                                        Edit
-                                      </button>
                                       {admin.id !== currentUserId && (
                                         <>
                                           {admin.status === 'active' ? (
