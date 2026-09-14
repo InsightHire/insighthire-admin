@@ -165,7 +165,12 @@ export default function AdminUsersPage() {
       lastName: lastName || undefined,
     };
     if (editingAdmin.id !== currentUserId) {
-      if (emailEl) payload.email = emailEl.value || undefined;
+      // Only send the email when it actually changed — org-linked operators
+      // reject any email update, which would block an unrelated role change.
+      const nextEmail = emailEl?.value.trim();
+      if (nextEmail && nextEmail.toLowerCase() !== editingAdmin.email.toLowerCase()) {
+        payload.email = nextEmail;
+      }
       if (roleEl) payload.platform_role_id = roleEl.value || undefined;
     }
     updateMutation.mutate(payload);
