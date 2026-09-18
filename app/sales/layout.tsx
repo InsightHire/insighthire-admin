@@ -35,7 +35,7 @@ export default function SalesLayout({
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
           <p className="text-gray-600 mt-1">
-            Salesforce pipeline, Gong and Dialpad calls, Apollo sequences. Sales Nav is next.
+            Salesforce pipeline, Gong calls and Engage flows, Dialpad, Apollo sequences.
           </p>
         </div>
 

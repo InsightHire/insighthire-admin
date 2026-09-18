@@ -69,7 +69,9 @@ export default function SalesConnectionsPage() {
         </p>
         <p>
           Gong: <code className="bg-gray-100 px-1 rounded text-xs">GONG_ACCESS_KEY</code>,{' '}
-          <code className="bg-gray-100 px-1 rounded text-xs">GONG_ACCESS_KEY_SECRET</code>.
+          <code className="bg-gray-100 px-1 rounded text-xs">GONG_ACCESS_KEY_SECRET</code>,{' '}
+          <code className="bg-gray-100 px-1 rounded text-xs">GONG_API_BASE</code> (company host, e.g.{' '}
+          <code className="bg-gray-100 px-1 rounded text-xs">https://insighthire.api.gong.io</code>).
         </p>
         <p>
           Dialpad: <code className="bg-gray-100 px-1 rounded text-xs">DIALPAD_API_KEY</code> (company admin API key).

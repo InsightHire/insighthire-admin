@@ -24,6 +24,10 @@ export default function SalesOverviewPage() {
     enabled,
     refetchInterval: 60_000,
   });
+  const gong = trpc.platformAdmin.getSalesGong.useQuery(undefined, {
+    enabled,
+    refetchInterval: 60_000,
+  });
 
   if (authLoading) {
     return (
@@ -37,6 +41,7 @@ export default function SalesOverviewPage() {
   const p = pipeline.data;
   const c = calls.data;
   const a = apollo.data;
+  const g = gong.data;
   const recentCalls = (c?.calls ?? []).slice(0, 10);
   const recentSequences = (a?.sequences ?? []).filter((s) => !s.archived).slice(0, 8);
   const stages = p?.stages ?? [];
@@ -64,6 +69,11 @@ export default function SalesOverviewPage() {
       {a?.error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Apollo: {a.error}
+        </div>
+      )}
+      {g?.error && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Gong: {g.error}
         </div>
       )}
 
@@ -168,6 +178,15 @@ export default function SalesOverviewPage() {
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <Kpi label="Gong sent" value={String(g?.stats.sent ?? 0)} sub={g?.connected ? `${g.flows.length} flows` : 'Gong not connected'} />
+        <Kpi label="Opened" value={String(g?.stats.opened ?? 0)} />
+        <Kpi label="Open count" value={String(g?.stats.openCount ?? 0)} />
+        <Kpi label="Multi-open people" value={String(g?.stats.multiOpenPeople ?? 0)} />
+        <Kpi label="Bounces" value={String(g?.stats.bounces ?? 0)} />
+        <Kpi label="Unsubs" value={String(g?.stats.unsubs ?? 0)} />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 p-6">

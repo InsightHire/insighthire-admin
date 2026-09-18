@@ -11,8 +11,12 @@ export default function SalesOutreachPage() {
     enabled: !authLoading && isAuthenticated,
     refetchInterval: 60_000,
   });
+  const gong = trpc.platformAdmin.getSalesGong.useQuery(undefined, {
+    enabled: !authLoading && isAuthenticated,
+    refetchInterval: 60_000,
+  });
 
-  if (authLoading || isLoading) {
+  if (authLoading || isLoading || gong.isLoading) {
     return (
       <div className="flex justify-center py-24">
         <div className="animate-spin h-10 w-10 border-2 border-indigo-600 border-t-transparent rounded-full" />
@@ -21,7 +25,7 @@ export default function SalesOutreachPage() {
   }
   if (!isAuthenticated) return null;
 
-  if (error) {
+  if (error && gong.error) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
         {error.message}
@@ -29,34 +33,134 @@ export default function SalesOutreachPage() {
     );
   }
 
-  if (!data?.connected) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-        Apollo is not connected.{' '}
-        <Link href="/sales/connections" className="text-indigo-700 hover:underline">
-          Add credentials on the API service
-        </Link>
-      </div>
-    );
-  }
-
-  const sequences = data.sequences ?? [];
-  const emails = data.emails ?? [];
+  const sequences = data?.sequences ?? [];
+  const emails = data?.emails ?? [];
+  const g = gong.data;
+  const stats = g?.stats;
 
   return (
     <div className="space-y-6">
-      {data.error && (
+      {(error || gong.error) && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          {error?.message || gong.error?.message}
+        </div>
+      )}
+      {data?.error && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {data.error}
+          Apollo: {data.error}
+        </div>
+      )}
+      {g?.error && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Gong: {g.error}
         </div>
       )}
 
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <Kpi label="Gong sent" value={String(stats?.sent ?? 0)} />
+        <Kpi label="Opened" value={String(stats?.opened ?? 0)} />
+        <Kpi label="Open count" value={String(stats?.openCount ?? 0)} />
+        <Kpi label="Multi-open people" value={String(stats?.multiOpenPeople ?? 0)} />
+        <Kpi label="Bounces" value={String(stats?.bounces ?? 0)} />
+        <Kpi label="Unsubs" value={String(stats?.unsubs ?? 0)} />
+      </div>
+
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Sequences</h2>
-          <p className="text-sm text-gray-500 mt-1">{sequences.length} loaded · first 50</p>
+          <h2 className="text-lg font-semibold text-gray-900">Gong Engage flows</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {g?.connected ? `${g.flows.length} flows · ${g.tasks.length} call tasks` : 'Gong is not connected'}
+          </p>
         </div>
-        {sequences.length === 0 ? (
+        {!g?.connected ? (
+          <p className="p-6 text-sm text-gray-500">
+            Set Gong credentials.{' '}
+            <Link href="/sales/connections" className="text-indigo-700 hover:underline">
+              Connections
+            </Link>
+          </p>
+        ) : (g.flows ?? []).length === 0 ? (
+          <p className="p-6 text-sm text-gray-500">No Engage flows returned.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Flow</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Folder</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Visibility</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g.flows.map((flow) => (
+                  <tr key={flow.id} className="border-b border-gray-100">
+                    <td className="px-4 py-3 font-medium text-gray-900">{flow.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{flow.folderName || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{flow.visibility || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{formatWhen(flow.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Gong / Salesforce emails</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Open and bounce fields come from Salesforce EmailMessage when Gong has no email list API.
+          </p>
+        </div>
+        {(g?.emails ?? []).length === 0 ? (
+          <p className="p-6 text-sm text-gray-500">No email rows in this range. Gong does not expose Engage open/bounce lists on the public API.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">To</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Subject</th>
+                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Opens</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Bounced</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Unsub</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Sent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {g!.emails.map((email) => (
+                  <tr key={`${email.source}:${email.id}`} className="border-b border-gray-100">
+                    <td className="px-4 py-3 font-medium text-gray-900">{email.toName || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{email.subject || '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{email.openCount}</td>
+                    <td className="px-4 py-3 text-gray-600">{email.bounced ? 'Yes' : '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{email.unsubscribed ? 'Yes' : '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{formatWhen(email.sentAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Apollo sequences</h2>
+          <p className="text-sm text-gray-500 mt-1">
+            {data?.connected ? `${sequences.length} loaded · first 50` : 'Apollo is not connected'}
+          </p>
+        </div>
+        {!data?.connected ? (
+          <p className="p-6 text-sm text-gray-500">
+            Add Apollo credentials.{' '}
+            <Link href="/sales/connections" className="text-indigo-700 hover:underline">
+              Connections
+            </Link>
+          </p>
+        ) : sequences.length === 0 ? (
           <p className="p-6 text-sm text-gray-500">No sequences in Apollo.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -101,7 +205,9 @@ export default function SalesOutreachPage() {
             {data.emailsThisWeek} this week
           </p>
         </div>
-        {emails.length === 0 ? (
+        {!data?.connected ? (
+          <p className="p-6 text-sm text-gray-500">Apollo emails unavailable.</p>
+        ) : emails.length === 0 ? (
           <p className="p-6 text-sm text-gray-500">No outreach emails in this range.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -128,6 +234,15 @@ export default function SalesOutreachPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-gray-900">{value}</p>
     </div>
   );
 }
