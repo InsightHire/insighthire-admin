@@ -57,10 +57,10 @@ export default function SalesOutreachPage() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <Kpi label="Gong sent" value={String(stats?.sent ?? 0)} />
+        <Kpi label="In flows" value={String(stats?.people ?? 0)} />
+        <Kpi label="Sent past email" value={String(stats?.sent ?? 0)} />
+        <Kpi label="Queued on email" value={String(stats?.queued ?? 0)} />
         <Kpi label="Opened" value={String(stats?.opened ?? 0)} />
-        <Kpi label="Open count" value={String(stats?.openCount ?? 0)} />
-        <Kpi label="Multi-open people" value={String(stats?.multiOpenPeople ?? 0)} />
         <Kpi label="Bounces" value={String(stats?.bounces ?? 0)} />
         <Kpi label="Unsubs" value={String(stats?.unsubs ?? 0)} />
       </div>
@@ -69,7 +69,9 @@ export default function SalesOutreachPage() {
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Gong Engage flows</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {g?.connected ? `${g.flows.length} flows · ${g.tasks.length} call tasks` : 'Gong is not connected'}
+            {g?.connected
+              ? `${g.flows.length} flows · ${stats?.people ?? 0} people · ${g.tasks.length} call tasks`
+              : 'Gong is not connected'}
           </p>
         </div>
         {!g?.connected ? (
@@ -88,7 +90,9 @@ export default function SalesOutreachPage() {
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="px-4 py-2 text-left font-semibold text-gray-600">Flow</th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-600">Folder</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Visibility</th>
+                  <th className="px-4 py-2 text-right font-semibold text-gray-600">People</th>
+                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Sent</th>
+                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Queued</th>
                   <th className="px-4 py-2 text-left font-semibold text-gray-600">Created</th>
                 </tr>
               </thead>
@@ -97,7 +101,9 @@ export default function SalesOutreachPage() {
                   <tr key={flow.id} className="border-b border-gray-100">
                     <td className="px-4 py-3 font-medium text-gray-900">{flow.name}</td>
                     <td className="px-4 py-3 text-gray-600">{flow.folderName || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{flow.visibility || '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{flow.people ?? 0}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{flow.sent ?? 0}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{flow.queued ?? 0}</td>
                     <td className="px-4 py-3 text-gray-600">{formatWhen(flow.createdAt)}</td>
                   </tr>
                 ))}
@@ -109,35 +115,39 @@ export default function SalesOutreachPage() {
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Gong / Salesforce emails</h2>
+          <h2 className="text-lg font-semibold text-gray-900">People in Gong flows</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Open and bounce fields come from Salesforce EmailMessage when Gong has no email list API.
+            Salesforce contacts and leads currently on Engage flows. Sent means they already left the email step.
           </p>
         </div>
-        {(g?.emails ?? []).length === 0 ? (
-          <p className="p-6 text-sm text-gray-500">No email rows in this range. Gong does not expose Engage open/bounce lists on the public API.</p>
+        {(g?.people ?? []).length === 0 ? (
+          <p className="p-6 text-sm text-gray-500">No contacts or leads are assigned to a Gong flow in Salesforce.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
+            <table className="w-full text-sm min-w-[800px]">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">To</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Subject</th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Opens</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Bounced</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Unsub</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Sent</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Name</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Email</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Flow</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Step</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Status</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Email</th>
                 </tr>
               </thead>
               <tbody>
-                {g!.emails.map((email) => (
-                  <tr key={`${email.source}:${email.id}`} className="border-b border-gray-100">
-                    <td className="px-4 py-3 font-medium text-gray-900">{email.toName || '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{email.subject || '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{email.openCount}</td>
-                    <td className="px-4 py-3 text-gray-600">{email.bounced ? 'Yes' : '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{email.unsubscribed ? 'Yes' : '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{formatWhen(email.sentAt)}</td>
+                {g!.people.map((person) => (
+                  <tr key={`${person.source}:${person.id}`} className="border-b border-gray-100">
+                    <td className="px-4 py-3 font-medium text-gray-900">{person.name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{person.email || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{person.flowName || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {[person.stepType, person.stepNumber ? `#${person.stepNumber}` : null].filter(Boolean).join(' ') || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">{person.flowStatus || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {person.bounced ? 'Bounced' : person.unsubscribed ? 'Unsub' : person.sent ? 'Sent' : 'Queued'}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -181,10 +181,10 @@ export default function SalesOverviewPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <Kpi label="Gong sent" value={String(g?.stats.sent ?? 0)} sub={g?.connected ? `${g.flows.length} flows` : 'Gong not connected'} />
+        <Kpi label="Gong in flows" value={String(g?.stats.people ?? 0)} sub={g?.connected ? `${g.flows.length} flows` : 'Gong not connected'} />
+        <Kpi label="Sent past email" value={String(g?.stats.sent ?? 0)} />
+        <Kpi label="Queued on email" value={String(g?.stats.queued ?? 0)} />
         <Kpi label="Opened" value={String(g?.stats.opened ?? 0)} />
-        <Kpi label="Open count" value={String(g?.stats.openCount ?? 0)} />
-        <Kpi label="Multi-open people" value={String(g?.stats.multiOpenPeople ?? 0)} />
         <Kpi label="Bounces" value={String(g?.stats.bounces ?? 0)} />
         <Kpi label="Unsubs" value={String(g?.stats.unsubs ?? 0)} />
       </div>
