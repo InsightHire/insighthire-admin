@@ -35,6 +35,8 @@ interface SourceStat {
   found: number;
   ok: boolean;
   error?: string;
+  /** Set when the source never ran because the role did not call for it. */
+  skipped?: string;
   target?: string;
   detail?: Array<{ label: string; count?: number; ok?: boolean; note?: string }>;
   domains?: string[];
@@ -114,12 +116,14 @@ function RunFanout({ runId }: { runId: string }) {
             const stat = stats[key];
             const stored = returned[key] ?? 0;
             const failed = stat.ok === false;
-            const empty = !failed && stored === 0;
+            const skipped = !!stat.skipped;
+            // "Never ran" and "ran and found nobody" are different answers.
+            const empty = !failed && !skipped && stored === 0;
             return (
               <div
                 key={key}
                 className={`rounded-lg border bg-white p-3 ${
-                  failed ? 'border-red-200' : empty ? 'border-amber-200' : 'border-gray-200'
+                  failed ? 'border-red-200' : empty ? 'border-amber-200' : skipped ? 'border-gray-150 opacity-70' : 'border-gray-200'
                 }`}
               >
                 <div className="flex items-baseline justify-between gap-2">
@@ -128,16 +132,19 @@ function RunFanout({ runId }: { runId: string }) {
                     className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
                       failed
                         ? 'bg-red-50 text-red-700'
-                        : empty
-                          ? 'bg-amber-50 text-amber-800'
-                          : 'bg-green-50 text-green-700'
+                        : skipped
+                          ? 'bg-gray-100 text-gray-500'
+                          : empty
+                            ? 'bg-amber-50 text-amber-800'
+                            : 'bg-green-50 text-green-700'
                     }`}
                   >
-                    {failed ? 'failed' : `${stored} stored`}
+                    {failed ? 'failed' : skipped ? 'not applicable' : `${stored} stored`}
                   </span>
                 </div>
                 {stat.target ? <p className="mt-0.5 font-mono text-[11px] text-gray-400">{stat.target}</p> : null}
                 {stat.error ? <p className="mt-1 text-[11px] text-red-600">{stat.error}</p> : null}
+                {stat.skipped ? <p className="mt-1 text-[11px] text-gray-500">Skipped — {stat.skipped}</p> : null}
 
                 {stat.detail?.length ? (
                   <ul className="mt-2 space-y-1 border-t border-gray-100 pt-2">
@@ -386,7 +393,8 @@ export default function SourcingRunsPage() {
                         <div className="flex flex-wrap gap-1">
                           {SOURCE_ORDER.filter((k) => r.sourcesUsed.includes(k)).map((k) => {
                             const failed = r.sourcesFailed.includes(k);
-                            const empty = r.sourcesEmpty.includes(k);
+                            const skipped = r.sourcesSkipped?.includes(k);
+                            const empty = !skipped && r.sourcesEmpty.includes(k);
                             return (
                               <span
                                 key={k}
@@ -394,9 +402,11 @@ export default function SourcingRunsPage() {
                                 className={`rounded px-1 py-0.5 font-mono text-[10px] ${
                                   failed
                                     ? 'bg-red-100 text-red-700'
-                                    : empty
-                                      ? 'bg-amber-100 text-amber-800'
-                                      : 'bg-green-100 text-green-700'
+                                    : skipped
+                                      ? 'bg-gray-100 text-gray-400'
+                                      : empty
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : 'bg-green-100 text-green-700'
                                 }`}
                               >
                                 {k}
