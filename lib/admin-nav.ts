@@ -21,6 +21,7 @@ import {
   Megaphone,
   Newspaper,
   Puzzle,
+  Radar,
   Rocket,
   Settings,
   Shield,
@@ -186,6 +187,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/scoring/runs',
         icon: Bot,
         match: ['/scoring/runs'],
+      },
+      {
+        name: 'Sourcing runs',
+        href: '/sourcing/runs',
+        icon: Radar,
+        match: ['/sourcing'],
       },
       {
         name: 'AI costs',

@@ -45,6 +45,7 @@ const PREVIOUS_HREFS = [
   '/settings/compliance',
   '/gdpr',
   '/devops/skills',
+  '/sourcing/runs',
 ].sort();
 
 describe('admin nav grouping', () => {
