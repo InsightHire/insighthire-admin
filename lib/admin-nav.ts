@@ -22,6 +22,7 @@ import {
   Newspaper,
   Puzzle,
   Radar,
+  Send,
   Rocket,
   Settings,
   Shield,
@@ -193,6 +194,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/sourcing/runs',
         icon: Radar,
         match: ['/sourcing'],
+      },
+      {
+        name: 'Outreach runs',
+        href: '/outreach/runs',
+        icon: Send,
+        match: ['/outreach'],
       },
       {
         name: 'AI costs',
