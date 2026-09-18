@@ -25,11 +25,11 @@ const SECTIONS: Array<{
   toggles?: Array<{ key: BoolKey; label: string; help: string }>;
 }> = [
   {
-    title: 'AI disclosure on outbound messages',
+    title: 'Outbound message footers',
     description:
       'Appended to messages the platform writes on a recruiter’s behalf. {{orgName}} becomes the tenant’s name.',
     fields: [
-      { key: 'aiDisclosureEmail', label: 'Email footer', help: 'Added after a blank line at the end of AI-written emails.', rows: 3 },
+      { key: 'aiDisclosureEmail', label: 'Email footer', help: 'Optional text added after a blank line at the end of emails.', rows: 3 },
       { key: 'aiDisclosureSms', label: 'Text message suffix', help: 'Keep it short. Every 160 characters is another SMS segment billed.', rows: 2 },
       { key: 'humanKeyword', label: 'Human keyword', help: 'When a candidate replies with this word the AI stops drafting and the recruiter handles the thread.', mono: true },
     ],
