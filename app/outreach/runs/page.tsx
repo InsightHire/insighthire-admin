@@ -59,7 +59,13 @@ function deliveryLabel(step: any): { text: string; cls: string } | null {
     case 'failed':
       return { text: `failed${d.error ? ` — ${d.error}` : ''}`, cls: 'text-red-600' };
     case 'sent':
-      return { text: d.via === 'mailbox' ? 'sent via recruiter mailbox (no open tracking)' : d.via === 'twilio' ? 'sent · awaiting carrier' : 'sent · not opened', cls: 'text-gray-500' };
+      return {
+        text:
+          d.via === 'mailbox'
+            ? d.tracked ? 'sent via recruiter mailbox · not opened' : 'sent via recruiter mailbox (pre-pixel, no open tracking)'
+            : d.via === 'twilio' ? 'sent · awaiting carrier' : 'sent · not opened',
+        cls: 'text-gray-500',
+      };
     default:
       return null;
   }
