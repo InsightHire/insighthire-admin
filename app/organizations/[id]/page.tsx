@@ -454,6 +454,12 @@ export default function OrganizationDetailPage() {
               onSaved={refetch}
             />
 
+            <OrgDashboardSettingsSection
+              organizationId={orgId}
+              settings={(data.organization.settings as Record<string, unknown> | null) || null}
+              onSaved={refetch}
+            />
+
             {/* Per-org language settings */}
             <OrgI18nSettingsSection organizationId={orgId} onSaved={refetch} />
 
@@ -1678,6 +1684,63 @@ function OrgAuthoringSettingsSection({
             When on, saving a video question kicks off AI avatar video rendering automatically.
             Turn off if this org is hitting quota or persona issues.
           </p>
+        </div>
+      </label>
+    </div>
+  );
+}
+
+function OrgDashboardSettingsSection({
+  organizationId,
+  settings,
+  onSaved,
+}: {
+  organizationId: string;
+  settings: Record<string, unknown> | null;
+  onSaved: () => void;
+}) {
+  const utils = (trpc as any).useUtils();
+  const enabled = settings?.supportChatEnabled === true;
+
+  const setDashboardSettings = (trpc as any).platformAdmin.setOrgDashboardSettings.useMutation({
+    onSuccess: () => {
+      utils.platformAdmin.getOrganization.invalidate({ id: organizationId });
+      onSaved();
+    },
+  });
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-1">Dashboard settings</h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Tenant-specific controls for the recruiter dashboard.
+      </p>
+      <label className="flex items-start gap-3 cursor-pointer rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={setDashboardSettings.isLoading}
+          aria-invalid={Boolean(setDashboardSettings.error)}
+          aria-describedby="support-chatbot-help support-chatbot-error"
+          onChange={(e) => setDashboardSettings.mutate({
+            organizationId,
+            supportChatEnabled: e.target.checked,
+          })}
+          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">Support chatbot</span>
+            {setDashboardSettings.isLoading && <span className="text-xs text-gray-500">Saving…</span>}
+          </div>
+          <p id="support-chatbot-help" className="text-xs text-gray-600 mt-1">
+            Show the support chatbot in this tenant&apos;s recruiter dashboard. Its launcher uses the tenant&apos;s primary brand color.
+          </p>
+          {setDashboardSettings.error && (
+            <p id="support-chatbot-error" role="alert" className="text-xs text-red-600 mt-1">
+              {setDashboardSettings.error.message}
+            </p>
+          )}
         </div>
       </label>
     </div>
