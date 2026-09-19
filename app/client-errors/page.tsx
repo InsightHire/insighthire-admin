@@ -63,12 +63,26 @@ export default function ClientErrorsPage() {
   useAdminAuth();
   const [days, setDays] = useState<number>(7);
   const [open, setOpen] = useState<string | null>(null);
+  const [recovered, setRecovered] = useState<string | null>(null);
 
   const list = (trpc as any).platformAdmin.listClientErrors.useQuery(
     { days },
     { refetchOnWindowFocus: false },
   );
   const groups: any[] = list.data ?? [];
+
+  /**
+   * Re-resolve the tenant for rows recorded before the URL was parsed. Every
+   * journey crash carries its session in the URL, so this is recoverable
+   * history — it also runs nightly, this is just the impatient path.
+   */
+  const backfill = (trpc as any).platformAdmin.backfillClientErrorTenants.useMutation({
+    onSuccess: (res: { scanned: number; resolved: number; stillUnknown: number }) => {
+      setRecovered(`Recovered ${res.resolved} of ${res.scanned} — ${res.stillUnknown} have no tenant signal in their URL.`);
+      void list.refetch();
+    },
+    onError: (err: { message?: string }) => setRecovered(err?.message ?? 'Backfill failed'),
+  });
 
   return (
     <AuthenticatedLayout>
@@ -92,8 +106,20 @@ export default function ClientErrorsPage() {
                 {d === 1 ? '24h' : `${d}d`}
               </button>
             ))}
+            <button
+              onClick={() => backfill.mutate({})}
+              disabled={backfill.isPending}
+              title="Re-resolve tenants from the session id in each error's URL"
+              className="ml-2 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+            >
+              {backfill.isPending ? 'Recovering…' : 'Recover tenants'}
+            </button>
           </div>
         </div>
+
+        {recovered ? (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-700">{recovered}</div>
+        ) : null}
 
         <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
           {list.isLoading ? (
