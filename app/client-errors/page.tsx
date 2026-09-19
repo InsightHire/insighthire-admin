@@ -29,6 +29,25 @@ function ErrorGroupDetail({ fingerprint }: { fingerprint: string }) {
             {e.url ? <span className="ml-2 text-gray-400">{e.url}</span> : null}
             {e.ip ? <span className="ml-2 font-mono text-gray-400">{e.ip}</span> : null}
           </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            {e.organizationName ? (
+              <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-medium text-indigo-700">
+                {e.organizationName}
+              </span>
+            ) : (
+              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-500">no tenant</span>
+            )}
+            {e.userEmail ? <span className="text-gray-700">{e.userEmail}</span> : null}
+            {e.userRole ? <span className="text-gray-400">{e.userRole}</span> : null}
+            {e.impersonating ? (
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-800">impersonating</span>
+            ) : null}
+            {e.journeySessionId ? (
+              <span className="font-mono text-gray-400">session {e.journeySessionId}</span>
+            ) : null}
+            {e.viewport ? <span className="font-mono text-gray-400">{e.viewport}</span> : null}
+            {e.releaseSha ? <span className="font-mono text-gray-400">build {e.releaseSha.slice(0, 8)}</span> : null}
+          </p>
           {e.stack && (
             <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-gray-500">
               {e.stack}
@@ -103,6 +122,38 @@ export default function ClientErrorsPage() {
                       <span className="font-mono">{g.sample?.source}</span>
                       {g.sample?.kind ? <span className="ml-2 font-mono">{g.sample.kind}</span> : null}
                       {g.sample?.url ? <span className="ml-2">{g.sample.url}</span> : null}
+                    </p>
+                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      {/* Blast radius. "Every tenant" and "one customer" are
+                          the same message but completely different problems. */}
+                      {g.organizationCount > 0 ? (
+                        g.organizations.slice(0, 3).map((o: any) => (
+                          <span key={o.id} className="rounded bg-indigo-50 px-1.5 py-0.5 font-medium text-indigo-700">
+                            {o.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-500">no tenant recorded</span>
+                      )}
+                      {g.organizationCount > 3 ? (
+                        <span className="text-gray-500">+{g.organizationCount - 3} more tenants</span>
+                      ) : null}
+                      {g.userCount > 0 ? (
+                        <span className="text-gray-500">
+                          {g.userCount} {g.userCount === 1 ? 'user' : 'users'}
+                        </span>
+                      ) : null}
+                      {g.sample?.userEmail && g.userCount === 1 ? (
+                        <span className="text-gray-600">{g.sample.userEmail}</span>
+                      ) : null}
+                      {g.sample?.impersonating ? (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-800">
+                          impersonating
+                        </span>
+                      ) : null}
+                      {g.unattributed > 0 && g.organizationCount > 0 ? (
+                        <span className="text-gray-400">{g.unattributed} unattributed</span>
+                      ) : null}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       First {new Date(g.firstSeen).toLocaleString()} · Last {new Date(g.lastSeen).toLocaleString()}
