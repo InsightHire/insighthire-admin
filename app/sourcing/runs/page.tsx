@@ -248,6 +248,66 @@ function RunFanout({ runId }: { runId: string }) {
   );
 }
 
+/**
+ * Registry health from the weekly canary.
+ *
+ * These adapters fail to zero rather than erroring — a state renames a column
+ * and the source goes quiet — so "returned no records" is the alarm, not an
+ * absence of one.
+ */
+function RegistryHealth() {
+  const health = (trpc as any).platformAdmin.getSourceHealth.useQuery(undefined, { refetchOnWindowFocus: false });
+  const run = (trpc as any).platformAdmin.runSourceCanary.useMutation({
+    onSuccess: () => setTimeout(() => health.refetch(), 5_000),
+  });
+  const sources: any[] = health.data?.sources ?? [];
+  const summary = health.data?.summary ?? { total: 0, healthy: 0, unhealthy: 0, skipped: 0 };
+  const broken = sources.filter((s) => !s.ok && !s.skipped);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Registry health</h2>
+          <p className="text-xs text-gray-500">
+            {sources.length === 0
+              ? 'The canary has not run yet — it probes every licensing registry weekly.'
+              : `${summary.healthy} of ${summary.total} registries answered on the last check.`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => run.mutate()}
+          disabled={run.isPending}
+          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+        >
+          {run.isPending ? 'Checking…' : 'Check now'}
+        </button>
+      </div>
+
+      {broken.length > 0 ? (
+        <ul className="mt-3 space-y-1">
+          {broken.map((s) => (
+            <li key={s.adapterId} className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+              <span className="font-medium">{s.board}</span> returned nothing for {s.trade}
+              {s.consecutiveFailures > 1 ? ` (${s.consecutiveFailures} checks in a row)` : ''}
+              {s.error ? <span className="block font-mono text-[11px] opacity-80">{s.error}</span> : null}
+            </li>
+          ))}
+        </ul>
+      ) : sources.length > 0 ? (
+        <p className="mt-2 text-xs text-green-700">Every registry returned a record.</p>
+      ) : null}
+
+      {summary.skipped > 0 ? (
+        <p className="mt-2 text-[11px] text-gray-500">
+          {summary.skipped} skipped (not yet imported — neither healthy nor broken).
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function SourcingRunsPage() {
   useAdminAuth();
   const [days, setDays] = useState<number>(7);
@@ -318,6 +378,8 @@ export default function SourcingRunsPage() {
             </select>
           </div>
         </div>
+
+        <RegistryHealth />
 
         {/* Fleet health per source — the reason this page exists. */}
         {Object.keys(health).length ? (
