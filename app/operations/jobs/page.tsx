@@ -33,6 +33,8 @@ interface JobHealth {
   runs24h: number;
   failures24h: number;
   overdue: boolean;
+  /** Registered but not yet due for its first run — not a fault. */
+  awaitingFirstRun: boolean;
   minutesSinceLastRun: number | null;
 }
 
@@ -112,7 +114,7 @@ export default function ScheduledJobsPage() {
   });
 
   const jobs: JobHealth[] = health.data?.jobs ?? [];
-  const summary = health.data?.summary ?? { total: 0, overdue: 0, failing: 0, healthy: 0 };
+  const summary = health.data?.summary ?? { total: 0, overdue: 0, failing: 0, healthy: 0, awaitingFirstRun: 0 };
 
   return (
     <AuthenticatedLayout>
@@ -130,7 +132,7 @@ export default function ScheduledJobsPage() {
             { label: 'Overdue', value: summary.overdue, tone: summary.overdue > 0 ? 'text-red-600' : 'text-gray-900' },
             { label: 'Failing', value: summary.failing, tone: summary.failing > 0 ? 'text-amber-700' : 'text-gray-900' },
             { label: 'Healthy', value: summary.healthy, tone: 'text-green-700' },
-            { label: 'Tracked', value: summary.total, tone: 'text-gray-900' },
+            { label: 'Awaiting first run', value: summary.awaitingFirstRun ?? 0, tone: 'text-gray-500' },
           ].map((tile) => (
             <div key={tile.label} className="rounded-lg border border-gray-200 bg-white p-3">
               <p className="text-xs uppercase tracking-wide text-gray-500">{tile.label}</p>
@@ -184,6 +186,13 @@ export default function ScheduledJobsPage() {
                       {job.overdue ? (
                         <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
                           {job.lastRunAt ? 'overdue' : 'never run'}
+                        </span>
+                      ) : job.awaitingFirstRun ? (
+                        <span
+                          title="Registered, but its first window has not come round yet"
+                          className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500"
+                        >
+                          awaiting first run
                         </span>
                       ) : job.consecutiveFailures > 0 ? (
                         <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
