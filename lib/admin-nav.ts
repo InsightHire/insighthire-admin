@@ -25,6 +25,7 @@ import {
   Send,
   Rocket,
   Settings,
+  Timer,
   Shield,
   ShieldAlert,
   ToggleLeft,
@@ -188,6 +189,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/scoring/runs',
         icon: Bot,
         match: ['/scoring/runs'],
+      },
+      {
+        name: 'Scheduled jobs',
+        href: '/operations/jobs',
+        icon: Timer,
+        match: ['/operations/jobs'],
       },
       {
         name: 'Sourcing runs',
