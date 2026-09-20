@@ -3,7 +3,174 @@
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { formatMoney, formatWhen, money } from './format';
+import { formatDate, formatMoney, formatWhen, money } from './format';
+
+/**
+ * Per-rep scoreboard.
+ *
+ * Owner.Name is the one attribution Salesforce reliably gives us, so it is
+ * what everything here is grouped by. Win rate deliberately counts only
+ * decided deals — including open ones would make a rep with a full pipeline
+ * and no closes look like they lose everything.
+ */
+function RepScoreboard({
+  reps,
+}: {
+  reps: Array<{
+    ownerName: string;
+    openCount: number;
+    openAmount: number;
+    wonCount: number;
+    wonAmount: number;
+    lostCount: number;
+    assumedCount: number;
+    winRate: number;
+    averageDealSize: number;
+  }>;
+}) {
+  if (!reps.length) return null;
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">By rep</h2>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="py-2 pr-4 text-left font-medium">Rep</th>
+              <th className="py-2 pr-4 text-right font-medium">Open</th>
+              <th className="py-2 pr-4 text-right font-medium">Pipeline</th>
+              <th className="py-2 pr-4 text-right font-medium">Won</th>
+              <th className="py-2 pr-4 text-right font-medium">Lost</th>
+              <th className="py-2 pr-4 text-right font-medium">Win rate</th>
+              <th className="py-2 text-right font-medium">Avg deal</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {reps.map((rep) => (
+              <tr key={rep.ownerName}>
+                <td className="py-2 pr-4 font-medium text-gray-900">
+                  {rep.ownerName}
+                  {rep.assumedCount > 0 && (
+                    <span className="ml-2 text-xs font-normal text-amber-700">
+                      {rep.assumedCount} estimated
+                    </span>
+                  )}
+                </td>
+                <td className="py-2 pr-4 text-right tabular-nums text-gray-700">{rep.openCount}</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-gray-900">{formatMoney(rep.openAmount)}</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-green-700">
+                  {rep.wonCount}
+                  {rep.wonAmount > 0 && (
+                    <span className="ml-1 text-xs text-gray-500">{formatMoney(rep.wonAmount)}</span>
+                  )}
+                </td>
+                <td className="py-2 pr-4 text-right tabular-nums text-gray-500">{rep.lostCount}</td>
+                <td className="py-2 pr-4 text-right tabular-nums text-gray-700">
+                  {rep.wonCount + rep.lostCount === 0 ? (
+                    <span className="text-gray-400" title="Nothing decided yet">—</span>
+                  ) : (
+                    `${rep.winRate}%`
+                  )}
+                </td>
+                <td className="py-2 text-right tabular-nums text-gray-700">
+                  {rep.averageDealSize ? formatMoney(rep.averageDealSize) : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Open deals. Amounts missing in Salesforce show the assumed figure with an
+ * "est." marker — a dashboard that silently invents revenue is worse than one
+ * that shows zero, so the estimate is always visible as an estimate.
+ */
+function DealsTable({
+  deals,
+  assumedValue,
+  loading,
+}: {
+  deals: Array<{
+    id: string;
+    name: string;
+    accountName: string | null;
+    stageName: string;
+    effectiveAmount: number;
+    amountAssumed: boolean;
+    probability: number | null;
+    closeDate: string | null;
+    ownerName: string | null;
+    nextStep: string | null;
+  }>;
+  assumedValue: number;
+  loading: boolean;
+}) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Open deals</h2>
+        {assumedValue > 0 && (
+          <p className="text-xs text-gray-500">
+            Deals with no amount in Salesforce are estimated at {formatMoney(assumedValue)} and marked
+            <span className="mx-1 rounded bg-amber-100 px-1 py-0.5 text-[11px] font-medium text-amber-800">est.</span>
+          </p>
+        )}
+      </div>
+      {loading ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : deals.length === 0 ? (
+        <p className="text-sm text-gray-500">No open opportunities.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="text-xs uppercase tracking-wide text-gray-500">
+              <tr>
+                <th className="py-2 pr-4 text-left font-medium">Account</th>
+                <th className="py-2 pr-4 text-left font-medium">Deal</th>
+                <th className="py-2 pr-4 text-left font-medium">Stage</th>
+                <th className="py-2 pr-4 text-right font-medium">Amount</th>
+                <th className="py-2 pr-4 text-right font-medium">Prob.</th>
+                <th className="py-2 pr-4 text-left font-medium">Close</th>
+                <th className="py-2 text-left font-medium">Owner</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {deals.map((deal) => (
+                <tr key={deal.id}>
+                  <td className="py-2 pr-4 font-medium text-gray-900">{deal.accountName ?? '—'}</td>
+                  <td className="py-2 pr-4 text-gray-700">
+                    {deal.name}
+                    {deal.nextStep && (
+                      <span className="block text-xs text-gray-400">Next: {deal.nextStep}</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600">{deal.stageName}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-gray-900">
+                    {formatMoney(deal.effectiveAmount)}
+                    {deal.amountAssumed && (
+                      <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[11px] font-medium text-amber-800">
+                        est.
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-gray-500">
+                    {deal.probability == null ? '—' : `${deal.probability}%`}
+                  </td>
+                  <td className="py-2 pr-4 text-gray-600">{formatDate(deal.closeDate)}</td>
+                  <td className="py-2 text-gray-600">{deal.ownerName ?? 'Unassigned'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function SalesOverviewPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
@@ -85,7 +252,15 @@ export default function SalesOverviewPage() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <Kpi label="Open pipeline" value={money(p?.openPipelineAmount)} sub={`${p?.openCount ?? 0} open deals`} />
+        <Kpi
+          label="Open pipeline"
+          value={money(p?.openPipelineAmount)}
+          sub={
+            p?.assumedOpenCount
+              ? `${p.openCount} deals · ${p.assumedOpenCount} estimated at ${money(p.assumedDealValue)}`
+              : `${p?.openCount ?? 0} open deals`
+          }
+        />
         <Kpi label="Weighted" value={money(p?.weightedPipelineAmount)} sub="Amount × probability" />
         <Kpi label="Won" value={String(p?.wonCount ?? 0)} />
         <Kpi label="Lost" value={String(p?.lostCount ?? 0)} />
@@ -99,6 +274,14 @@ export default function SalesOverviewPage() {
           }
         />
       </div>
+
+      <RepScoreboard reps={p?.reps ?? []} />
+
+      <DealsTable
+        deals={p?.opportunities ?? []}
+        assumedValue={p?.assumedDealValue ?? 0}
+        loading={pipeline.isLoading}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">

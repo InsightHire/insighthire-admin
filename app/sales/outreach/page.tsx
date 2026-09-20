@@ -5,6 +5,58 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { formatWhen } from '../format';
 
+/**
+ * Top-of-funnel across every live Apollo sequence.
+ *
+ * Apollo counts unique CONTACTS at each step, not messages, so these are
+ * people reached rather than emails sent — which is the number that answers
+ * "is outreach working". Rates are shown against the step above rather than
+ * against the top, because open rate on delivered and reply rate on delivered
+ * answer different questions and conflating them flatters the result.
+ */
+function OutreachFunnel({
+  funnel,
+  sequenceCount,
+  rate,
+}: {
+  funnel: { delivered: number; opened: number; replied: number; clicked: number };
+  sequenceCount: number;
+  rate: (part: number, whole: number) => number;
+}) {
+  const steps = [
+    { label: 'Reached', value: funnel.delivered, of: null as number | null, hint: 'unique people delivered to' },
+    { label: 'Opened', value: funnel.opened, of: funnel.delivered, hint: 'of those reached' },
+    { label: 'Replied', value: funnel.replied, of: funnel.delivered, hint: 'of those reached' },
+    { label: 'Clicked', value: funnel.clicked, of: funnel.delivered, hint: 'of those reached' },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">Outreach funnel</h2>
+        <p className="text-xs text-gray-500">
+          {sequenceCount} live {sequenceCount === 1 ? 'sequence' : 'sequences'} · unique people, not messages
+        </p>
+      </div>
+      {funnel.delivered === 0 ? (
+        <p className="text-sm text-gray-500">No live sequence has reached anyone yet.</p>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {steps.map((step) => (
+            <div key={step.label} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+              <p className="text-xs uppercase tracking-wide text-gray-500">{step.label}</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{step.value.toLocaleString()}</p>
+              <p className="text-xs text-gray-500">
+                {step.of == null ? step.hint : `${rate(step.value, step.of)}% ${step.hint}`}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SalesOutreachPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
   const { data, isLoading, error } = trpc.platformAdmin.getSalesApollo.useQuery(undefined, {
@@ -38,6 +90,21 @@ export default function SalesOutreachPage() {
   const g = gong.data;
   const stats = g?.stats;
 
+  // Funnel across every live sequence. Apollo reports unique contacts at each
+  // step, so these are people reached rather than messages sent — the number a
+  // rep actually cares about.
+  const live = sequences.filter((sq: { archived: boolean }) => !sq.archived);
+  const funnel = live.reduce(
+    (acc: { delivered: number; opened: number; replied: number; clicked: number }, sq: any) => ({
+      delivered: acc.delivered + (sq.uniqueDelivered ?? 0),
+      opened: acc.opened + (sq.uniqueOpened ?? 0),
+      replied: acc.replied + (sq.uniqueReplied ?? 0),
+      clicked: acc.clicked + (sq.uniqueClicked ?? 0),
+    }),
+    { delivered: 0, opened: 0, replied: 0, clicked: 0 },
+  );
+  const rate = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0);
+
   return (
     <div className="space-y-6">
       {(error || gong.error) && (
@@ -55,6 +122,8 @@ export default function SalesOutreachPage() {
           Gong: {g.error}
         </div>
       )}
+
+      <OutreachFunnel funnel={funnel} sequenceCount={live.length} rate={rate} />
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <Kpi label="In flows" value={String(stats?.people ?? 0)} />
