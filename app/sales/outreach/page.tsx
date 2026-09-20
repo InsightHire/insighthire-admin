@@ -1,5 +1,7 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
@@ -57,8 +59,207 @@ function OutreachFunnel({
   );
 }
 
+/**
+ * Apollo sequences, ranked by the number that actually matters.
+ *
+ * Default sort is reply rate, not volume: a sequence that blasted 4,000 people
+ * for six replies is a worse sequence than one that reached 80 for twelve, and
+ * sorting by delivered hides that. Sequences below a floor of 20 delivered are
+ * still shown but their rate is greyed — a 100% reply rate on two people is
+ * noise, and letting it top the table would be actively misleading.
+ */
+function SequenceTable({
+  sequences,
+  connected,
+  sort,
+  setSort,
+  filter,
+  setFilter,
+  query,
+  setQuery,
+}: {
+  sequences: any[];
+  connected: boolean;
+  sort: 'replyRate' | 'delivered' | 'replied' | 'recent' | 'name';
+  setSort: (v: 'replyRate' | 'delivered' | 'replied' | 'recent' | 'name') => void;
+  filter: 'live' | 'all';
+  setFilter: (v: 'live' | 'all') => void;
+  query: string;
+  setQuery: (v: string) => void;
+}) {
+  /** Below this, a percentage says more about luck than about the sequence. */
+  const MEANINGFUL = 20;
+
+  const rows = useMemo(() => {
+    const withRates = sequences
+      .filter((s) => (filter === 'live' ? !s.archived : true))
+      .filter((s) => (query ? s.name.toLowerCase().includes(query.toLowerCase()) : true))
+      .map((s) => {
+        const delivered = s.uniqueDelivered ?? 0;
+        return {
+          ...s,
+          delivered,
+          opened: s.uniqueOpened ?? 0,
+          replied: s.uniqueReplied ?? 0,
+          openRate: delivered ? (s.uniqueOpened ?? 0) / delivered : 0,
+          replyRate: delivered ? (s.uniqueReplied ?? 0) / delivered : 0,
+          meaningful: delivered >= MEANINGFUL,
+        };
+      });
+
+    const sorted = [...withRates];
+    switch (sort) {
+      case 'replyRate':
+        // Sequences with too little volume sink rather than topping the table
+        // on a meaningless percentage.
+        sorted.sort((a, b) => {
+          if (a.meaningful !== b.meaningful) return a.meaningful ? -1 : 1;
+          return b.replyRate - a.replyRate;
+        });
+        break;
+      case 'delivered':
+        sorted.sort((a, b) => b.delivered - a.delivered);
+        break;
+      case 'replied':
+        sorted.sort((a, b) => b.replied - a.replied);
+        break;
+      case 'recent':
+        sorted.sort((a, b) => (b.lastUsedAt ?? '').localeCompare(a.lastUsedAt ?? ''));
+        break;
+      case 'name':
+        sorted.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+    }
+    return sorted;
+  }, [sequences, sort, filter, query]);
+
+  const best = Math.max(0.0001, ...rows.filter((r) => r.meaningful).map((r) => r.replyRate));
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-gray-200">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Sequences <span className="text-sm font-normal text-gray-500">({rows.length})</span>
+        </h2>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find a sequence…"
+            aria-label="Find a sequence"
+            className="w-44 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+          />
+          <div className="flex rounded-md border border-gray-300 overflow-hidden">
+            {(['live', 'all'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-2.5 py-1.5 text-sm ${
+                  filter === f ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {f === 'live' ? 'Live' : 'All'}
+              </button>
+            ))}
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as never)}
+            aria-label="Sort sequences"
+            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-700"
+          >
+            <option value="replyRate">Best reply rate</option>
+            <option value="replied">Most replies</option>
+            <option value="delivered">Most reached</option>
+            <option value="recent">Recently used</option>
+            <option value="name">By name</option>
+          </select>
+        </div>
+      </div>
+
+      {!connected ? (
+        <p className="p-6 text-sm text-gray-500">
+          Apollo is not connected.{' '}
+          <Link href="/sales/connections" className="text-indigo-700 hover:underline">
+            Connections
+          </Link>
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="p-6 text-sm text-gray-500">
+          {query ? 'No sequence matches that name.' : 'No sequences in Apollo.'}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[820px]">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <th className="px-4 py-2 text-left font-medium">Sequence</th>
+                <th className="px-4 py-2 text-right font-medium">Reached</th>
+                <th className="px-4 py-2 text-right font-medium">Opened</th>
+                <th className="px-4 py-2 text-right font-medium">Replied</th>
+                <th className="px-4 py-2 text-left font-medium">Reply rate</th>
+                <th className="px-4 py-2 text-left font-medium">Last used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((seq) => (
+                <tr key={seq.id} className="border-b border-gray-100">
+                  <td className="px-4 py-3">
+                    <span className="font-medium text-gray-900">{seq.name}</span>
+                    {seq.archived && (
+                      <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">archived</span>
+                    )}
+                    {!seq.archived && seq.active && (
+                      <span className="ml-2 rounded bg-green-50 px-1.5 py-0.5 text-[11px] text-green-700">active</span>
+                    )}
+                    <span className="block text-xs text-gray-400">{seq.numSteps ?? 0} steps</span>
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-900">{seq.delivered.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-gray-600">
+                    {seq.opened.toLocaleString()}
+                    {seq.delivered > 0 && (
+                      <span className="ml-1 text-xs text-gray-400">{Math.round(seq.openRate * 100)}%</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums font-medium text-gray-900">
+                    {seq.replied.toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3">
+                    {seq.delivered === 0 ? (
+                      <span className="text-xs text-gray-400">not sent</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
+                          <div
+                            className={seq.meaningful ? 'h-2 bg-indigo-500' : 'h-2 bg-gray-300'}
+                            style={{ width: `${Math.max(4, (seq.replyRate / best) * 100)}%` }}
+                          />
+                        </div>
+                        <span
+                          className={`tabular-nums text-xs ${seq.meaningful ? 'text-gray-900' : 'text-gray-400'}`}
+                          title={seq.meaningful ? undefined : `Only ${seq.delivered} reached — too few to read into`}
+                        >
+                          {(seq.replyRate * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">{formatWhen(seq.lastUsedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SalesOutreachPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
+  const [seqSort, setSeqSort] = useState<'replyRate' | 'delivered' | 'replied' | 'recent' | 'name'>('replyRate');
+  const [seqFilter, setSeqFilter] = useState<'live' | 'all'>('live');
+  const [seqQuery, setSeqQuery] = useState('');
   const { data, isLoading, error } = trpc.platformAdmin.getSalesApollo.useQuery(undefined, {
     enabled: !authLoading && isAuthenticated,
     refetchInterval: 60_000,
@@ -225,55 +426,18 @@ export default function SalesOutreachPage() {
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Apollo sequences</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {data?.connected ? `${sequences.length} loaded · first 50` : 'Apollo is not connected'}
-          </p>
-        </div>
-        {!data?.connected ? (
-          <p className="p-6 text-sm text-gray-500">
-            Add Apollo credentials.{' '}
-            <Link href="/sales/connections" className="text-indigo-700 hover:underline">
-              Connections
-            </Link>
-          </p>
-        ) : sequences.length === 0 ? (
-          <p className="p-6 text-sm text-gray-500">No sequences in Apollo.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Sequence</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Status</th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Delivered</th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Opened</th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-600">Replied</th>
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600">Last used</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sequences.map((seq) => (
-                  <tr key={seq.id} className="border-b border-gray-100">
-                    <td className="px-4 py-3 font-medium text-gray-900">{seq.name}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {seq.archived ? 'Archived' : seq.active ? 'Active' : 'Inactive'}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{seq.uniqueDelivered ?? '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{seq.uniqueOpened ?? '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-600">{seq.uniqueReplied ?? '—'}</td>
-                    <td className="px-4 py-3 text-gray-600">{formatWhen(seq.lastUsedAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      <SequenceTable
+        sequences={sequences}
+        connected={!!data?.connected}
+        sort={seqSort}
+        setSort={setSeqSort}
+        filter={seqFilter}
+        setFilter={setSeqFilter}
+        query={seqQuery}
+        setQuery={setSeqQuery}
+      />
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+<div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Recent emails</h2>
           <p className="text-sm text-gray-500 mt-1">
