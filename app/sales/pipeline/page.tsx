@@ -9,13 +9,55 @@
  * overview, which counts an assumed value. It now uses the same effective
  * amount and marks every estimate, so the two pages can never disagree.
  */
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { formatDate, formatMoney } from '../format';
 
 type SortKey = 'amount' | 'close' | 'stage' | 'account';
+type GroupKey = 'none' | 'owner' | 'stage' | 'month' | 'account';
+type CloseWindow = 'all' | 'overdue' | 'month' | 'quarter' | 'undated';
+
+const GROUP_LABELS: Record<GroupKey, string> = {
+  none: 'No grouping',
+  owner: 'Group by rep',
+  stage: 'Group by stage',
+  month: 'Group by close month',
+  account: 'Group by account',
+};
+
+const CLOSE_LABELS: Record<CloseWindow, string> = {
+  all: 'Any close date',
+  overdue: 'Past due',
+  month: 'Closing this month',
+  quarter: 'Closing in 90 days',
+  undated: 'No close date',
+};
+
+/** "2026-11" -> "November 2026"; undated deals group together at the end. */
+function monthLabel(closeDate: string | null): string {
+  if (!closeDate) return 'No close date';
+  const d = new Date(closeDate);
+  if (Number.isNaN(d.getTime())) return 'No close date';
+  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+}
+
+function inCloseWindow(closeDate: string | null, window: CloseWindow, now = new Date()): boolean {
+  if (window === 'all') return true;
+  if (!closeDate) return window === 'undated';
+  if (window === 'undated') return false;
+  const d = new Date(closeDate);
+  // An unparseable date behaves like a missing one, and 'undated' already
+  // returned above, so at this point it can only be a no-match.
+  if (Number.isNaN(d.getTime())) return false;
+  if (window === 'overdue') return d < now;
+  const days = (d.getTime() - now.getTime()) / 86_400_000;
+  if (window === 'quarter') return days >= 0 && days <= 90;
+  // "this month" means the current calendar month, not the next 30 days —
+  // that is what a rep means when they say it.
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
 
 export default function SalesPipelinePage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
@@ -27,6 +69,10 @@ export default function SalesPipelinePage() {
   const [owner, setOwner] = useState<string>('');
   const [stage, setStage] = useState<string>('');
   const [sort, setSort] = useState<SortKey>('amount');
+  const [groupBy, setGroupBy] = useState<GroupKey>('none');
+  const [closeWindow, setCloseWindow] = useState<CloseWindow>('all');
+  const [query, setQuery] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [showTasks, setShowTasks] = useState(false);
 
   const opportunities: any[] = data?.opportunities ?? [];
@@ -43,10 +89,16 @@ export default function SalesPipelinePage() {
   );
 
   const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
     const rows = opportunities.filter(
       (o) =>
         (!owner || (o.ownerName ?? 'Unassigned') === owner) &&
-        (!stage || o.stageName === stage),
+        (!stage || o.stageName === stage) &&
+        inCloseWindow(o.closeDate, closeWindow) &&
+        (!q ||
+          [o.accountName, o.name, o.ownerName, o.stageName]
+            .filter(Boolean)
+            .some((v: string) => v.toLowerCase().includes(q))),
     );
     const sorted = [...rows];
     switch (sort) {
@@ -66,11 +118,49 @@ export default function SalesPipelinePage() {
         break;
     }
     return sorted;
-  }, [opportunities, owner, stage, sort]);
+  }, [opportunities, owner, stage, sort, query, closeWindow]);
+
+  /**
+   * Group the filtered rows. Subtotals are what make grouping useful — a list
+   * split by rep with no per-rep total is just a sorted list.
+   */
+  const groups = useMemo(() => {
+    if (groupBy === 'none') return [{ key: '', label: '', rows: visible }];
+    const map = new Map<string, any[]>();
+    for (const o of visible) {
+      const key =
+        groupBy === 'owner'
+          ? o.ownerName ?? 'Unassigned'
+          : groupBy === 'stage'
+            ? o.stageName
+            : groupBy === 'account'
+              ? o.accountName ?? 'No account'
+              : monthLabel(o.closeDate);
+      map.set(key, [...(map.get(key) ?? []), o]);
+    }
+    const entries = [...map.entries()].map(([key, rows]) => ({
+      key,
+      label: key,
+      rows,
+      total: rows.reduce((sum, r) => sum + r.effectiveAmount, 0),
+      assumed: rows.filter((r) => r.amountAssumed).length,
+    }));
+    // Biggest group first, except by month where chronology is the point.
+    if (groupBy === 'month') {
+      entries.sort((a, b) => {
+        if (a.label === 'No close date') return 1;
+        if (b.label === 'No close date') return -1;
+        return new Date(a.rows[0].closeDate).getTime() - new Date(b.rows[0].closeDate).getTime();
+      });
+    } else {
+      entries.sort((a, b) => b.total - a.total);
+    }
+    return entries;
+  }, [visible, groupBy]);
 
   const filteredTotal = visible.reduce((sum, o) => sum + o.effectiveAmount, 0);
   const filteredAssumed = visible.filter((o) => o.amountAssumed).length;
-  const filtering = !!owner || !!stage;
+  const filtering = !!owner || !!stage || !!query.trim() || closeWindow !== 'all';
 
   if (authLoading || isLoading) {
     return (
@@ -149,8 +239,42 @@ export default function SalesPipelinePage() {
             </span>
           )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Account, deal, rep…"
+              aria-label="Search deals"
+              className="w-44 rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+            />
             <Select value={owner} onChange={setOwner} label="All reps" options={owners} />
             <Select value={stage} onChange={setStage} label="All stages" options={stages} />
+            <select
+              value={closeWindow}
+              onChange={(e) => setCloseWindow(e.target.value as CloseWindow)}
+              aria-label="Filter by close date"
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-700"
+            >
+              {(Object.keys(CLOSE_LABELS) as CloseWindow[]).map((w) => (
+                <option key={w} value={w}>
+                  {CLOSE_LABELS[w]}
+                </option>
+              ))}
+            </select>
+            <select
+              value={groupBy}
+              onChange={(e) => {
+                setGroupBy(e.target.value as GroupKey);
+                setCollapsed(new Set());
+              }}
+              aria-label="Group deals"
+              className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-700"
+            >
+              {(Object.keys(GROUP_LABELS) as GroupKey[]).map((g) => (
+                <option key={g} value={g}>
+                  {GROUP_LABELS[g]}
+                </option>
+              ))}
+            </select>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
@@ -167,6 +291,8 @@ export default function SalesPipelinePage() {
                 onClick={() => {
                   setOwner('');
                   setStage('');
+                  setQuery('');
+                  setCloseWindow('all');
                 }}
                 className="text-sm text-indigo-700 hover:underline"
               >
@@ -195,29 +321,73 @@ export default function SalesPipelinePage() {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((opp) => (
-                  <tr key={opp.id} className="border-b border-gray-100">
-                    <td className="px-4 py-3 font-medium text-gray-900">{opp.accountName || '—'}</td>
-                    <td className="px-4 py-3 text-gray-700">
-                      {opp.name}
-                      {opp.nextStep && <span className="block text-xs text-gray-400">Next: {opp.nextStep}</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-900">
-                      {formatMoney(opp.effectiveAmount)}
-                      {opp.amountAssumed && (
-                        <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[11px] font-medium text-amber-800">
-                          est.
-                        </span>
+                {groups.map((group: any) => {
+                  const isCollapsed = collapsed.has(group.key);
+                  return (
+                    <Fragment key={group.key || 'all'}>
+                      {groupBy !== 'none' && (
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <td colSpan={7} className="px-4 py-2">
+                            <button
+                              onClick={() =>
+                                setCollapsed((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(group.key)) next.delete(group.key);
+                                  else next.add(group.key);
+                                  return next;
+                                })
+                              }
+                              className="flex w-full items-center gap-2 text-left"
+                            >
+                              <span className="text-xs text-gray-400">{isCollapsed ? '▸' : '▾'}</span>
+                              <span className="font-semibold text-gray-900">{group.label}</span>
+                              <span className="text-sm text-gray-500">
+                                {group.rows.length} {group.rows.length === 1 ? 'deal' : 'deals'}
+                              </span>
+                              <span className="ml-auto tabular-nums font-medium text-gray-900">
+                                {formatMoney(group.total)}
+                              </span>
+                              {group.assumed > 0 && (
+                                <span className="text-xs text-amber-700">{group.assumed} est.</span>
+                              )}
+                            </button>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-gray-500">
-                      {opp.probability == null ? '—' : `${opp.probability}%`}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{opp.stageName}</td>
-                    <td className="px-4 py-3 text-gray-600">{formatDate(opp.closeDate)}</td>
-                    <td className="px-4 py-3 text-gray-600">{opp.ownerName || 'Unassigned'}</td>
-                  </tr>
-                ))}
+                      {!isCollapsed &&
+                        group.rows.map((opp: any) => (
+                          <tr key={opp.id} className="border-b border-gray-100">
+                            <td className="px-4 py-3 font-medium text-gray-900">{opp.accountName || '—'}</td>
+                            <td className="px-4 py-3 text-gray-700">
+                              {opp.name}
+                              {opp.nextStep && (
+                                <span className="block text-xs text-gray-400">Next: {opp.nextStep}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-gray-900">
+                              {formatMoney(opp.effectiveAmount)}
+                              {opp.amountAssumed && (
+                                <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[11px] font-medium text-amber-800">
+                                  est.
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right tabular-nums text-gray-500">
+                              {opp.probability == null ? '—' : `${opp.probability}%`}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">{opp.stageName}</td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {formatDate(opp.closeDate)}
+                              {opp.closeDate && new Date(opp.closeDate) < new Date() && (
+                                <span className="ml-1 text-[11px] font-medium text-red-600">past due</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600">{opp.ownerName || 'Unassigned'}</td>
+                          </tr>
+                        ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
@@ -77,6 +77,10 @@ function SequenceTable({
   setFilter,
   query,
   setQuery,
+  group,
+  setGroup,
+  onlyMeaningful,
+  setOnlyMeaningful,
 }: {
   sequences: any[];
   connected: boolean;
@@ -86,6 +90,10 @@ function SequenceTable({
   setFilter: (v: 'live' | 'all') => void;
   query: string;
   setQuery: (v: string) => void;
+  group: 'none' | 'status' | 'performance';
+  setGroup: (v: 'none' | 'status' | 'performance') => void;
+  onlyMeaningful: boolean;
+  setOnlyMeaningful: (v: boolean) => void;
 }) {
   /** Below this, a percentage says more about luck than about the sequence. */
   const MEANINGFUL = 20;
@@ -130,8 +138,44 @@ function SequenceTable({
         sorted.sort((a, b) => a.name.localeCompare(b.name));
         break;
     }
-    return sorted;
-  }, [sequences, sort, filter, query]);
+    return onlyMeaningful ? sorted.filter((s) => s.meaningful) : sorted;
+  }, [sequences, sort, filter, query, onlyMeaningful]);
+
+  /**
+   * Optional grouping. "Performance" buckets by reply rate rather than by any
+   * Apollo field — the question a sales lead actually asks is "which of these
+   * are working", and a band answers that faster than a sorted column.
+   */
+  const grouped = useMemo(() => {
+    if (group === 'none') return [{ key: '', label: '', rows }];
+    const bucket = (r: any) => {
+      if (group === 'status') return r.archived ? 'Archived' : r.active ? 'Active' : 'Paused';
+      if (!r.meaningful) return 'Too little volume to judge';
+      if (r.replyRate >= 0.1) return 'Working — 10%+ reply';
+      if (r.replyRate >= 0.03) return 'Average — 3-10% reply';
+      return 'Underperforming — under 3%';
+    };
+    const map = new Map<string, any[]>();
+    for (const r of rows) map.set(bucket(r), [...(map.get(bucket(r)) ?? []), r]);
+    const order = [
+      'Working — 10%+ reply',
+      'Average — 3-10% reply',
+      'Underperforming — under 3%',
+      'Too little volume to judge',
+      'Active',
+      'Paused',
+      'Archived',
+    ];
+    return [...map.entries()]
+      .map(([key, groupRows]) => ({
+        key,
+        label: key,
+        rows: groupRows,
+        reached: groupRows.reduce((n, r) => n + r.delivered, 0),
+        replied: groupRows.reduce((n, r) => n + r.replied, 0),
+      }))
+      .sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
+  }, [rows, group]);
 
   const best = Math.max(0.0001, ...rows.filter((r) => r.meaningful).map((r) => r.replyRate));
 
@@ -162,6 +206,25 @@ function SequenceTable({
               </button>
             ))}
           </div>
+          <label className="flex items-center gap-1.5 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={onlyMeaningful}
+              onChange={(e) => setOnlyMeaningful(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Enough volume only
+          </label>
+          <select
+            value={group}
+            onChange={(e) => setGroup(e.target.value as never)}
+            aria-label="Group sequences"
+            className="rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-700"
+          >
+            <option value="none">No grouping</option>
+            <option value="performance">Group by performance</option>
+            <option value="status">Group by status</option>
+          </select>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as never)}
@@ -202,7 +265,19 @@ function SequenceTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((seq) => (
+              {grouped.map((g: any) => (
+                <Fragment key={g.key || 'all'}>
+                  {group !== 'none' && (
+                    <tr className="border-b border-gray-200 bg-gray-50">
+                      <td colSpan={6} className="px-4 py-2">
+                        <span className="font-semibold text-gray-900">{g.label}</span>
+                        <span className="ml-2 text-sm text-gray-500">
+                          {g.rows.length} · {g.reached.toLocaleString()} reached · {g.replied.toLocaleString()} replies
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                  {g.rows.map((seq: any) => (
                 <tr key={seq.id} className="border-b border-gray-100">
                   <td className="px-4 py-3">
                     <span className="font-medium text-gray-900">{seq.name}</span>
@@ -246,6 +321,8 @@ function SequenceTable({
                   </td>
                   <td className="px-4 py-3 text-gray-600">{formatWhen(seq.lastUsedAt)}</td>
                 </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -260,6 +337,8 @@ export default function SalesOutreachPage() {
   const [seqSort, setSeqSort] = useState<'replyRate' | 'delivered' | 'replied' | 'recent' | 'name'>('replyRate');
   const [seqFilter, setSeqFilter] = useState<'live' | 'all'>('live');
   const [seqQuery, setSeqQuery] = useState('');
+  const [seqGroup, setSeqGroup] = useState<'none' | 'status' | 'performance'>('none');
+  const [onlyMeaningful, setOnlyMeaningful] = useState(false);
   const { data, isLoading, error } = trpc.platformAdmin.getSalesApollo.useQuery(undefined, {
     enabled: !authLoading && isAuthenticated,
     refetchInterval: 60_000,
@@ -435,6 +514,10 @@ export default function SalesOutreachPage() {
         setFilter={setSeqFilter}
         query={seqQuery}
         setQuery={setSeqQuery}
+        group={seqGroup}
+        setGroup={setSeqGroup}
+        onlyMeaningful={onlyMeaningful}
+        setOnlyMeaningful={setOnlyMeaningful}
       />
 
 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
