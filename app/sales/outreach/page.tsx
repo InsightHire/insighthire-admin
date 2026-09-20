@@ -332,6 +332,80 @@ function SequenceTable({
   );
 }
 
+/**
+ * Outreach per rep, from the sending address on each Apollo message.
+ *
+ * Apollo only reports sequence stats in aggregate, so this is built from the
+ * message list — which means it covers the fetched window, not all time. The
+ * header says so, because a number whose period is unstated will be read as
+ * all-time and compared against things it should not be.
+ */
+function RepOutreach({
+  reps,
+  from,
+  to,
+}: {
+  reps: Array<{ rep: string; sent: number; delivered: number; bounced: number; replied: number }>;
+  from: string | null;
+  to: string | null;
+}) {
+  if (!reps.length) return null;
+  const best = Math.max(1, ...reps.map((r) => r.sent));
+  const window =
+    from && to
+      ? `${new Date(from).toLocaleDateString()} – ${new Date(to).toLocaleDateString()}`
+      : 'the loaded window';
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">By rep</h2>
+        <p className="text-xs text-gray-500">Messages sent in {window}, not all time</p>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="py-2 pr-4 text-left font-medium">Rep</th>
+              <th className="py-2 pr-4 text-left font-medium">Sent</th>
+              <th className="py-2 pr-4 text-right font-medium">Delivered</th>
+              <th className="py-2 pr-4 text-right font-medium">Replied</th>
+              <th className="py-2 pr-4 text-right font-medium">Reply rate</th>
+              <th className="py-2 text-right font-medium">Bounced</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {reps.map((r) => {
+              const replyRate = r.delivered ? (r.replied / r.delivered) * 100 : 0;
+              return (
+                <tr key={r.rep}>
+                  <td className="py-2 pr-4 font-medium text-gray-900">{r.rep}</td>
+                  <td className="py-2 pr-4">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
+                        <div className="h-2 bg-indigo-500" style={{ width: `${Math.max(4, (r.sent / best) * 100)}%` }} />
+                      </div>
+                      <span className="tabular-nums text-gray-900">{r.sent.toLocaleString()}</span>
+                    </div>
+                  </td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-gray-600">{r.delivered.toLocaleString()}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums font-medium text-gray-900">{r.replied}</td>
+                  <td className="py-2 pr-4 text-right tabular-nums text-gray-700">
+                    {r.delivered === 0 ? <span className="text-gray-400">—</span> : `${replyRate.toFixed(1)}%`}
+                  </td>
+                  <td className="py-2 text-right tabular-nums text-gray-500">
+                    {r.bounced > 0 ? <span className="text-amber-700">{r.bounced}</span> : '0'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function SalesOutreachPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
   const [seqSort, setSeqSort] = useState<'replyRate' | 'delivered' | 'replied' | 'recent' | 'name'>('replyRate');
@@ -404,6 +478,8 @@ export default function SalesOutreachPage() {
       )}
 
       <OutreachFunnel funnel={funnel} sequenceCount={live.length} rate={rate} />
+
+      <RepOutreach reps={(data as any)?.reps ?? []} from={data?.from ?? null} to={data?.to ?? null} />
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <Kpi label="In flows" value={String(stats?.people ?? 0)} />
