@@ -276,13 +276,16 @@ function DailyDigestCard({
           )}
 
           <p className="mt-3 text-[11px] text-gray-500">
-            Calls from{' '}
+            Emails from Gong. Calls from{' '}
             {digest.callSource === 'gong'
               ? 'Gong'
               : digest.callSource === 'salesforce'
                 ? 'Salesforce call logging'
                 : 'no connected source'}
             .
+            {digest.emailsUnattributed > 0
+              ? ` ${digest.emailsUnattributed} send${digest.emailsUnattributed === 1 ? '' : 's'} had no sender on the Gong record and are not in the rows above.`
+              : ''}
           </p>
 
           {problems.length > 0 ? (
