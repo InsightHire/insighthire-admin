@@ -172,6 +172,128 @@ function DealsTable({
   );
 }
 
+const SECTION_LABEL: Record<string, string> = {
+  leads: 'Leads',
+  opportunities: 'Opportunities',
+  emails: 'Emails',
+  calls: 'Calls',
+};
+
+/**
+ * What the 15:00 ET Slack post will say, with a manual send. Shown here rather
+ * than on its own page so the numbers sit next to the dashboard they come from.
+ */
+function DailyDigestCard({
+  digest,
+  loading,
+  sending,
+  sent,
+  error,
+  onSend,
+}: {
+  digest: any;
+  loading: boolean;
+  sending: boolean;
+  sent: boolean | undefined;
+  error: string | null;
+  onSend: () => void;
+}) {
+  const problems: string[] = digest
+    ? Object.entries(digest.sections as Record<string, { status: string; detail?: string }>)
+        .filter(([, v]) => v.status !== 'ok')
+        .map(([k, v]) => `${SECTION_LABEL[k] || k}: ${v.detail || v.status.replace('_', ' ')}`)
+    : [];
+  const activeReps = (digest?.reps ?? []).filter(
+    (r: any) => r.calls > 0 || r.emails > 0 || r.newOpportunities > 0 || r.newLeads > 0,
+  );
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-900">Daily Slack digest</h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Posts automatically at 3:00 PM ET. Covers today so far, Eastern.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={sending || loading}
+          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+        >
+          {sending ? 'Sending…' : 'Send to Slack now'}
+        </button>
+      </div>
+
+      {error ? (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900">
+          {error}
+        </p>
+      ) : sent === false ? (
+        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          Built the digest but no Slack webhook is configured — set
+          SALES_SLACK_WEBHOOK_URL to choose a channel.
+        </p>
+      ) : sent ? (
+        <p className="mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900">
+          Posted to Slack.
+        </p>
+      ) : null}
+
+      {loading ? (
+        <p className="mt-3 text-xs text-gray-500">Building preview…</p>
+      ) : digest ? (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ['New leads', digest.newLeads],
+              ['Emails sent', digest.emailsSent],
+              ['New opportunities', digest.newOpportunities],
+              ['Calls', digest.totalCalls],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-lg bg-gray-50 px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-gray-500">{label}</p>
+                <p className="mt-0.5 text-lg font-semibold text-gray-900">{value as number}</p>
+              </div>
+            ))}
+          </div>
+
+          {activeReps.length > 0 ? (
+            <ul className="mt-3 space-y-1">
+              {activeReps.map((r: any) => (
+                <li key={r.rep} className="flex flex-wrap justify-between gap-2 text-xs">
+                  <span className="font-medium text-gray-900">{r.rep}</span>
+                  <span className="text-gray-600">
+                    {r.calls} calls{r.callMinutes ? ` (${r.callMinutes}m)` : ''} · {r.emails} emails ·{' '}
+                    {r.newOpportunities} opps · {r.newLeads} leads
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-xs text-gray-500">No rep activity recorded today.</p>
+          )}
+
+          <p className="mt-3 text-[11px] text-gray-500">
+            Calls from{' '}
+            {digest.callSource === 'gong'
+              ? 'Gong'
+              : digest.callSource === 'salesforce'
+                ? 'Salesforce call logging'
+                : 'no connected source'}
+            .
+          </p>
+
+          {problems.length > 0 ? (
+            <p className="mt-1 text-[11px] text-amber-700">{problems.join(' · ')}</p>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 export default function SalesOverviewPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
   const enabled = !authLoading && isAuthenticated;
@@ -191,6 +313,14 @@ export default function SalesOverviewPage() {
     enabled,
     refetchInterval: 60_000,
   });
+  const dailyDigest = trpc.platformAdmin.getSalesDailyDigest.useQuery(undefined, {
+    enabled,
+    refetchInterval: 300_000,
+  });
+  const sendDigest = trpc.platformAdmin.sendSalesDailyDigest.useMutation({
+    onSuccess: () => void dailyDigest.refetch(),
+  });
+
   const gong = trpc.platformAdmin.getSalesGong.useQuery(undefined, {
     enabled,
     refetchInterval: 60_000,
@@ -250,6 +380,15 @@ export default function SalesOverviewPage() {
           href="/sales/connections"
         />
       )}
+
+      <DailyDigestCard
+        digest={dailyDigest.data}
+        loading={dailyDigest.isLoading}
+        sending={sendDigest.isPending}
+        sent={sendDigest.data?.posted}
+        error={sendDigest.error?.message ?? dailyDigest.error?.message ?? null}
+        onSend={() => sendDigest.mutate()}
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <Kpi
