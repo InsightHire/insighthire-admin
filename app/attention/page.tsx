@@ -21,7 +21,7 @@ import { PageHeader } from '@/components/admin/page-header';
 import { StatStrip } from '@/components/admin/stat-strip';
 import { FilterBar, FilterSelect } from '@/components/admin/filter-bar';
 import { EmptyState } from '@/components/admin/empty-state';
-import { SeverityBadge } from '@/components/admin/severity-badge';
+import { SeverityBadge, type Severity } from '@/components/admin/severity-badge';
 import { cn } from '@/lib/cn';
 
 type AttentionReason = 'failed_processing' | 'inactive_24h' | 'pending_too_long' | 'stuck_at_gate';
@@ -57,6 +57,43 @@ function formatTimeAgo(dateString: string | Date | null | undefined) {
   if (diffDays > 0) return `${diffDays}d ago`;
   if (diffHours > 0) return `${diffHours}h ago`;
   return 'Just now';
+}
+
+type Verdict = 'yes' | 'no' | 'unknown' | 'n/a';
+
+/**
+ * One stage of the interview pipeline, rendered as a pass/fail chip.
+ *
+ * "Audio" and "Transcript" are deliberately separate: a recording can carry a
+ * perfectly good mic track and still transcribe to nothing (silence, muted
+ * input), and the two point at different fixes.
+ */
+function StageChip({ label, verdict }: { label: string; verdict: Verdict }) {
+  if (verdict === 'n/a') return null;
+  const severity: Severity =
+    verdict === 'yes' ? 'ok' : verdict === 'no' ? 'critical' : 'muted';
+  const mark = verdict === 'yes' ? '✓' : verdict === 'no' ? '✕' : '?';
+  return (
+    <SeverityBadge severity={severity}>
+      <span aria-hidden>{mark}</span>
+      {label}
+    </SeverityBadge>
+  );
+}
+
+const FAILED_STAGE_LABEL: Record<string, string> = {
+  media: 'Recording never arrived',
+  audio: 'No audio captured',
+  transcription: 'No transcript produced',
+  ai_evaluation: 'AI evaluation failed',
+  scoring: 'Scoring failed',
+};
+
+function formatDuration(seconds: number | null) {
+  if (seconds === null || Number.isNaN(seconds)) return null;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 }
 
 function AttentionPageInner() {
@@ -344,29 +381,118 @@ function AttentionPageInner() {
                       <div className="mt-3 rounded-admin-sm border border-admin-border bg-slate-50/80 p-3">
                         {loadingPipeline ? (
                           <p className="text-xs text-admin-muted">Loading pipeline…</p>
+                        ) : ((pipelineData as any)?.pipeline?.length ?? 0) === 0 ? (
+                          <p className="text-xs text-admin-muted">No pipeline rows</p>
                         ) : (
-                          <ul className="space-y-2">
-                            {(pipelineData as any)?.pipeline?.map((p: any) => (
-                              <li key={p.id} className="flex items-start justify-between gap-2 text-xs">
-                                <span className="min-w-0 truncate text-admin-secondary">{p.questionText}</span>
-                                <SeverityBadge
-                                  severity={
-                                    p.overallStatus === 'failed'
-                                      ? 'critical'
-                                      : p.overallStatus === 'completed'
-                                        ? 'ok'
-                                        : p.overallStatus === 'pending'
-                                          ? 'info'
-                                          : 'warn'
-                                  }
-                                >
-                                  {p.overallStatus}
-                                </SeverityBadge>
-                              </li>
-                            )) || (
-                              <li className="text-xs text-admin-muted">No pipeline rows</li>
-                            )}
-                          </ul>
+                          <>
+                            <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-admin-muted">
+                              <span>
+                                {(pipelineData as any).summary.total} question
+                                {(pipelineData as any).summary.total === 1 ? '' : 's'}
+                              </span>
+                              {(pipelineData as any).summary.noAudio > 0 ? (
+                                <span className="font-semibold text-admin-danger">
+                                  {(pipelineData as any).summary.noAudio} with no audio
+                                </span>
+                              ) : null}
+                              {(pipelineData as any).summary.noTranscript > 0 ? (
+                                <span className="font-semibold text-admin-danger">
+                                  {(pipelineData as any).summary.noTranscript} with no transcript
+                                </span>
+                              ) : null}
+                            </div>
+                            <ul className="space-y-2">
+                              {(pipelineData as any).pipeline.map((p: any) => {
+                                const duration = formatDuration(p.durationSeconds);
+                                return (
+                                  <li
+                                    key={p.id}
+                                    className="rounded-admin-sm border border-admin-border bg-white px-3 py-2"
+                                  >
+                                    <div className="flex flex-wrap items-start justify-between gap-2">
+                                      <p className="min-w-0 flex-1 text-xs font-medium text-admin-ink">
+                                        {p.questionText}
+                                      </p>
+                                      <SeverityBadge
+                                        severity={
+                                          p.overallStatus === 'failed'
+                                            ? 'critical'
+                                            : p.overallStatus === 'completed'
+                                              ? 'ok'
+                                              : p.overallStatus === 'pending'
+                                                ? 'info'
+                                                : 'warn'
+                                        }
+                                      >
+                                        {p.overallStatus}
+                                      </SeverityBadge>
+                                    </div>
+
+                                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                      <StageChip label="Video" verdict={p.mediaDetected} />
+                                      <StageChip label="Audio" verdict={p.audioDetected} />
+                                      <StageChip label="Transcript" verdict={p.transcriptDetected} />
+                                      <StageChip
+                                        label="AI eval"
+                                        verdict={p.aiEvaluationCompleted ? 'yes' : 'unknown'}
+                                      />
+                                      <StageChip
+                                        label="Score"
+                                        verdict={p.scoreGenerated ? 'yes' : 'unknown'}
+                                      />
+                                    </div>
+
+                                    <p className="admin-mono mt-1.5 text-[11px] text-admin-muted">
+                                      {duration ? `${duration} recorded` : 'no duration'}
+                                      {p.transcriptWordCount > 0
+                                        ? ` · ${p.transcriptWordCount} words transcribed`
+                                        : ' · 0 words transcribed'}
+                                      {p.uploadAttemptCount > 1
+                                        ? ` · ${p.uploadAttemptCount} upload attempts`
+                                        : ''}
+                                      {p.audioTrackCount !== null
+                                        ? ` · ${p.audioTrackCount} audio track${p.audioTrackCount === 1 ? '' : 's'}`
+                                        : ''}
+                                      {p.muxUploadStatus ? ` · mux ${p.muxUploadStatus}` : ''}
+                                    </p>
+
+                                    {p.failedStage ? (
+                                      <div className="mt-2 rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft px-2 py-1.5">
+                                        <p className="text-[11px] font-semibold text-admin-danger">
+                                          {FAILED_STAGE_LABEL[p.failedStage] || p.failedStage}
+                                        </p>
+                                        {p.failureDetail ? (
+                                          <p className="mt-0.5 text-[11px] text-admin-secondary">
+                                            {p.failureDetail}
+                                          </p>
+                                        ) : null}
+                                        {p.processingError ? (
+                                          <p className="admin-mono mt-1 break-words text-[10px] text-admin-muted">
+                                            {p.processingError}
+                                          </p>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+
+                                    {p.cameraDenied || p.uploadErrorEvents > 0 ? (
+                                      <p className="mt-1.5 text-[11px] text-admin-warn">
+                                        {p.cameraDenied ? 'Camera/mic permission denied. ' : ''}
+                                        {p.uploadErrorEvents > 0
+                                          ? `${p.uploadErrorEvents} upload error event${p.uploadErrorEvents === 1 ? '' : 's'} during capture.`
+                                          : ''}
+                                      </p>
+                                    ) : null}
+
+                                    {p.transcriptPreview ? (
+                                      <p className="mt-1.5 line-clamp-2 text-[11px] italic text-admin-muted">
+                                        “{p.transcriptPreview}”
+                                      </p>
+                                    ) : null}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </>
                         )}
                       </div>
                     ) : null}
