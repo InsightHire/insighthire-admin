@@ -10,10 +10,9 @@ import {
   DollarSign,
   Mail,
   FileSignature,
-  ChevronRight,
 } from 'lucide-react';
 
-const navItems = [
+const tabs = [
   { href: '/sales', label: 'Overview', icon: DollarSign },
   { href: '/sales/pipeline', label: 'Pipeline', icon: TrendingUp },
   { href: '/sales/quotes', label: 'Quotes', icon: FileSignature },
@@ -32,42 +31,40 @@ export default function SalesLayout({
   return (
     <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Sales</h1>
           <p className="text-gray-600 mt-1">
             Salesforce pipeline, Gong calls and Engage flows, Dialpad, Apollo sequences.
           </p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <aside className="lg:w-56 shrink-0">
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== '/sales' && pathname?.startsWith(item.href));
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-700'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                    <ChevronRight className={`h-4 w-4 ml-auto ${isActive ? 'text-indigo-500' : 'text-gray-400'}`} />
-                  </Link>
-                );
-              })}
-            </nav>
-          </aside>
+        <nav className="border-b border-gray-200 mb-6">
+          <div className="-mb-px flex space-x-8 overflow-x-auto">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive =
+                tab.href === '/sales'
+                  ? pathname === tab.href
+                  : pathname === tab.href || pathname?.startsWith(`${tab.href}/`);
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'border-indigo-500 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
 
-          <main className="flex-1 min-w-0">{children}</main>
-        </div>
+        <main className="min-w-0">{children}</main>
       </div>
     </AuthenticatedLayout>
   );
