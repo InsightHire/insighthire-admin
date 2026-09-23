@@ -19,6 +19,8 @@ function statusBadge(status: string) {
 export default function CdnVideosPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -34,29 +36,41 @@ export default function CdnVideosPage() {
     setTimeout(() => setMessage(null), 2000);
   }
 
-  async function handleUpload(file: File) {
+  function resetForm() {
+    setTitle('');
+    setDescription('');
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) {
+      setMessage('Choose a video file first');
+      return;
+    }
+
     setUploading(true);
     setMessage(null);
     try {
       const intent = await createUpload.mutateAsync({
-        fileName: file.name,
-        contentType: file.type,
-        fileSizeBytes: file.size,
-        title: title.trim() || file.name,
+        fileName: selectedFile.name,
+        contentType: selectedFile.type,
+        fileSizeBytes: selectedFile.size,
+        title: title.trim() || selectedFile.name.replace(/\.[^.]+$/, ''),
+        description: description.trim() || null,
       });
 
       const putRes = await fetch(intent.presignedUrl, {
         method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
+        body: selectedFile,
+        headers: { 'Content-Type': selectedFile.type },
       });
       if (!putRes.ok) {
         throw new Error(`Upload failed (${putRes.status})`);
       }
 
       await confirmUpload.mutateAsync({ id: intent.id });
-      setTitle('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      resetForm();
       await refetch();
       setMessage('Video uploaded — public link ready');
     } catch (err: unknown) {
@@ -79,32 +93,64 @@ export default function CdnVideosPage() {
       <div className="mt-8 rounded-lg border border-admin-border bg-white p-6 shadow-sm">
         <h2 className="text-sm font-semibold text-admin-ink">Upload video</h2>
         <p className="mt-1 text-xs text-admin-secondary">MP4, WebM, or MOV up to 1 GB.</p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="flex-1 text-sm">
-            <span className="mb-1 block font-medium text-admin-secondary">Title (optional)</span>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm sm:col-span-2">
+            <span className="mb-1 block font-medium text-admin-secondary">Title</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Demo walkthrough"
+              placeholder="Product demo — candidate journey"
               className="w-full rounded-lg border border-admin-border px-3 py-2"
+              disabled={uploading}
             />
           </label>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-admin-ink px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-            <Upload className="h-4 w-4" />
-            {uploading ? 'Uploading…' : 'Choose file'}
+
+          <label className="block text-sm sm:col-span-2">
+            <span className="mb-1 block font-medium text-admin-secondary">Description</span>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional context shown on the public player page"
+              rows={4}
+              maxLength={2000}
+              className="w-full rounded-lg border border-admin-border px-3 py-2"
+              disabled={uploading}
+            />
+            <span className="mt-1 block text-xs text-admin-secondary">{description.length}/2000</span>
+          </label>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-admin-border bg-white px-4 py-2 text-sm font-medium text-admin-ink hover:bg-slate-50">
+            Choose file
             <input
               ref={fileInputRef}
               type="file"
               accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov"
               className="hidden"
               disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUpload(file);
-              }}
+              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
             />
           </label>
+          {selectedFile ? (
+            <span className="text-sm text-admin-secondary">
+              {selectedFile.name} · {formatBytes(selectedFile.size)}
+            </span>
+          ) : (
+            <span className="text-sm text-admin-secondary">No file selected</span>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleUpload()}
+            disabled={uploading || !selectedFile}
+            className="inline-flex items-center gap-2 rounded-lg bg-admin-ink px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto"
+          >
+            <Upload className="h-4 w-4" />
+            {uploading ? 'Uploading…' : 'Upload video'}
+          </button>
         </div>
+
         {message ? <p className="mt-3 text-sm text-admin-secondary">{message}</p> : null}
       </div>
 
@@ -130,6 +176,9 @@ export default function CdnVideosPage() {
                 <tr key={video.id}>
                   <td className="px-4 py-3">
                     <div className="font-medium text-admin-ink">{video.title || video.originalFileName || 'Untitled'}</div>
+                    {video.description ? (
+                      <div className="mt-1 line-clamp-2 text-xs text-admin-secondary">{video.description}</div>
+                    ) : null}
                     <div className="mt-0.5 font-mono text-xs text-admin-secondary">{video.slug}</div>
                   </td>
                   <td className="px-4 py-3">
