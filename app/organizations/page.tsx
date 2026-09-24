@@ -12,6 +12,7 @@ import { FilterBar, FilterInput, FilterSelect } from '@/components/admin/filter-
 import { DataTable, DataTableEl, Td, Th } from '@/components/admin/data-table';
 import { SeverityBadge } from '@/components/admin/severity-badge';
 import { EmptyState } from '@/components/admin/empty-state';
+import { EditOrganizationModal } from '@/components/platform-admin/edit-organization-modal';
 
 function statusSeverity(status: string): 'ok' | 'warn' | 'critical' | 'muted' | 'info' {
   switch (status) {
@@ -37,8 +38,9 @@ function OrganizationsPageInner() {
   const [statusFilter, setStatusFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
   const [includeArchived, setIncludeArchived] = useState(false);
+  const [editingOrgId, setEditingOrgId] = useState<string | null>(null);
 
-  const { data, isLoading, error } = trpc.platformAdmin.listOrganizations.useQuery(
+  const { data, isLoading, error, refetch } = trpc.platformAdmin.listOrganizations.useQuery(
     {
       page: 1,
       limit: 100,
@@ -60,8 +62,17 @@ function OrganizationsPageInner() {
     );
   }
 
+  const editingOrg = editingOrgId ? orgs.find((o: any) => o.id === editingOrgId) : null;
+
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
+      <EditOrganizationModal
+        organizationId={editingOrgId}
+        open={!!editingOrgId}
+        onClose={() => setEditingOrgId(null)}
+        onSaved={() => void refetch()}
+        seed={editingOrg ?? null}
+      />
       <PageHeader
         eyebrow="Tenants"
         title="Organizations"
@@ -127,6 +138,7 @@ function OrganizationsPageInner() {
         </div>
       ) : orgs.length === 0 ? (
         <EmptyState
+import { EditOrganizationModal } from '@/components/platform-admin/edit-organization-modal';
           icon={<Building2 className="h-8 w-8" />}
           title="No organizations"
           description="Try clearing filters or add a new organization."
@@ -190,6 +202,15 @@ function OrganizationsPageInner() {
                       >
                         Attention
                       </Link>
+                      {!org.deletedAt ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditingOrgId(org.id)}
+                          className="text-xs font-medium text-admin-muted hover:text-admin-ink"
+                        >
+                          Edit
+                        </button>
+                      ) : null}
                       <Link
                         href={`/organizations/${org.id}`}
                         className="text-xs font-semibold text-admin-accent-ink hover:underline"
