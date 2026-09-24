@@ -138,7 +138,6 @@ function OrganizationsPageInner() {
         </div>
       ) : orgs.length === 0 ? (
         <EmptyState
-import { EditOrganizationModal } from '@/components/platform-admin/edit-organization-modal';
           icon={<Building2 className="h-8 w-8" />}
           title="No organizations"
           description="Try clearing filters or add a new organization."
