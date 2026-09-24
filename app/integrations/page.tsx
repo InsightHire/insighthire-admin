@@ -63,6 +63,7 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'sequences',
   'referrals',
   'candidate_sms',
+  'insightcrm',
 ]);
 
 type ConfigField = {
