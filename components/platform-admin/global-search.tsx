@@ -2,7 +2,7 @@
 
 /**
  * Global Cmd-K search palette — one query across organizations, users,
- * candidates, positions, and tenant quotes. Mounted once in
+ * candidates, and positions. Mounted once in
  * AuthenticatedLayout so it works from every admin page.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,7 +14,6 @@ import {
   UserIcon,
   UserCircleIcon,
   BriefcaseIcon,
-  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 
 type ResultItem = {
@@ -99,14 +98,6 @@ export function GlobalSearch() {
         href: p.organizationId ? `/organizations/${p.organizationId}` : '/organizations',
       });
     }
-    for (const q of d.quotes ?? []) {
-      out.push({
-        key: `quote-${q.id}`, group: 'Quotes', icon: DocumentTextIcon,
-        label: `${q.companyName} — $${q.amount.toLocaleString()} ${String(q.currency).toUpperCase()}`,
-        sublabel: [q.publicId, q.recipientEmail, q.status].filter(Boolean).join(' · '),
-        href: `/sales/quotes/${q.id}`,
-      });
-    }
     return out;
   }, [search.data]);
 
@@ -148,7 +139,7 @@ export function GlobalSearch() {
             value={query}
             onChange={(e) => { setQuery(e.target.value); setHighlight(0); }}
             onKeyDown={onInputKey}
-            placeholder="Search orgs, users, candidates, positions, quotes…"
+            placeholder="Search orgs, users, candidates, positions…"
             className="w-full py-3.5 text-sm outline-none placeholder:text-gray-400"
           />
           <kbd className="shrink-0 rounded border border-gray-200 px-1.5 py-0.5 text-xs text-gray-400">esc</kbd>
