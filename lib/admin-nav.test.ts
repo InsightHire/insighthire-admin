@@ -27,7 +27,6 @@ const PREVIOUS_HREFS = [
   '/activation',
   '/templates',
   '/blog',
-  '/cdn-videos',
   '/pipeline',
   '/scoring/runs',
   '/ai-costs',

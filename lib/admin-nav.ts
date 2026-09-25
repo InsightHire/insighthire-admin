@@ -29,7 +29,6 @@ import {
   Shield,
   ShieldAlert,
   ToggleLeft,
-  Video,
   TrendingUp,
   UserCog,
   Users,
@@ -152,12 +151,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/blog',
         icon: Newspaper,
         match: ['/blog'],
-      },
-      {
-        name: 'Video CDN',
-        href: '/cdn-videos',
-        icon: Video,
-        match: ['/cdn-videos'],
       },
       {
         name: 'Templates',

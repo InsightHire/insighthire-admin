@@ -101,8 +101,6 @@ export const DEFAULT_PUBLIC_PATHS = [
   '/api/trpc',
   '/_next/',
   '/favicon',
-  // Public CDN video player + stream proxy (cdn.insighthire.com/v/…)
-  '/v/',
 ];
 
 export function assertConfig() {
