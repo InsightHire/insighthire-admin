@@ -3,22 +3,11 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Revenue & trial funnel: MRR by plan, monthly signup cohorts with
- * trial-to-paid conversion, and the quote pipeline.
+ * trial-to-paid conversion.
  */
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
-
-const QUOTE_STATUS_STYLE: Record<string, string> = {
-  DRAFT: 'bg-gray-100 text-gray-600',
-  SENT: 'bg-blue-100 text-blue-800',
-  VIEWED: 'bg-indigo-100 text-indigo-800',
-  SIGNED: 'bg-green-100 text-green-800',
-  ACTIVE: 'bg-green-100 text-green-800',
-  DECLINED: 'bg-red-100 text-red-700',
-  EXPIRED: 'bg-amber-100 text-amber-800',
-  VOID: 'bg-gray-100 text-gray-500',
-};
 
 function money(n: number): string {
   return n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -31,18 +20,13 @@ export default function RevenuePage() {
 
   const o: any = overview.data ?? {};
   const cohorts: any[] = funnel.data?.cohorts ?? [];
-  const quotes: any[] = funnel.data?.quotePipeline ?? [];
-  const openPipelineCents = quotes
-    .filter((q) => ['SENT', 'VIEWED'].includes(q.status))
-    .reduce((s, q) => s + (q.amountCents ?? 0), 0);
-
   return (
     <AuthenticatedLayout>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Revenue</h1>
           <p className="text-sm text-gray-500">
-            MRR, trial funnel by signup month, and the quote pipeline.
+            MRR and trial funnel by signup month.
           </p>
         </div>
 
@@ -112,31 +96,6 @@ export default function RevenuePage() {
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-4 space-y-3">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-gray-900">Quote pipeline</h2>
-            <p className="text-xs text-gray-500">
-              Outstanding (sent/viewed): <span className="font-semibold text-gray-900">{money(openPipelineCents / 100)}</span>
-            </p>
-          </div>
-          {funnel.isLoading ? (
-            <p className="text-sm text-gray-400">Loading…</p>
-          ) : quotes.length === 0 ? (
-            <p className="text-sm text-gray-400">No quotes yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {quotes.map((q) => (
-                <span
-                  key={q.status}
-                  className={`px-2.5 py-1 text-xs rounded-full font-medium ${QUOTE_STATUS_STYLE[q.status] ?? 'bg-gray-100 text-gray-600'}`}
-                >
-                  {q.status}: {q.count} · {money((q.amountCents ?? 0) / 100)}
-                </span>
-              ))}
-            </div>
           )}
         </div>
       </div>
