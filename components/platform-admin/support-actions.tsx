@@ -2,7 +2,7 @@
 
 /**
  * Common support fixes without impersonating anyone: resend invite, unlock
- * account, force a password-reset email. Each mutation is auto-audited by
+ * account. Each mutation is auto-audited by
  * the platformAdmin middleware and shows up in the org timeline.
  */
 import { useState } from 'react';
@@ -32,7 +32,6 @@ export function SupportActionsSection({ organizationId }: { organizationId: stri
 
   const resendInvite = (trpc as any).platformAdmin.resendUserInvite.useMutation();
   const unlockAccount = (trpc as any).platformAdmin.unlockUserAccount.useMutation();
-  const sendPasswordReset = (trpc as any).platformAdmin.sendPasswordReset.useMutation();
 
   const rows: Member[] = members.data?.users ?? [];
 
@@ -81,16 +80,6 @@ export function SupportActionsSection({ organizationId }: { organizationId: stri
                   className="px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
                   Unlock account
-                </button>
-                <button
-                  onClick={() => {
-                    if (!window.confirm(`Email ${member.email} a password-reset link?`)) return;
-                    sendPasswordReset.mutate({ userId: member.id }, onDone(member.id, 'Reset email sent.'));
-                  }}
-                  disabled={sendPasswordReset.isPending}
-                  className="px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Send password reset
                 </button>
               </div>
             </div>
