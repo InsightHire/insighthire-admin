@@ -165,6 +165,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/settings/marketing'],
       },
       {
+        name: 'Case studies',
+        href: '/case-studies',
+        icon: Newspaper,
+        match: ['/case-studies'],
+      },
+      {
         name: 'Compliance copy',
         href: '/settings/compliance',
         icon: ShieldCheck,
