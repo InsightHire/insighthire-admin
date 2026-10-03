@@ -26,9 +26,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
 import { DemoTenantPanel } from '@/components/platform-admin/demo-tenant-panel';
+import { DemoTenantBadge, DemoTenantToggle } from '@/components/platform-admin/demo-tenant-toggle';
 import { OrgTimelineSection } from '@/components/platform-admin/org-timeline';
 import { SupportActionsSection } from '@/components/platform-admin/support-actions';
 import { OrgAuthenticationSection } from '@/components/platform-admin/org-authentication';
+import { openImpersonationLink } from '@/lib/impersonation-link';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
 
@@ -83,7 +85,7 @@ export default function OrganizationDetailPage() {
 
   const impersonateMutation = trpc.platformAdmin.impersonateOrganization.useMutation({
     onSuccess: (data) => {
-      window.open(data.loginUrl, '_blank');
+      openImpersonationLink(data);
     },
   });
 
@@ -186,6 +188,7 @@ export default function OrganizationDetailPage() {
 
   const { organization, usage } = data;
   const isArchived = Boolean(organization.deletedAt);
+  const isDemoTenant = (organization.settings as Record<string, unknown> | null)?.demoTenant === true;
   const permanentDeleteConfirmHint =
     (organization.name || organization.domain || '').trim() || '(organization has no name or domain — set one before permanent delete)';
 
@@ -214,6 +217,7 @@ export default function OrganizationDetailPage() {
                         Archived
                       </span>
                     )}
+                    {isDemoTenant && <DemoTenantBadge />}
                   </div>
                   <p className="text-sm text-admin-muted">{organization.domain}</p>
                 </div>
@@ -390,9 +394,14 @@ export default function OrganizationDetailPage() {
               )}
             </div>
 
-            {((data.organization.settings as Record<string, unknown> | null)?.demoTenant === true) && (
-              <DemoTenantPanel organizationId={orgId} />
-            )}
+            <DemoTenantToggle
+              organizationId={orgId}
+              organizationName={organization.name || ''}
+              demoTenant={isDemoTenant}
+              canEdit={isSuperAdmin && !isArchived}
+              onSaved={refetch}
+            />
+            {isDemoTenant && <DemoTenantPanel organizationId={orgId} />}
 
             <OrgFeatureGrantsSection organizationId={orgId} />
 

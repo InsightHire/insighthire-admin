@@ -47,6 +47,7 @@ import {
   InformationCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { openImpersonationLink } from '@/lib/impersonation-link';
 
 type CultureStatus =
   | 'ENABLED'
@@ -267,7 +268,7 @@ export default function OrganizationCulturePage() {
 
   const impersonateMutation = trpcAny.platformAdmin.impersonateOrganization.useMutation({
     onSuccess: (data: { loginUrl: string }) => {
-      window.open(data.loginUrl, '_blank');
+      openImpersonationLink(data);
     },
   });
 

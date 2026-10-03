@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { ArrowLeftIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { openImpersonationLink } from '@/lib/impersonation-link';
 
 const EDITABLE_ROLES = ['RECRUITER', 'HIRING_MANAGER', 'ADMIN', 'ORGANIZATION_ADMIN', 'ORG_ADMINISTRATOR'] as const;
 
@@ -78,15 +79,7 @@ export default function OrganizationUsersPage() {
     try {
       const result = await impersonateUser.mutateAsync({ userId });
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('impersonation_token', result.token);
-        localStorage.setItem('impersonation_user', JSON.stringify(result.user));
-        if (me) {
-          localStorage.setItem('impersonation_admin', JSON.stringify(me));
-        }
-      }
-
-      window.open('/dashboard?impersonated=true', '_blank');
+      openImpersonationLink(result);
       setImpersonating(userId);
     } catch (error: any) {
       alert('Impersonation failed: ' + error.message);
