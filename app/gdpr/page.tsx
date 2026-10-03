@@ -61,7 +61,7 @@ export default function GDPRDashboardPage() {
     { retry: false }
   );
 
-  const fulfillMutation = trpc.gdpr.fulfillRequest.useMutation({
+  const fulfillMutation = trpc.gdpr.fulfillAnyRequest.useMutation({
     onSuccess: () => requestsQuery.refetch(),
   });
 
