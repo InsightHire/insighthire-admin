@@ -66,10 +66,13 @@ export default function OrganizationDetailPage() {
 
   // Careers page roll-up (public job listings + direct apply). Same
   // pattern as cultureSummary — always queried, cast through `any`.
-  const { data: careersSummary } = (trpc as unknown as any).careers.platform.summary.useQuery(
+  const { data: careersSummary, refetch: refetchCareers } = (trpc as unknown as any).careers.platform.summary.useQuery(
     { organizationId: orgId },
     { enabled: !authLoading },
   );
+  const verifyCareersDomain = (trpc as unknown as any).careers.platform.verifyCustomDomain.useMutation({
+    onSuccess: () => { void refetchCareers(); },
+  });
 
   const updateSubscription = trpc.platformAdmin.updateSubscription.useMutation({
     onSuccess: () => {
@@ -731,6 +734,26 @@ export default function OrganizationDetailPage() {
                     Careers Page ({careersSummary ? 'Disabled' : '—'})
                   </span>
                 )}
+                {careersSummary?.customCareersDomain ? (
+                  <div className="px-4 py-2 text-sm text-gray-700">
+                    <p className="break-all">
+                      {careersSummary.customCareersDomain}
+                      {' · '}
+                      {careersSummary.customCareersDomainVerified ? 'Verified' : 'Not verified'}
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-1 text-sm font-medium text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                      disabled={verifyCareersDomain.isPending}
+                      onClick={() => verifyCareersDomain.mutate({
+                        organizationId: orgId,
+                        verified: !careersSummary.customCareersDomainVerified,
+                      })}
+                    >
+                      {careersSummary.customCareersDomainVerified ? 'Mark unverified' : 'Verify domain'}
+                    </button>
+                  </div>
+                ) : null}
                 <div className="my-2 border-t border-gray-100" />
 
                 <Link
