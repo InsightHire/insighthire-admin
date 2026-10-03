@@ -27,6 +27,7 @@ import {
 import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
 import { DemoTenantPanel } from '@/components/platform-admin/demo-tenant-panel';
 import { DemoTenantBadge, DemoTenantToggle } from '@/components/platform-admin/demo-tenant-toggle';
+import { SandboxBadge, SandboxOrgPanel } from '@/components/platform-admin/sandbox-org-panel';
 import { OrgTimelineSection } from '@/components/platform-admin/org-timeline';
 import { SupportActionsSection } from '@/components/platform-admin/support-actions';
 import { OrgAuthenticationSection } from '@/components/platform-admin/org-authentication';
@@ -188,7 +189,9 @@ export default function OrganizationDetailPage() {
 
   const { organization, usage } = data;
   const isArchived = Boolean(organization.deletedAt);
-  const isDemoTenant = (organization.settings as Record<string, unknown> | null)?.demoTenant === true;
+  const settings = (organization.settings as Record<string, unknown> | null) ?? {};
+  const isDemoTenant = settings.demoTenant === true;
+  const isSandbox = settings.sandbox === true;
   const permanentDeleteConfirmHint =
     (organization.name || organization.domain || '').trim() || '(organization has no name or domain — set one before permanent delete)';
 
@@ -218,6 +221,7 @@ export default function OrganizationDetailPage() {
                       </span>
                     )}
                     {isDemoTenant && <DemoTenantBadge />}
+                    {isSandbox && <SandboxBadge />}
                   </div>
                   <p className="text-sm text-admin-muted">{organization.domain}</p>
                 </div>
@@ -402,6 +406,13 @@ export default function OrganizationDetailPage() {
               onSaved={refetch}
             />
             {isDemoTenant && <DemoTenantPanel organizationId={orgId} />}
+
+            <SandboxOrgPanel
+              organizationId={orgId}
+              organizationName={organization.name || ''}
+              isSandbox={isSandbox}
+              canEdit={isSuperAdmin && !isArchived && !isSandbox}
+            />
 
             <OrgFeatureGrantsSection organizationId={orgId} />
 
