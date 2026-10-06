@@ -203,7 +203,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/operations/jobs'],
       },
       {
-        name: 'Sourcing runs',
+        name: 'Scout runs',
         href: '/sourcing/runs',
         icon: Radar,
         match: ['/sourcing'],

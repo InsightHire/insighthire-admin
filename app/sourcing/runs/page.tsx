@@ -333,7 +333,7 @@ export default function SourcingRunsPage() {
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Sourcing runs</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Scout runs</h1>
             <p className="text-sm text-gray-500">
               Every outbound sourcing request across all tenants — where it went looking and what each source returned.
             </p>
