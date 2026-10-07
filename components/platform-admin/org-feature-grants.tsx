@@ -9,6 +9,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   meetings: 'Meetings & scheduling',
   communication: 'Communication',
   ats: 'ATS',
+  vouch: 'Vouch',
 };
 
 type Reason = 'GRANTED' | 'PLATFORM_OFF' | 'PLAN_REQUIRED' | 'NOT_GRANTED' | 'GRANT_EXPIRED' | 'CAP_REACHED';

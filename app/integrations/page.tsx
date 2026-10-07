@@ -35,6 +35,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   meetings: 'Meetings & Calendar',
   hiring_intelligence: 'Hiring Intelligence',
   background_checks: 'Background Checks',
+  vouch: 'Vouch',
 };
 
 // Slugs that route through the per-tenant feature-grant gate. Mirrors
@@ -66,6 +67,11 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'insightcrm',
   'insightcrm_support',
   'insightcrm_marketing',
+  'reference_checks',
+  'identity_basic',
+  'identity_full',
+  'job_previews',
+  'qoh_insights',
 ]);
 
 type ConfigField = {
