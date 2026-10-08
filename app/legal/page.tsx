@@ -20,6 +20,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   CUSTOMER_CONTRACT: 'Customer contract',
   PUBLIC_POLICY: 'Public policy',
   CANDIDATE_DISCLOSURE: 'Candidate disclosure',
+  MESSAGING_DISCLOSURE: 'Texts, email and phone disclosure',
 };
 
 function formatDate(value: string | null | undefined): string {

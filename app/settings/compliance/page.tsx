@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { PageHeader } from '@/components/admin/page-header';
@@ -80,6 +81,8 @@ export default function ComplianceCopySettingsPage() {
     },
   });
 
+  const legalSlugs = (data as { legalSlugs?: Partial<Record<StringKey, string>> } | undefined)?.legalSlugs ?? {};
+
   const set = (key: StringKey, value: string) => setCopy((c) => (c ? { ...c, [key]: value } : c));
   const toggle = (key: BoolKey, value: boolean) => setCopy((c) => (c ? { ...c, [key]: value } : c));
 
@@ -89,7 +92,7 @@ export default function ComplianceCopySettingsPage() {
         <PageHeader
           eyebrow="Platform"
           title="Compliance copy"
-          description="AI disclosures, SMS consent text, and phone-screen disclosures used across every tenant. Changes take effect within a minute."
+          description="The human keyword and disclosure switches used across every tenant. The disclosure and consent text itself is versioned in Licenses & Disclosures."
         />
 
         {isLoading || !copy ? (
@@ -116,7 +119,25 @@ export default function ComplianceCopySettingsPage() {
                     </div>
                   </label>
                 ))}
-                {section.fields.map((f) => (
+                {section.fields.map((f) => {
+                  const legalSlug = legalSlugs[f.key];
+                  if (legalSlug) {
+                    return (
+                      <div key={f.key}>
+                        <div className="mb-1 flex items-baseline justify-between gap-3">
+                          <span className="text-sm font-semibold text-admin-ink">{f.label}</span>
+                          <Link href={`/legal/${legalSlug}`} className="shrink-0 text-xs font-medium text-admin-accent hover:underline">
+                            Edit in Licenses &amp; Disclosures →
+                          </Link>
+                        </div>
+                        <p className="whitespace-pre-wrap rounded-admin-sm border border-admin-border bg-slate-50 px-3 py-2 text-sm text-admin-ink">
+                          {copy[f.key] || <span className="text-admin-muted">(blank)</span>}
+                        </p>
+                        <p className="mt-1 text-xs text-admin-muted">{f.help} Versioned: each change is kept with who published it and when.</p>
+                      </div>
+                    );
+                  }
+                  return (
                   <div key={f.key}>
                     <label className="mb-1 block text-sm font-semibold text-admin-ink">{f.label}</label>
                     {f.rows ? (
@@ -146,7 +167,8 @@ export default function ComplianceCopySettingsPage() {
                       ) : null}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </section>
             ))}
 

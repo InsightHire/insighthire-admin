@@ -24,6 +24,9 @@ type DocDetail = {
   title: string;
   description: string | null;
   usedAt: string | null;
+  format?: string;
+  allowEmpty?: boolean;
+  editorHint?: string;
   versions: VersionMeta[];
   live: (VersionMeta & { bodyMarkdown: string }) | null;
 };
@@ -42,8 +45,6 @@ const STATUS_STYLE: Record<Status, string> = {
   SUPERSEDED: 'bg-slate-100 text-slate-600',
 };
 const STATUS_LABEL: Record<Status, string> = { LIVE: 'Live', DRAFT: 'Draft', SUPERSEDED: 'Superseded' };
-
-const ID_CHECK_SLUG = 'id-check-biometric-notice';
 
 const inputClass =
   'mt-1 block w-full rounded-admin-sm border border-admin-border bg-white px-3 py-2 text-sm text-admin-ink shadow-sm focus:border-admin-accent focus:outline-none focus:ring-1 focus:ring-admin-accent';
@@ -204,7 +205,7 @@ export default function LegalDocumentPage() {
   // Mutation errors are shown through onError; this only stops unhandled rejections.
   const run = (fn: () => Promise<void>) => () => void fn().catch(() => undefined);
 
-  const canSubmit = !!editor && editor.body.trim().length > 0 && editor.summary.trim().length >= 3;
+  const canSubmit = !!editor && (doc?.allowEmpty || editor.body.trim().length > 0) && editor.summary.trim().length >= 3;
 
   return (
     <AuthenticatedLayout>
@@ -278,14 +279,9 @@ export default function LegalDocumentPage() {
                     Cancel
                   </button>
                 </div>
-                {doc.slug === ID_CHECK_SLUG ? (
-                  <p className="text-xs text-admin-muted">
-                    Keep this shape: one “## Title” line, one “- point” line per point, and a “**Consent:** …” line.{' '}
-                    {'{org}'} and {'{role}'} are filled in for each candidate.
-                  </p>
-                ) : (
-                  <p className="text-xs text-admin-muted">Markdown. End a heading with {'{#anchor}'} to keep a link like /privacy#sms working.</p>
-                )}
+                <p className="text-xs text-admin-muted">
+                  {doc.editorHint ?? 'Markdown. End a heading with {#anchor} to keep a link like /privacy#sms working.'}
+                </p>
                 <div className="grid gap-4 lg:grid-cols-2">
                   <div>
                     <label className="block text-sm font-semibold text-admin-ink">Text</label>
