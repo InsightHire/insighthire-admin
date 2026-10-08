@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
@@ -38,6 +38,27 @@ type VersionDetail = VersionMeta & {
 };
 
 type Editor = { mode: 'new' | 'draft'; draftId?: string; body: string; summary: string; effectiveAt: string };
+
+type TrackedChanges = 'accept' | 'reject';
+type DocxResult = {
+  bodyMarkdown: string;
+  html: string;
+  warnings: Array<{ code: string; message: string }>;
+  stats: { insertions: number; deletions: number; formattingChanges: number };
+};
+/** The last Word upload, kept so staff can switch between accepted and rejected tracked changes. */
+type WordImport = { fileName: string; base64: string; trackedChanges: TrackedChanges; result: DocxResult };
+
+const DOCX_MAX_BYTES = 10 * 1024 * 1024;
+
+function readAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ''));
+    reader.onerror = () => reject(reader.error ?? new Error('Could not read the file'));
+    reader.readAsDataURL(file);
+  });
+}
 
 const STATUS_STYLE: Record<Status, string> = {
   LIVE: 'bg-emerald-100 text-emerald-800',
@@ -104,7 +125,10 @@ export default function LegalDocumentPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<'text' | 'diff' | 'markdown'>('text');
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ html: string; body: string } | null>(null);
+  const [pane, setPane] = useState<'preview' | 'diff'>('diff');
+  const [wordImport, setWordImport] = useState<WordImport | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -125,10 +149,8 @@ export default function LegalDocumentPage() {
   };
   const onError = (e: { message: string }) => setMessage(e.message);
 
-  const previewMutation = api.legalDocuments.previewMarkdown.useMutation({
-    onSuccess: (r: { html: string }) => setPreview(r.html),
-    onError,
-  });
+  const previewMutation = api.legalDocuments.previewMarkdown.useMutation({ onError });
+  const convertDocx = api.legalDocuments.convertDocx.useMutation({ onError });
   const createDraft = api.legalDocuments.createDraft.useMutation({ onError });
   const updateDraft = api.legalDocuments.updateDraft.useMutation({ onError });
   const publishDraft = api.legalDocuments.publishDraft.useMutation({ onError });
@@ -140,7 +162,55 @@ export default function LegalDocumentPage() {
   const openEditor = (next: Editor) => {
     setMessage(null);
     setPreview(null);
+    setWordImport(null);
+    setPane(doc?.live ? 'diff' : 'preview');
     setEditor(next);
+  };
+
+  const closeEditor = () => {
+    setEditor(null);
+    setWordImport(null);
+  };
+
+  const refreshPreview = (body: string) =>
+    previewMutation.mutate({ bodyMarkdown: body }, { onSuccess: (r: { html: string }) => setPreview({ html: r.html, body }) });
+
+  const canUploadWord = doc?.format === 'markdown';
+
+  /** Converts on the server and loads the result into the editor. Nothing is saved until Publish or Save as draft. */
+  const convertWord = async (fileName: string, base64: string, trackedChanges: TrackedChanges) => {
+    setMessage(null);
+    const result = (await convertDocx.mutateAsync({ slug, fileName, contentBase64: base64, trackedChanges })) as DocxResult;
+    setEditor((e) => (e ? { ...e, body: result.bodyMarkdown } : { mode: 'new', body: result.bodyMarkdown, summary: '', effectiveAt: '' }));
+    setWordImport({ fileName, base64, trackedChanges, result });
+    setPreview({ html: result.html, body: result.bodyMarkdown });
+    setPane('preview');
+  };
+
+  const onWordFile = async (file: File | undefined) => {
+    if (fileInput.current) fileInput.current.value = '';
+    if (!file) return;
+    if (!/\.docx$/i.test(file.name)) {
+      setMessage(
+        /\.doc$/i.test(file.name)
+          ? 'This is an older Word .doc file. In Word choose File → Save As → Word Document (.docx), then upload that.'
+          : 'Only Word .docx files can be uploaded.',
+      );
+      return;
+    }
+    if (file.size > DOCX_MAX_BYTES) {
+      setMessage('The file is larger than 10 MB. Images make files big and are dropped anyway, so try removing them.');
+      return;
+    }
+    const edited = editor && editor.body.trim() && editor.body !== (wordImport?.result.bodyMarkdown ?? doc?.live?.bodyMarkdown ?? '');
+    if (edited && !window.confirm('Replace the text in the editor with this Word document?')) return;
+    await convertWord(file.name, await readAsBase64(file), 'accept');
+  };
+
+  const switchTrackedChanges = async () => {
+    if (!wordImport || !editor) return;
+    if (editor.body !== wordImport.result.bodyMarkdown && !window.confirm('This replaces your edits to the converted text. Continue?')) return;
+    await convertWord(wordImport.fileName, wordImport.base64, wordImport.trackedChanges === 'accept' ? 'reject' : 'accept');
   };
 
   const startNewVersion = () => openEditor({ mode: 'new', body: doc?.live?.bodyMarkdown ?? '', summary: '', effectiveAt: '' });
@@ -169,7 +239,7 @@ export default function LegalDocumentPage() {
       const created = (await createDraft.mutateAsync({ slug, ...editorPayload(editor) })) as VersionMeta;
       setSelectedId(created.id);
     }
-    setEditor(null);
+    closeEditor();
     setMessage('Draft saved. It is not live yet.');
     await refresh();
   };
@@ -186,7 +256,7 @@ export default function LegalDocumentPage() {
       if (editor) await updateDraft.mutateAsync({ versionId: draftId, ...editorPayload(editor) });
       published = (await publishDraft.mutateAsync({ versionId: draftId })) as VersionMeta;
     }
-    setEditor(null);
+    closeEditor();
     setSelectedId(published.id);
     setView('text');
     setMessage(`Version ${published.version} is now live.`);
@@ -197,7 +267,7 @@ export default function LegalDocumentPage() {
     if (!draft || !window.confirm(`Discard draft v${draft.version}? This cannot be undone.`)) return;
     await discardDraft.mutateAsync({ versionId: draft.id });
     setSelectedId(null);
-    setEditor(null);
+    closeEditor();
     setMessage('Draft discarded.');
     await refresh();
   };
@@ -235,12 +305,33 @@ export default function LegalDocumentPage() {
                     </button>
                   </>
                 ) : (
-                  <button type="button" className={primaryButton} onClick={startNewVersion}>
-                    New version
-                  </button>
+                  <>
+                    {canUploadWord ? (
+                      <button
+                        type="button"
+                        className={secondaryButton}
+                        onClick={() => fileInput.current?.click()}
+                        disabled={convertDocx.isPending}
+                      >
+                        {convertDocx.isPending ? 'Converting…' : 'Upload Word doc (.docx)'}
+                      </button>
+                    ) : null}
+                    <button type="button" className={primaryButton} onClick={startNewVersion}>
+                      New version
+                    </button>
+                  </>
                 )
               }
             />
+            {canUploadWord ? (
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={(e) => run(() => onWordFile(e.target.files?.[0]))()}
+              />
+            ) : null}
 
             <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-admin-muted">
               {doc.usedAt ? (
@@ -275,16 +366,52 @@ export default function LegalDocumentPage() {
                   <h2 className="text-base font-semibold text-admin-ink">
                     {editor.mode === 'new' ? 'New version' : `Edit draft v${draft?.version ?? ''}`}
                   </h2>
-                  <button type="button" className="text-sm text-admin-muted hover:text-admin-ink" onClick={() => setEditor(null)}>
-                    Cancel
-                  </button>
+                  <div className="flex items-center gap-4">
+                    {canUploadWord ? (
+                      <button
+                        type="button"
+                        className="text-sm text-admin-muted underline hover:text-admin-ink"
+                        onClick={() => fileInput.current?.click()}
+                        disabled={convertDocx.isPending}
+                      >
+                        {convertDocx.isPending ? 'Converting…' : 'Upload Word doc (.docx)'}
+                      </button>
+                    ) : null}
+                    <button type="button" className="text-sm text-admin-muted hover:text-admin-ink" onClick={closeEditor}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-admin-muted">
                   {doc.editorHint ?? 'Markdown. End a heading with {#anchor} to keep a link like /privacy#sms working.'}
+                  {canUploadWord ? ' Or upload a Word .docx (up to 10 MB; save older .doc files as .docx first).' : ''}
                 </p>
+                {wordImport ? (
+                  <div className="rounded-admin-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium">
+                        Converted from {wordImport.fileName}. Check the text, preview and changes below. Nothing is live until you publish.
+                      </span>
+                      {wordImport.result.stats.insertions + wordImport.result.stats.deletions + wordImport.result.stats.formattingChanges > 0 ? (
+                        <button type="button" className="underline" onClick={run(switchTrackedChanges)} disabled={convertDocx.isPending}>
+                          {wordImport.trackedChanges === 'accept' ? 'Show original (reject all changes)' : 'Show all changes accepted'}
+                        </button>
+                      ) : null}
+                    </div>
+                    {wordImport.result.warnings.length ? (
+                      <ul className="mt-2 list-disc space-y-1 pl-5">
+                        {wordImport.result.warnings.map((w) => (
+                          <li key={w.code}>{w.message}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1">No conversion warnings.</p>
+                    )}
+                  </div>
+                ) : null}
                 <div className="grid gap-4 lg:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-semibold text-admin-ink">Text</label>
+                    <label className="block text-sm font-semibold text-admin-ink">{wordImport ? 'Converted text' : 'Text'}</label>
                     <textarea
                       value={editor.body}
                       onChange={(e) => setEditor({ ...editor, body: e.target.value })}
@@ -294,21 +421,40 @@ export default function LegalDocumentPage() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="block text-sm font-semibold text-admin-ink">{preview ? 'Preview' : 'Changes vs live'}</span>
-                      <button
-                        type="button"
-                        className="text-xs text-admin-muted underline hover:text-admin-ink"
-                        onClick={() => previewMutation.mutate({ bodyMarkdown: editor.body })}
-                        disabled={previewMutation.isPending}
-                      >
-                        {previewMutation.isPending ? 'Rendering…' : preview ? 'Refresh preview' : 'Show preview'}
-                      </button>
+                      <div className="flex gap-1 rounded-admin-sm border border-admin-border p-0.5 text-xs">
+                        {(doc.live ? (['preview', 'diff'] as const) : (['preview'] as const)).map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => {
+                              setPane(p);
+                              if (p === 'preview' && !preview) refreshPreview(editor.body);
+                            }}
+                            className={`rounded px-2 py-1 ${pane === p ? 'bg-admin-ink text-white' : 'text-admin-muted hover:text-admin-ink'}`}
+                          >
+                            {p === 'preview' ? 'Preview' : 'Changes vs live'}
+                          </button>
+                        ))}
+                      </div>
+                      {pane === 'preview' ? (
+                        <button
+                          type="button"
+                          className="text-xs text-admin-muted underline hover:text-admin-ink"
+                          onClick={() => refreshPreview(editor.body)}
+                          disabled={previewMutation.isPending}
+                        >
+                          {previewMutation.isPending ? 'Rendering…' : preview ? 'Refresh preview' : 'Show preview'}
+                        </button>
+                      ) : null}
                     </div>
+                    {pane === 'preview' && preview && preview.body !== editor.body ? (
+                      <p className="mt-1 text-xs text-amber-700">The text changed since this preview. Refresh to see it.</p>
+                    ) : null}
                     <div className="mt-1 max-h-[34rem] overflow-auto rounded-admin-sm border border-admin-border bg-white p-4">
-                      {preview ? (
-                        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: preview }} />
-                      ) : doc.live ? (
+                      {pane === 'diff' && doc.live ? (
                         <DiffView before={doc.live.bodyMarkdown} after={editor.body} beforeLabel={`live v${doc.live.version}`} />
+                      ) : preview ? (
+                        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: preview.html }} />
                       ) : (
                         <p className="text-xs text-admin-muted">Click “Show preview” to see how it will look.</p>
                       )}
