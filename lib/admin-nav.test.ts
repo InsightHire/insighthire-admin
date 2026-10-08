@@ -44,6 +44,7 @@ const PREVIOUS_HREFS = [
   '/settings/i18n',
   '/settings/marketing',
   '/settings/compliance',
+  '/legal',
   '/gdpr',
   '/devops/skills',
   '/sourcing/runs',
