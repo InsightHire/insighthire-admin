@@ -31,6 +31,7 @@ import { SandboxBadge, SandboxOrgPanel } from '@/components/platform-admin/sandb
 import { OrgTimelineSection } from '@/components/platform-admin/org-timeline';
 import { SupportActionsSection } from '@/components/platform-admin/support-actions';
 import { OrgAuthenticationSection } from '@/components/platform-admin/org-authentication';
+import { OrgLegalAcceptanceSection } from '@/components/platform-admin/org-legal-acceptance';
 import { openImpersonationLink } from '@/lib/impersonation-link';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
@@ -419,6 +420,8 @@ export default function OrganizationDetailPage() {
             <SupportActionsSection organizationId={orgId} />
 
             <OrgAuthenticationSection organizationId={orgId} />
+
+            <OrgLegalAcceptanceSection organizationId={orgId} />
 
             <OrgTimelineSection organizationId={orgId} />
 
