@@ -6,7 +6,8 @@ import { cn } from '@/lib/cn';
 
 const TABS = [
   { href: '/background-jobs', label: 'Background jobs', match: ['/background-jobs', '/pipeline', '/jobs'] },
-  { href: '/scoring', label: 'AI scoring', match: ['/scoring'] },
+  { href: '/scoring', label: 'AI scoring', match: ['/scoring'], exclude: ['/scoring/panel'] },
+  { href: '/scoring/panel', label: 'Grader panel', match: ['/scoring/panel'] },
   { href: '/api-monitoring', label: 'API health', match: ['/api-monitoring'] },
 ] as const;
 
@@ -15,7 +16,8 @@ export function PipelineSubnav() {
   return (
     <div className="mb-4 flex gap-1 border-b border-admin-border">
       {TABS.map((t) => {
-        const active = t.match.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
+        const excluded = 'exclude' in t && t.exclude.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
+        const active = !excluded && t.match.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
         return (
           <Link
             key={t.href}
