@@ -88,7 +88,7 @@ export default function AdminUsersPage() {
   const inviteMutation = trpc.platformAdmin.invitePlatformAdmin.useMutation({
     onSuccess: (_data, variables) => {
       setInviteSuccessMessage(
-        `Invitation email was sent to ${variables.email}. If nothing arrives within a few minutes, check spam/junk (common with att.net / Yahoo) or click Resend on their row.`
+        `${variables.email} is set up in Authio and can sign in at admin.insighthire.com now. An invitation email was sent too; if it doesn't arrive, check spam/junk or click Resend on their row.`
       );
       setShowInvite(false);
       setInviteEmail('');
@@ -420,7 +420,7 @@ export default function AdminUsersPage() {
                                   className="fixed z-20 w-48 py-1 bg-white rounded-lg shadow-lg border border-gray-200"
                                   style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
                                 >
-                                  {admin.status === 'pending' && (
+                                  {admin.status !== 'suspended' && !admin.lastLoginAt && !admin.inviteAcceptedAt && (
                                     <button
                                       onClick={() => { resendMutation.mutate({ userId: admin.id }); setActionsOpenId(null); }}
                                       disabled={resendMutation.isPending}
