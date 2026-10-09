@@ -2,7 +2,7 @@
 
 /**
  * Customer agreement (MSA) status for one org, who accepted which version and
- * when, each user's Terms/Privacy version, and the "signed offline" mark for
+ * when, and the "signed offline" mark for
  * paper or DocuSign contracts (covers later MSA versions until removed).
  */
 import { useState } from 'react';
@@ -26,7 +26,7 @@ export function OrgLegalAcceptanceSection({ organizationId }: { organizationId: 
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-lg font-semibold text-gray-900">Customer agreement &amp; Terms</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Customer agreement</h2>
         {data && (
           <span
             className={`px-2 py-0.5 text-xs font-medium rounded-full ${
@@ -38,8 +38,7 @@ export function OrgLegalAcceptanceSection({ organizationId }: { organizationId: 
         )}
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        An org admin accepts the MSA once for the org after signing in; each user accepts the Terms of Service and
-        Privacy Policy. Live MSA: {data?.msa.live?.versionLabel ?? 'none published'}.
+        An org admin accepts the MSA once for the org after signing in. Live MSA: {data?.msa.live?.versionLabel ?? 'none published'}.
       </p>
 
       {overview.isLoading ? (
@@ -160,36 +159,6 @@ export function OrgLegalAcceptanceSection({ organizationId }: { organizationId: 
                         {r.userAgent && <p className="w-full truncate text-xs text-gray-400" title={r.userAgent}>{r.userAgent}</p>}
                       </div>
                     )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1.5">
-              Terms of Service ({data.terms.live.terms?.versionLabel ?? 'none'}) &amp; Privacy Policy (
-              {data.terms.live.privacy?.versionLabel ?? 'none'})
-            </p>
-            {data.users.length === 0 ? (
-              <p className="text-sm text-gray-400">No users in this org.</p>
-            ) : (
-              <div className="divide-y divide-gray-50 border border-gray-100 rounded-lg overflow-hidden">
-                {data.users.map((u: any) => (
-                  <div key={u.id} className="px-3 py-2 flex flex-wrap items-center gap-2 text-sm">
-                    <span className="text-gray-900 flex-1 min-w-0 truncate">{u.email}</span>
-                    <span className="text-xs text-gray-500">{u.role}</span>
-                    <span className="text-xs text-gray-600">
-                      Terms {u.terms?.versionLabel ?? '—'} · Privacy {u.privacy?.versionLabel ?? '—'}
-                    </span>
-                    <span className="text-xs text-gray-400">{u.terms ? fmt(u.terms.acceptedAt) : ''}</span>
-                    <span
-                      className={`px-1.5 py-0.5 text-xs rounded ${
-                        u.upToDate ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {u.upToDate ? 'current' : 'not accepted'}
-                    </span>
                   </div>
                 ))}
               </div>
