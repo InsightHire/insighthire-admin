@@ -208,7 +208,9 @@ export function OrgFeatureGrantsSection({ organizationId }: { organizationId: st
                   const [pillText, pillClass] = statusPill(row);
                   const open = openSlug === row.slug;
                   const capText = row.allowance
-                    ? row.allowance.cap === null
+                    ? row.usedThisPeriod === null
+                      ? `${row.allowance.cap === null || row.allowance.overCap === 'ALLOW' ? 'No cap' : `Cap ${row.allowance.cap.toLocaleString()} ${row.allowance.unit}/month`}${row.allowance.source === 'override' ? ' · override' : ''} · counted in InsightCRM`
+                      : row.allowance.cap === null
                       ? `${row.usedThisPeriod ?? 0} ${row.allowance.unit} this month · no cap`
                       : `${row.usedThisPeriod ?? 0} / ${row.allowance.cap} ${row.allowance.unit} this month${row.allowance.source === 'override' ? ' · override' : ''}${row.allowance.overCap === 'ALLOW' ? ' · overage allowed' : ''}`
                     : null;
