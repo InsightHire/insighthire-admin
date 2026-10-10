@@ -7,6 +7,7 @@ import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { PipelineSubnav } from '@/components/admin/pipeline-subnav';
 import { ScoringDriftSection } from '@/components/platform-admin/scoring-drift';
+import { OutcomeCalibrationEvidence } from '@/components/platform-admin/outcome-calibration-evidence';
 import {
   ArrowPathIcon,
   ChartBarIcon,
@@ -211,6 +212,8 @@ export default function ScoringObservabilityPage() {
           </div>
         </div>
       )}
+
+      {selectedOrgId && <OutcomeCalibrationEvidence organizationId={selectedOrgId} />}
 
       {queryErrors.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
