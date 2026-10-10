@@ -58,6 +58,7 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'scheduling_coordination',
   'new_hire_onboarding',
   'offers_closing',
+  'background_checks',
   'video_facial_emotion_analysis',
   'pipeline_crm',
   'interview_schedule',
