@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-/** Leads moved to Salesforce — this route is retired. */
+/** Leads live in InsightCRM — this route is retired. */
 export default function LeadsRedirectPage() {
   redirect('/');
 }

@@ -17,7 +17,7 @@ Navigation groups (`lib/admin-nav.ts`):
 | Sales | Sales dashboard |
 | System | Announcements, Feature flags, Impersonation audit, Integrations & tenant feature grants, Languages, Audit log, GDPR, DevOps skills |
 
-Retired pages redirect: `/leads` → `/` (leads live in Salesforce), `/jobs` and `/pipeline` → `/background-jobs`, `/reliability` → `/e2e-results`, `/stuck-candidates` → `/attention`, `/indeed-integration` → `/integrations`.
+Retired pages redirect: `/leads` → `/` (leads live in InsightCRM), `/jobs` and `/pipeline` → `/background-jobs`, `/reliability` → `/e2e-results`, `/stuck-candidates` → `/attention`, `/indeed-integration` → `/integrations`.
 
 ## Authentication
 
