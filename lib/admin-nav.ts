@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Activity,
   AlertTriangle,
+  ArrowRightLeft,
   Bot,
   Building2,
   Bug,
@@ -128,6 +129,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/activation',
         icon: Rocket,
         match: ['/activation'],
+      },
+      {
+        name: 'Agency migration',
+        href: '/agency-migration',
+        icon: ArrowRightLeft,
+        match: ['/agency-migration'],
       },
       {
         name: 'Admins',
