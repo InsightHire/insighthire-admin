@@ -3,6 +3,7 @@ import {
   Activity,
   AlertTriangle,
   ArrowRightLeft,
+  ArrowUpCircle,
   Bot,
   Building2,
   Bug,
@@ -142,6 +143,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/agency-migration',
         icon: ArrowRightLeft,
         match: ['/agency-migration'],
+      },
+      {
+        name: 'Agency upgrades',
+        href: '/agency-upgrades',
+        icon: ArrowUpCircle,
+        match: ['/agency-upgrades'],
       },
       {
         name: 'Legal review',

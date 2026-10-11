@@ -27,6 +27,7 @@ const PREVIOUS_HREFS = [
   '/tenant-features',
   '/activation',
   '/agency-migration',
+  '/agency-upgrades',
   '/templates',
   '/blog',
   '/case-studies',
