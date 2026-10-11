@@ -8,6 +8,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   hiring_intelligence: 'Hiring',
   meetings: 'Meetings & scheduling',
   communication: 'Communication',
+  integrations: 'Integrations',
+  talent: 'Talent',
   ats: 'ATS',
   vouch: 'Vouch',
 };
@@ -160,7 +162,11 @@ export function OrgFeatureGrantsSection({ organizationId }: { organizationId: st
             <Link href="/integrations" className="text-blue-600 hover:text-blue-700 font-medium">
               Integrations
             </Link>{' '}
-            before a grant is live.
+            before a grant is live. Compare with every tenant in the{' '}
+            <Link href="/tenant-features" className="text-blue-600 hover:text-blue-700 font-medium">
+              Feature matrix
+            </Link>
+            .
           </p>
         </div>
         <div className="text-right">

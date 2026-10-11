@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Building2, Plus } from 'lucide-react';
+import { Building2, LayoutGrid, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { PageHeader } from '@/components/admin/page-header';
@@ -78,6 +78,14 @@ function OrganizationsPageInner() {
         title="Organizations"
         description="Customer tenants — plan, status, and hiring volume at a glance."
         actions={
+          <>
+          <Link
+            href="/tenant-features"
+            className="inline-flex items-center gap-1.5 rounded-admin-sm border border-admin-border bg-white px-3 py-1.5 text-sm font-medium text-admin-ink hover:bg-slate-50"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Feature matrix
+          </Link>
           <Link
             href="/onboarding"
             className="inline-flex items-center gap-1.5 rounded-admin-sm bg-admin-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
@@ -85,6 +93,7 @@ function OrganizationsPageInner() {
             <Plus className="h-4 w-4" />
             Add organization
           </Link>
+          </>
         }
       />
 

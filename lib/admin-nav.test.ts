@@ -24,6 +24,7 @@ const PREVIOUS_HREFS = [
   '/impersonation',
   '/organizations',
   '/tenant-health',
+  '/tenant-features',
   '/activation',
   '/agency-migration',
   '/templates',

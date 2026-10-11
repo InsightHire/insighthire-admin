@@ -17,6 +17,7 @@ import {
   Home,
   Inbox,
   KeyRound,
+  LayoutGrid,
   Lock,
   Mail,
   Megaphone,
@@ -117,6 +118,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/organizations',
         icon: Building2,
         match: ['/organizations', '/onboarding'],
+      },
+      {
+        name: 'Feature matrix',
+        href: '/tenant-features',
+        icon: LayoutGrid,
+        match: ['/tenant-features'],
       },
       {
         name: 'Health',
