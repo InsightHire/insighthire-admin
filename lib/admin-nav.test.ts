@@ -46,6 +46,7 @@ const PREVIOUS_HREFS = [
   '/settings/marketing',
   '/settings/compliance',
   '/legal',
+  '/legal-review',
   '/pricing',
   '/gdpr',
   '/devops/skills',

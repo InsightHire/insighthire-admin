@@ -137,6 +137,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/agency-migration'],
       },
       {
+        name: 'Legal review',
+        href: '/legal-review',
+        icon: ShieldCheck,
+        match: ['/legal-review'],
+      },
+      {
         name: 'Admins',
         href: '/settings/admins',
         icon: Users,
