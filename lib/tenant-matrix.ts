@@ -56,6 +56,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   integrations: 'Integrations',
   talent: 'Talent',
   vouch: 'Vouch',
+  crm: 'CRM',
   ats: 'ATS',
 };
 
@@ -183,6 +184,7 @@ const CATEGORY_ORDER = [
   'communication',
   'talent',
   'vouch',
+  'crm',
   'integrations',
   'ats',
 ];

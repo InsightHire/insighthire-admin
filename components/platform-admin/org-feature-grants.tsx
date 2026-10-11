@@ -12,6 +12,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   talent: 'Talent',
   ats: 'ATS',
   vouch: 'Vouch',
+  crm: 'CRM',
 };
 
 type Reason = 'GRANTED' | 'PLATFORM_OFF' | 'PLAN_REQUIRED' | 'NOT_GRANTED' | 'GRANT_EXPIRED' | 'CAP_REACHED';
