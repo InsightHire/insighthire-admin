@@ -19,6 +19,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '@/lib/authio/config';
 import { accessCookieLooksValid } from '@/lib/authio/access-cookie-gate';
+import { IDLE_COOKIE, IDLE_HEADER, isIdleExpired } from '@/lib/authio/idle';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -29,6 +30,9 @@ async function proxy(req: NextRequest, ctx: { params: { trpc?: string[] } }): Pr
   const token = cookies().get(SESSION_COOKIE)?.value;
   if (!token || !accessCookieLooksValid(token)) {
     return new NextResponse(null, { status: 401 });
+  }
+  if (isIdleExpired(cookies().get(IDLE_COOKIE)?.value, Date.now())) {
+    return new NextResponse(null, { status: 401, headers: { [IDLE_HEADER]: 'idle' } });
   }
 
   const path = (ctx.params.trpc ?? []).join('/');

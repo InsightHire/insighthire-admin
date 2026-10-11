@@ -12,6 +12,7 @@ export const AUTH_ERROR_MESSAGES: Record<string, string> = {
   invalid_token: 'Sign-in returned an invalid session. Please try again.',
   sso_org_unconfigured: 'Sign-in is misconfigured. Please contact support.',
   refresh_failed: 'Your session ended. Please sign in again.',
+  idle_timeout: 'You were signed out after 30 minutes without activity. Please sign in again.',
   refresh_threw: 'We could not refresh your session. Please try again.',
 };
 

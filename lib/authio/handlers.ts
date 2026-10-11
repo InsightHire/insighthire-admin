@@ -35,6 +35,7 @@ import { verifyAccessToken } from './session';
 import { exchangeAuthorizationCode, exchangeSessionHandoff, hashBootstrapHtml } from './token-exchange';
 import { redirectWithAuthError } from './auth-errors';
 import { generatePkcePair } from './pkce';
+import { IDLE_COOKIE, idleCookie, isIdleExpired } from './idle';
 
 /** Query-string key used to round-trip our cookie-bound CSRF nonce through the
  * SP-initiated flow (which doesn't accept `client_state_nonce` as a top-level
@@ -100,7 +101,7 @@ function setSessionCookies(
 }
 
 function clearSessionCookies(res: NextResponse) {
-  for (const name of [SESSION_COOKIE, REFRESH_COOKIE, CALLBACK_STATE_COOKIE]) {
+  for (const name of [SESSION_COOKIE, REFRESH_COOKIE, CALLBACK_STATE_COOKIE, IDLE_COOKIE]) {
     res.cookies.set({ name, value: '', path: '/', maxAge: 0 });
   }
 }
@@ -311,6 +312,7 @@ export function createAuthioCallbackHandler(opts: CallbackHandlerOptions = {}) {
       accessExpiresInSec:
         tokens.accessExpiresInSec ?? accessTokenRemainingSec(accessToken),
     });
+    res.cookies.set(idleCookie(Date.now(), isProd()));
     res.cookies.set({ name: CALLBACK_STATE_COOKIE, value: '', path: '/', maxAge: 0 });
     return res;
   };
@@ -328,6 +330,11 @@ export function createAuthioRefreshHandler() {
       return NextResponse.redirect(
         publicUrl(req, `${SIGN_IN_PATH}?next=${encodeURIComponent(returnTo)}`),
       );
+    }
+    if (isIdleExpired(req.cookies.get(IDLE_COOKIE)?.value, Date.now())) {
+      const res = redirectWithAuthError(req, 'idle_timeout');
+      clearSessionCookies(res);
+      return res;
     }
 
     try {
