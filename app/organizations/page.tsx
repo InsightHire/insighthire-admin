@@ -84,7 +84,7 @@ function OrganizationsPageInner() {
             className="inline-flex items-center gap-1.5 rounded-admin-sm border border-admin-border bg-white px-3 py-1.5 text-sm font-medium text-admin-ink hover:bg-slate-50"
           >
             <LayoutGrid className="h-4 w-4" />
-            Feature matrix
+            Tenant features
           </Link>
           <Link
             href="/onboarding"

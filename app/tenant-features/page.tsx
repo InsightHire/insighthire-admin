@@ -2,13 +2,15 @@
 export const dynamic = 'force-dynamic';
 
 /**
- * Every tenant × every tenant-level configuration on one screen: add-on
- * modules (grants), legal-gated features, platform flag overrides and the
- * support toggles. Clicking a cell uses the same mutation as the org page,
- * Legal review or Feature flags screen it mirrors.
+ * Staff view of every tenant-level configuration: add-on modules, legal
+ * gates, platform flag overrides, and support settings. Rows are
+ * configurations (so the names stay readable). Columns are tenants.
+ * Selecting a cell explains the state and applies the same mutation as the
+ * org page, Legal review, or Feature flags.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/cn';
 import { useAdminAuth } from '@/lib/use-admin-auth';
@@ -20,25 +22,26 @@ import { SeverityBadge } from '@/components/admin/severity-badge';
 import {
   CATEGORY_LABELS,
   TIER_LABEL,
-  featureCellState,
+  buildConfigRows,
   filterMatrixOrgs,
-  flagCellState,
-  legalCellState,
+  matrixCategories,
+  sortMatrixOrgs,
   type CellState,
   type CellTone,
-  type MatrixFeature,
+  type ConfigRow,
+  type ConfigSection,
   type MatrixOrg,
+  type MatrixPayload,
   type OrgKindFilter,
   type PlanTier,
 } from '@/lib/tenant-matrix';
 
-type View = 'modules' | 'legal' | 'flags' | 'settings';
-
-const VIEWS: Array<{ id: View; label: string }> = [
-  { id: 'modules', label: 'Modules' },
+const SECTIONS: Array<{ id: ConfigSection; label: string }> = [
+  { id: '', label: 'All' },
+  { id: 'module', label: 'Modules' },
   { id: 'legal', label: 'Legal gates' },
-  { id: 'flags', label: 'Flag overrides' },
-  { id: 'settings', label: 'Support settings' },
+  { id: 'flag', label: 'Flag overrides' },
+  { id: 'setting', label: 'Support settings' },
 ];
 
 const TONE_CLASS: Record<CellTone, string> = {
@@ -50,44 +53,22 @@ const TONE_CLASS: Record<CellTone, string> = {
   demo: 'bg-violet-100 text-violet-800 border-violet-200',
 };
 
-const LEGAL_STATUS: Record<string, [string, 'ok' | 'warn' | 'critical' | 'muted']> = {
-  APPROVED: ['Approved', 'ok'],
-  IN_REVIEW: ['In review', 'warn'],
-  NEEDS_REVIEW: ['Needs review', 'muted'],
-  REJECTED: ['Rejected', 'critical'],
-};
+type Line =
+  | { type: 'group'; name: string; count: number }
+  | { type: 'row'; row: ConfigRow };
 
-type Column = {
-  key: string;
-  name: string;
-  group: string;
-  note?: string;
-  muted?: boolean;
-  title: string;
-  count: (o: MatrixOrg) => boolean;
-  cell: (o: MatrixOrg) => CellState;
-  disabled?: (o: MatrixOrg) => boolean;
-  onClick: (o: MatrixOrg) => void;
-};
-
-function Cell({ state, pending, disabled, onClick }: { state: CellState; pending: boolean; disabled: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={pending || disabled}
-      title={state.title}
-      aria-label={state.title}
-      className={cn(
-        'flex h-6 w-6 items-center justify-center rounded border text-[10px] font-bold leading-none transition-colors disabled:cursor-not-allowed',
-        TONE_CLASS[state.tone],
-        pending && 'animate-pulse opacity-60',
-        disabled && state.tone === 'off' && 'hover:border-slate-200',
-      )}
-    >
-      {state.label}
-    </button>
-  );
+function toLines(rows: ConfigRow[]): Line[] {
+  const lines: Line[] = [];
+  let i = 0;
+  while (i < rows.length) {
+    const group = rows[i].group;
+    let j = i;
+    while (j < rows.length && rows[j].group === group) j += 1;
+    lines.push({ type: 'group', name: group, count: j - i });
+    for (let k = i; k < j; k += 1) lines.push({ type: 'row', row: rows[k] });
+    i = j;
+  }
+  return lines;
 }
 
 function LegendSwatch({ tone, label, text }: { tone: CellTone; label: string; text: string }) {
@@ -101,40 +82,46 @@ function LegendSwatch({ tone, label, text }: { tone: CellTone; label: string; te
   );
 }
 
-function OrgCell({ org }: { org: MatrixOrg }) {
-  return (
-    <div className="min-w-0">
-      <Link href={`/organizations/${org.id}`} className="block truncate font-medium text-admin-ink hover:text-admin-accent-ink hover:underline" title={org.name ?? org.id}>
-        {org.name || '(Incomplete)'}
-      </Link>
-      <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[10px] font-semibold uppercase tracking-wide">
-        <span className="rounded bg-slate-100 px-1 text-slate-700">{TIER_LABEL[org.planTier]}</span>
-        {org.subscriptionStatus && org.subscriptionStatus !== 'ACTIVE' ? (
-          <span className={cn('rounded px-1', org.subscriptionStatus === 'TRIAL' ? 'bg-sky-100 text-sky-800' : 'bg-red-100 text-red-800')}>
-            {org.subscriptionStatus.replace('_', ' ')}
-          </span>
-        ) : null}
-        {org.billingComped ? <span className="rounded bg-violet-50 px-1 text-violet-800">Comped</span> : null}
-        {org.demoTenant ? <span className="rounded bg-violet-600 px-1 text-white">Demo</span> : null}
-        {org.sandbox ? <span className="rounded bg-amber-100 px-1 text-amber-900">Sandbox</span> : null}
-        {org.orgKind !== 'STANDARD' ? <span className="rounded bg-teal-50 px-1 text-teal-800">{org.orgKind.replace('_', ' ')}</span> : null}
-      </div>
-    </div>
-  );
+function actionLabel(row: ConfigRow, org: MatrixOrg): string | null {
+  if (row.kind === 'module' && row.module) {
+    return org.features[row.module.slug]?.granted === true ? 'Revoke' : 'Grant';
+  }
+  if (row.kind === 'legal' && row.legal) {
+    if (org.demoTenant) return null;
+    return org.legal[row.legal.key]?.enabled === true ? 'Disable' : 'Enable';
+  }
+  if (row.kind === 'flag' && row.flag) {
+    return org.flagOverrides[row.flag.key] === undefined
+      ? (row.flag.enabled ? 'Override off' : 'Override on')
+      : 'Remove override';
+  }
+  if (row.setting === 'supportChatEnabled') return org.supportChatEnabled ? 'Turn off' : 'Turn on';
+  if (row.setting === 'autoGenerateQuestionVideos') return org.autoGenerateQuestionVideos ? 'Turn off' : 'Turn on';
+  return null;
+}
+
+function readOnlyReason(row: ConfigRow, org: MatrixOrg, isSuperAdmin: boolean): string | null {
+  if (row.kind === 'legal' && org.demoTenant) return 'Demo tenants are always cleared. This cannot be turned off here.';
+  if ((row.kind === 'legal' || row.kind === 'flag') && !isSuperAdmin) return 'Super admin required to change this.';
+  return null;
 }
 
 function TenantFeatureMatrixInner() {
   const { isLoading: authLoading } = useAdminAuth();
   const isSuperAdmin = useIsSuperAdmin();
   const adminTrpc = trpc as any;
+  const searchParams = useSearchParams();
 
-  const [view, setView] = useState<View>('modules');
-  const [search, setSearch] = useState('');
+  const [section, setSection] = useState<ConfigSection>('');
+  const [featureSearch, setFeatureSearch] = useState(searchParams.get('feature') ?? '');
+  const [tenantSearch, setTenantSearch] = useState('');
   const [tier, setTier] = useState<'' | PlanTier>('');
   const [status, setStatus] = useState('');
   const [kind, setKind] = useState<OrgKindFilter>('');
   const [category, setCategory] = useState('');
   const [hideUnused, setHideUnused] = useState(true);
+  const [problemsOnly, setProblemsOnly] = useState(false);
+  const [selected, setSelected] = useState<{ rowKey: string; orgId: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -143,9 +130,7 @@ function TenantFeatureMatrixInner() {
     refetchOnWindowFocus: false,
     staleTime: 15_000,
   });
-  const data = query.data as
-    | { features: MatrixFeature[]; flags: Array<{ id: string; key: string; description: string | null; enabled: boolean }>; legal: Array<{ key: string; title: string; status: string }>; orgs: MatrixOrg[] }
-    | undefined;
+  const data = query.data as MatrixPayload | undefined;
 
   const done = {
     onSuccess: () => { setError(null); return query.refetch(); },
@@ -165,175 +150,120 @@ function TenantFeatureMatrixInner() {
   const setAuthoring = adminTrpc.platformAdmin.setOrgAuthoringSettings.useMutation(done);
 
   const orgs = useMemo(
-    () => filterMatrixOrgs(data?.orgs ?? [], { search, tier, kind, status }),
-    [data, search, tier, kind, status],
+    () => sortMatrixOrgs(filterMatrixOrgs(data?.orgs ?? [], { search: tenantSearch, tier, kind, status })),
+    [data, tenantSearch, tier, kind, status],
   );
+  const categories = useMemo(() => matrixCategories(data?.features ?? []), [data]);
+  const rows = useMemo(
+    () => (data ? buildConfigRows(data, { section, category, search: featureSearch, hideUnused, problemsOnly }, orgs) : []),
+    [data, section, category, featureSearch, hideUnused, problemsOnly, orgs],
+  );
+  const lines = useMemo(() => toLines(rows), [rows]);
 
-  const categories = useMemo(() => {
-    const seen = new Set<string>();
-    for (const f of data?.features ?? []) seen.add(f.category);
-    return [...seen];
-  }, [data]);
+  const selectedRow = rows.find((r) => r.key === selected?.rowKey) ?? null;
+  const selectedOrg = orgs.find((o) => o.id === selected?.orgId) ?? null;
+  const selection = selectedRow && selectedOrg ? { row: selectedRow, org: selectedOrg } : null;
 
-  const columns: Column[] = (() => {
-    if (!data) return [];
-    const run = (key: string, fn: () => void) => { setPending(key); setError(null); fn(); };
-    const orgName = (o: MatrixOrg) => o.name || o.id;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelected(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
-    if (view === 'modules') {
-      const allOrgs = data.orgs;
-      return data.features
-        .filter((f) => !category || f.category === category)
-        .filter((f) => !hideUnused || f.platformEnabled || allOrgs.some((o) => o.features[f.slug]?.granted))
-        .map((f): Column => ({
-          key: f.slug,
-          name: f.name,
-          group: CATEGORY_LABELS[f.category] || f.category,
-          note: f.platformEnabled ? undefined : 'platform off',
-          muted: !f.platformEnabled,
-          title: `${f.name}\n${f.description}${f.minPlan ? `\nNeeds ${f.minPlan === 'ENTERPRISE' ? 'Enterprise' : 'Hire'} plan.` : ''}${f.platformEnabled ? '' : '\nPlatform switch off: live only for demo tenants. Granting turns the platform switch on.'}${f.caution ? `\n${f.caution}` : ''}`,
-          count: (o) => o.features[f.slug]?.reason === 'GRANTED',
-          cell: (o) => featureCellState(o.features[f.slug], f.minPlan),
-          onClick: (o) => {
-            const granted = o.features[f.slug]?.granted === true;
-            if (granted && !window.confirm(`Revoke ${f.name} for ${orgName(o)}?`)) return;
-            if (!granted && f.caution && !window.confirm(`${f.caution}\n\nGrant ${f.name} to ${orgName(o)}?`)) return;
-            if (!granted && !f.platformEnabled && !window.confirm(`${f.name} is switched off platform-wide. Granting turns the platform switch on (other tenants still need their own grant). Continue?`)) return;
-            run(`${o.id}:${f.slug}`, () => toggleGrant.mutate({ organizationId: o.id, slug: f.slug, granted: !granted }));
-          },
-        }));
+  function apply(row: ConfigRow, org: MatrixOrg) {
+    const key = `${org.id}:${row.key}`;
+    setPending(key);
+    setError(null);
+    if (row.kind === 'module' && row.module) {
+      const granted = org.features[row.module.slug]?.granted === true;
+      toggleGrant.mutate({ organizationId: org.id, slug: row.module.slug, granted: !granted });
+      return;
     }
-
-    if (view === 'legal') {
-      return data.legal.map((l): Column => {
-        const [statusLabel] = LEGAL_STATUS[l.status] ?? [l.status];
-        return {
-          key: l.key,
-          name: l.title,
-          group: 'Legal review',
-          note: statusLabel.toLowerCase(),
-          muted: l.status !== 'APPROVED',
-          title: `${l.title}\nStatus: ${statusLabel}. Customers are live only when approved and enabled. Super admin only.`,
-          count: (o) => o.legal[l.key]?.cleared === true,
-          cell: (o) => legalCellState(o.legal[l.key], o.demoTenant, l.status),
-          disabled: (o) => o.demoTenant || !isSuperAdmin,
-          onClick: (o) => {
-            const enabled = o.legal[l.key]?.enabled === true;
-            if (!window.confirm(`${enabled ? 'Disable' : 'Enable'} ${l.title} for ${orgName(o)}?`)) return;
-            run(`${o.id}:${l.key}`, () => setLegal.mutate({ key: l.key, organizationId: o.id, enabled: !enabled, note: null }));
-          },
-        };
-      });
+    if (row.kind === 'legal' && row.legal) {
+      const enabled = org.legal[row.legal.key]?.enabled === true;
+      setLegal.mutate({ key: row.legal.key, organizationId: org.id, enabled: !enabled, note: null });
+      return;
     }
-
-    if (view === 'flags') {
-      return data.flags.map((fl): Column => ({
-        key: fl.key,
-        name: fl.key,
-        group: 'Platform flags',
-        note: fl.enabled ? 'global on' : 'global off',
-        muted: !fl.enabled,
-        title: `${fl.key}${fl.description ? `\n${fl.description}` : ''}\nGlobal: ${fl.enabled ? 'on' : 'off'}. An org override always wins. Super admin only.`,
-        count: (o) => (o.flagOverrides[fl.key] ?? fl.enabled) === true,
-        cell: (o) => flagCellState(o.flagOverrides[fl.key], fl.enabled),
-        disabled: () => !isSuperAdmin,
-        onClick: (o) => {
-          const override = o.flagOverrides[fl.key];
-          const setOrgOverride = override === undefined
-            ? { organizationId: o.id, enabled: !fl.enabled }
-            : { organizationId: o.id, clear: true as const };
-          run(`${o.id}:${fl.key}`, () => updateFlag.mutate({ id: fl.id, setOrgOverride }));
-        },
-      }));
+    if (row.kind === 'flag' && row.flag) {
+      const override = org.flagOverrides[row.flag.key];
+      const setOrgOverride = override === undefined
+        ? { organizationId: org.id, enabled: !row.flag.enabled }
+        : { organizationId: org.id, clear: true as const };
+      updateFlag.mutate({ id: row.flag.id, setOrgOverride });
+      return;
     }
-
-    return [
-      {
-        key: 'supportChatEnabled',
-        name: 'Support chatbot',
-        group: 'Support settings',
-        title: 'Support chatbot in the recruiter dashboard (off by default).',
-        count: (o) => o.supportChatEnabled,
-        cell: (o) => (o.supportChatEnabled
-          ? { tone: 'live', label: '✓', title: 'On. Click to turn off.' }
-          : { tone: 'off', label: '', title: 'Off. Click to turn on.' }),
-        onClick: (o) => run(`${o.id}:supportChatEnabled`, () => setDashboard.mutate({ organizationId: o.id, supportChatEnabled: !o.supportChatEnabled })),
-      },
-      {
-        key: 'autoGenerateQuestionVideos',
-        name: 'Auto avatar videos',
-        group: 'Support settings',
-        title: 'Render AI avatar videos automatically when a video question is saved (on by default). Turn off for quota or persona issues.',
-        count: (o) => o.autoGenerateQuestionVideos,
-        cell: (o) => (o.autoGenerateQuestionVideos
-          ? { tone: 'live', label: '✓', title: 'On. Click to turn off.' }
-          : { tone: 'off', label: '', title: 'Off. Click to turn on.' }),
-        onClick: (o) => run(`${o.id}:autoGenerateQuestionVideos`, () => setAuthoring.mutate({ organizationId: o.id, autoGenerateQuestionVideos: !o.autoGenerateQuestionVideos })),
-      },
-    ];
-  })();
-
-  const groups: Array<{ name: string; span: number }> = [];
-  for (const c of columns) {
-    const last = groups[groups.length - 1];
-    if (last && last.name === c.group) last.span += 1;
-    else groups.push({ name: c.group, span: 1 });
+    if (row.setting === 'supportChatEnabled') {
+      setDashboard.mutate({ organizationId: org.id, supportChatEnabled: !org.supportChatEnabled });
+      return;
+    }
+    if (row.setting === 'autoGenerateQuestionVideos') {
+      setAuthoring.mutate({ organizationId: org.id, autoGenerateQuestionVideos: !org.autoGenerateQuestionVideos });
+    }
   }
 
   const totals = data
     ? {
         orgs: data.orgs.length,
         demo: data.orgs.filter((o) => o.demoTenant).length,
-        modulesOff: data.features.filter((f) => !f.platformEnabled).length,
         modules: data.features.length,
-        expired: data.orgs.reduce((n, o) => n + Object.values(o.features).filter((c) => c.reason === 'GRANT_EXPIRED').length, 0),
+        modulesOff: data.features.filter((f) => !f.platformEnabled).length,
+        legal: data.legal.length,
+        flags: data.flags.length,
         blocked: data.orgs.reduce((n, o) => n + Object.values(o.features).filter((c) => c.granted && (c.reason === 'PLATFORM_OFF' || c.reason === 'PLAN_REQUIRED')).length, 0),
+        expired: data.orgs.reduce((n, o) => n + Object.values(o.features).filter((c) => c.reason === 'GRANT_EXPIRED').length, 0),
       }
     : null;
 
+  const showCategory = section === '' || section === 'module';
+
   return (
-    <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6">
+    <div className="mx-auto flex h-[calc(100vh-3.5rem)] max-w-[1800px] flex-col overflow-auto px-4 py-4 sm:px-6">
       <PageHeader
+        className="mb-3"
         eyebrow="Tenants"
-        title="Feature matrix"
-        description="Every tenant against every module, legal gate, flag override and support setting. Click a cell to change it; hover for why it is or isn't live."
+        title="Tenant features"
+        description="Every module, legal gate, flag override, and support setting down the side. Each column is a tenant. Select a cell to see why it is or isn't live, then change it."
       />
 
       {totals ? (
         <div className="mb-4 flex flex-wrap gap-2 text-xs">
           <SeverityBadge severity="info">{totals.orgs} tenants</SeverityBadge>
           <SeverityBadge severity="muted">{totals.demo} demo</SeverityBadge>
-          <SeverityBadge severity="muted">{totals.modulesOff} of {totals.modules} modules off platform-wide</SeverityBadge>
-          {totals.blocked > 0 ? <SeverityBadge severity="warn">{totals.blocked} grants not live (platform or plan)</SeverityBadge> : null}
+          <SeverityBadge severity="muted">{totals.modules} modules · {totals.legal} legal · {totals.flags} flags</SeverityBadge>
+          <SeverityBadge severity="muted">{totals.modulesOff} modules off platform-wide</SeverityBadge>
+          {totals.blocked > 0 ? <SeverityBadge severity="warn">{totals.blocked} grants not live</SeverityBadge> : null}
           {totals.expired > 0 ? <SeverityBadge severity="critical">{totals.expired} expired trials</SeverityBadge> : null}
         </div>
       ) : null}
 
       <div className="mb-3 flex flex-wrap gap-1 border-b border-admin-border">
-        {VIEWS.map((v) => (
+        {SECTIONS.map((s) => (
           <button
-            key={v.id}
+            key={s.id || 'all'}
             type="button"
-            onClick={() => setView(v.id)}
+            onClick={() => setSection(s.id)}
             className={cn(
               '-mb-px border-b-2 px-3 py-2 text-sm font-medium',
-              view === v.id ? 'border-admin-accent text-admin-ink' : 'border-transparent text-admin-muted hover:text-admin-ink',
+              section === s.id ? 'border-admin-accent text-admin-ink' : 'border-transparent text-admin-muted hover:text-admin-ink',
             )}
           >
-            {v.label}
+            {s.label}
           </button>
         ))}
       </div>
 
       <FilterBar>
-        <FilterInput label="Search" value={search} onChange={setSearch} placeholder="Tenant name, domain or id…" />
+        <FilterInput label="Feature" value={featureSearch} onChange={setFeatureSearch} placeholder="CRM, SMS, early pay…" />
+        <FilterInput label="Tenant" value={tenantSearch} onChange={setTenantSearch} placeholder="Name, domain, or id…" />
         <FilterSelect
           label="Tenants"
           value={kind}
           onChange={(v) => setKind(v as OrgKindFilter)}
           options={[
             { value: '', label: 'All' },
-            { value: 'customers', label: 'Customers (no demo/sandbox)' },
+            { value: 'customers', label: 'Customers' },
             { value: 'demo', label: 'Demo' },
             { value: 'sandbox', label: 'Sandboxes' },
             { value: 'agencies', label: 'Agencies & MSPs' },
@@ -363,60 +293,46 @@ function TenantFeatureMatrixInner() {
             { value: 'EXPIRED', label: 'Expired' },
           ]}
         />
-        {view === 'modules' ? (
-          <>
-            <FilterSelect
-              label="Category"
-              value={category}
-              onChange={setCategory}
-              options={[{ value: '', label: 'All' }, ...categories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] || c }))]}
-            />
-            <label className="flex items-center gap-2 text-xs text-admin-muted">
-              <input
-                type="checkbox"
-                checked={hideUnused}
-                onChange={(e) => setHideUnused(e.target.checked)}
-                className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
-              />
-              Hide modules that are off and granted to nobody
-            </label>
-          </>
+        {showCategory ? (
+          <FilterSelect
+            label="Category"
+            value={category}
+            onChange={setCategory}
+            options={[{ value: '', label: 'All' }, ...categories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] || c }))]}
+          />
         ) : null}
+        <label className="flex items-center gap-2 text-xs text-admin-muted">
+          <input
+            type="checkbox"
+            checked={hideUnused}
+            onChange={(e) => setHideUnused(e.target.checked)}
+            className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+          />
+          Hide modules off and granted to nobody
+        </label>
+        <label className="flex items-center gap-2 text-xs text-admin-muted">
+          <input
+            type="checkbox"
+            checked={problemsOnly}
+            onChange={(e) => setProblemsOnly(e.target.checked)}
+            className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+          />
+          Problems only
+        </label>
       </FilterBar>
 
       <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-admin-muted">
-        {view === 'modules' ? (
-          <>
-            <LegendSwatch tone="live" label="✓" text="Live" />
-            <LegendSwatch tone="live" label="T" text="Live, trial ends" />
-            <LegendSwatch tone="blocked" label="!" text="Granted, not live (platform off or plan)" />
-            <LegendSwatch tone="problem" label="×" text="Trial ended or cap reached" />
-            <LegendSwatch tone="off" label="" text="Not granted" />
-            <span>Demo tenants ignore the platform switch.</span>
-          </>
-        ) : view === 'legal' ? (
-          <>
-            <LegendSwatch tone="live" label="✓" text="Cleared (approved + enabled)" />
-            <LegendSwatch tone="blocked" label="!" text="Enabled, awaiting approval" />
-            <LegendSwatch tone="demo" label="D" text="Demo: always cleared" />
-            <LegendSwatch tone="off" label="" text="Not enabled" />
-            <Link href="/legal-review" className="font-medium text-admin-accent-ink hover:underline">Approve in Legal review →</Link>
-          </>
-        ) : view === 'flags' ? (
-          <>
-            <LegendSwatch tone="live" label="on" text="Override on" />
-            <LegendSwatch tone="problem" label="off" text="Override off" />
-            <LegendSwatch tone="inherit-on" label="" text="Follows global (on)" />
-            <LegendSwatch tone="off" label="" text="Follows global (off)" />
-            <Link href="/flags" className="font-medium text-admin-accent-ink hover:underline">Global switches in Feature flags →</Link>
-          </>
-        ) : (
-          <>
-            <LegendSwatch tone="live" label="✓" text="On" />
-            <LegendSwatch tone="off" label="" text="Off" />
-          </>
-        )}
-        {(view === 'legal' || view === 'flags') && !isSuperAdmin ? <span className="text-admin-warn">Read only: super admin to change.</span> : null}
+        <LegendSwatch tone="live" label="✓" text="Live" />
+        <LegendSwatch tone="live" label="T" text="Live, trial ends" />
+        <LegendSwatch tone="blocked" label="!" text="Granted, not live" />
+        <LegendSwatch tone="problem" label="×" text="Ended, capped, or forced off" />
+        <LegendSwatch tone="demo" label="D" text="Demo, always cleared" />
+        <LegendSwatch tone="inherit-on" label="" text="Follows a global switch that is on" />
+        <LegendSwatch tone="off" label="" text="Off" />
+        <span>Violet column names are demo tenants. Amber names are sandboxes.</span>
+        {(section === '' || section === 'legal' || section === 'flag') && !isSuperAdmin ? (
+          <span className="text-admin-warn">Legal gates and flags are read only until you are a super admin.</span>
+        ) : null}
       </div>
 
       {error ? (
@@ -425,87 +341,199 @@ function TenantFeatureMatrixInner() {
         </div>
       ) : null}
 
+      <Inspector
+        selection={selection}
+        pending={pending}
+        isSuperAdmin={isSuperAdmin}
+        onApply={apply}
+      />
+
       {query.isLoading ? (
-        <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading matrix…</div>
+        <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading tenant features…</div>
       ) : query.error ? (
         <div className="rounded-admin border border-admin-danger/30 bg-admin-danger-soft px-4 py-3 text-sm text-admin-danger">
           {(query.error as { message?: string }).message}
         </div>
-      ) : columns.length === 0 ? (
-        <div className="admin-panel py-16 text-center text-sm text-admin-muted">Nothing to show for this view.</div>
+      ) : orgs.length === 0 ? (
+        <div className="admin-panel py-16 text-center text-sm text-admin-muted">No tenants match these filters.</div>
+      ) : rows.length === 0 ? (
+        <div className="admin-panel py-16 text-center text-sm text-admin-muted">No configurations match these filters.</div>
       ) : (
-        <div className="admin-panel max-h-[calc(100vh-18rem)] overflow-auto">
+        <div className="admin-panel min-h-[20rem] flex-1 overflow-auto">
           <table className="border-separate border-spacing-0 text-sm">
             <thead>
               <tr>
-                <th rowSpan={2} className="sticky left-0 top-0 z-30 min-w-[16rem] max-w-[18rem] border-b border-r border-admin-border bg-white px-3 py-2 text-left align-bottom text-xs font-semibold text-admin-muted">
-                  Tenant <span className="font-normal">({orgs.length})</span>
+                <th className="sticky left-0 top-0 z-30 min-w-[18rem] border-b border-r border-admin-border bg-white px-3 py-2 text-left align-bottom text-xs font-semibold text-admin-muted">
+                  Configuration <span className="font-normal">({rows.length})</span>
                 </th>
-                {view === 'modules' ? (
-                  <th rowSpan={2} className="sticky top-0 z-20 border-b border-r border-admin-border bg-white px-2 py-2 align-bottom text-xs font-semibold text-admin-muted" title="Live modules / granted modules">
-                    Live
-                  </th>
-                ) : null}
-                {groups.map((g, i) => (
-                  <th key={`${g.name}-${i}`} colSpan={g.span} className="sticky top-0 z-20 h-7 border-b border-r border-admin-border bg-slate-50 px-2 text-left text-[11px] font-semibold uppercase tracking-wide text-admin-muted">
-                    {g.name}
-                  </th>
-                ))}
-              </tr>
-              <tr>
-                {columns.map((c) => (
-                  <th key={c.key} title={c.title} className="sticky top-7 z-20 h-40 w-8 border-b border-admin-border bg-white px-1 pb-2 align-bottom">
-                    <div className={cn('mx-auto max-h-36 overflow-hidden text-left text-xs font-medium [writing-mode:vertical-rl] rotate-180', c.muted ? 'text-admin-muted' : 'text-admin-ink')}>
-                      {c.name}
-                      {c.note ? <span className="ml-1 text-[10px] font-normal italic text-admin-muted">· {c.note}</span> : null}
-                    </div>
+                {orgs.map((o) => (
+                  <th key={o.id} className="sticky top-0 z-20 h-44 w-9 border-b border-admin-border bg-white px-0.5 pb-2 align-bottom">
+                    <Link
+                      href={`/organizations/${o.id}`}
+                      title={`${o.name || o.id} · ${TIER_LABEL[o.planTier]}${o.subscriptionStatus ? ` · ${o.subscriptionStatus}` : ''}${o.demoTenant ? ' · Demo' : ''}${o.sandbox ? ' · Sandbox' : ''}${o.billingComped ? ' · Comped' : ''}`}
+                      className={cn(
+                        'mx-auto block max-h-40 overflow-hidden text-left text-[11px] font-medium leading-tight [writing-mode:vertical-rl] rotate-180 hover:underline',
+                        o.demoTenant ? 'text-violet-800' : o.sandbox ? 'text-amber-800' : 'text-admin-ink',
+                      )}
+                    >
+                      {o.name || '(Incomplete)'}
+                    </Link>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {orgs.map((o) => (
-                <tr key={o.id} className="group">
-                  <td className="sticky left-0 z-10 min-w-[16rem] max-w-[18rem] border-b border-r border-admin-border bg-white px-3 py-1.5 group-hover:bg-slate-50">
-                    <OrgCell org={o} />
-                  </td>
-                  {view === 'modules' ? (
-                    <td className="border-b border-r border-admin-border px-2 text-center text-xs tabular-nums text-admin-muted group-hover:bg-slate-50" title={`${o.liveCount} live of ${o.grantedCount} granted`}>
-                      <span className="font-semibold text-admin-ink">{o.liveCount}</span>/{o.grantedCount}
-                    </td>
-                  ) : null}
-                  {columns.map((c) => (
-                    <td key={c.key} className="border-b border-admin-border px-1 py-1 group-hover:bg-slate-50">
-                      <div className="flex justify-center">
-                        <Cell
-                          state={c.cell(o)}
-                          pending={pending === `${o.id}:${c.key}`}
-                          disabled={c.disabled?.(o) ?? false}
-                          onClick={() => c.onClick(o)}
-                        />
+              {lines.map((line) => {
+                if (line.type === 'group') {
+                  return (
+                    <tr key={`group:${line.name}`}>
+                      <th className="sticky left-0 z-10 border-b border-r border-admin-border bg-slate-100 px-3 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-admin-muted">
+                        {line.name} <span className="font-normal">({line.count})</span>
+                      </th>
+                      {orgs.map((o) => (
+                        <th key={o.id} className="border-b border-admin-border bg-slate-100" />
+                      ))}
+                    </tr>
+                  );
+                }
+                const row = line.row;
+                return (
+                  <tr key={row.key} className="group">
+                    <th className="sticky left-0 z-10 min-w-[18rem] max-w-[22rem] border-b border-r border-admin-border bg-white px-3 py-1.5 text-left font-normal group-hover:bg-slate-50">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 w-6 shrink-0 text-right text-xs tabular-nums text-admin-muted" title="On for this many tenants in view">
+                          {orgs.filter(row.on).length}
+                        </span>
+                        <div className="min-w-0">
+                          <div className={cn('truncate text-sm font-medium', row.muted ? 'text-admin-muted' : 'text-admin-ink')} title={row.detail}>
+                            {row.name}
+                          </div>
+                          <div className="truncate text-[11px] text-admin-muted">{row.meta}</div>
+                        </div>
                       </div>
-                    </td>
-                  ))}
-                </tr>
-              ))}
+                    </th>
+                    {orgs.map((o) => {
+                      const state = row.cell(o);
+                      const isSelected = selected?.rowKey === row.key && selected.orgId === o.id;
+                      const isPending = pending === `${o.id}:${row.key}`;
+                      const locked = readOnlyReason(row, o, isSuperAdmin) !== null;
+                      return (
+                        <td
+                          key={o.id}
+                          className={cn(
+                            'border-b border-admin-border px-1 py-1 group-hover:bg-slate-50',
+                            selected?.orgId === o.id && 'bg-slate-50',
+                          )}
+                        >
+                          <div className="flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => setSelected({ rowKey: row.key, orgId: o.id })}
+                              disabled={isPending}
+                              title={state.title}
+                              aria-label={`${row.name}, ${o.name || o.id}. ${state.title}`}
+                              aria-pressed={isSelected}
+                              className={cn(
+                                'flex h-7 w-7 items-center justify-center rounded border text-[11px] font-bold leading-none transition-colors disabled:cursor-wait',
+                                TONE_CLASS[state.tone],
+                                isPending && 'animate-pulse opacity-60',
+                                locked && state.tone === 'off' && 'hover:border-slate-200',
+                                isSelected && 'ring-2 ring-slate-900 ring-offset-1',
+                              )}
+                            >
+                              {state.label}
+                            </button>
+                          </div>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr>
                 <td className="sticky bottom-0 left-0 z-20 border-r border-t border-admin-border bg-slate-50 px-3 py-2 text-xs font-semibold text-admin-muted">
-                  Live in shown tenants
+                  On in view
                 </td>
-                {view === 'modules' ? <td className="sticky bottom-0 z-10 border-r border-t border-admin-border bg-slate-50" /> : null}
-                {columns.map((c) => (
-                  <td key={c.key} className="sticky bottom-0 z-10 border-t border-admin-border bg-slate-50 py-2 text-center text-xs tabular-nums text-admin-ink">
-                    {orgs.filter(c.count).length}
+                {orgs.map((o) => (
+                  <td key={o.id} className="sticky bottom-0 z-10 border-t border-admin-border bg-slate-50 py-2 text-center text-[11px] tabular-nums text-admin-ink">
+                    {rows.filter((r) => r.on(o)).length}
                   </td>
                 ))}
               </tr>
             </tfoot>
           </table>
-          {orgs.length === 0 ? <p className="py-10 text-center text-sm text-admin-muted">No tenants match these filters.</p> : null}
         </div>
       )}
+    </div>
+  );
+}
+
+function Inspector({
+  selection,
+  pending,
+  isSuperAdmin,
+  onApply,
+}: {
+  selection: { row: ConfigRow; org: MatrixOrg } | null;
+  pending: string | null;
+  isSuperAdmin: boolean;
+  onApply: (row: ConfigRow, org: MatrixOrg) => void;
+}) {
+  if (!selection) {
+    return (
+      <div className="admin-panel mb-3 px-4 py-3 text-sm text-admin-muted">
+        Select a cell to change it. The number beside each name is how many tenants in view have it on.
+      </div>
+    );
+  }
+
+  const { row, org } = selection;
+  const state = row.cell(org);
+  const locked = readOnlyReason(row, org, isSuperAdmin);
+  const label = actionLabel(row, org);
+  const granting = row.kind === 'module' && row.module && org.features[row.module.slug]?.granted !== true;
+  const busy = pending === `${org.id}:${row.key}`;
+
+  return (
+    <div className="admin-panel mb-3 flex flex-wrap items-start justify-between gap-3 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-admin-ink">
+          {row.name}
+          <span className="font-normal text-admin-muted"> · {org.name || org.id}</span>
+        </p>
+        <p className="mt-0.5 text-sm text-admin-muted">{state.title}</p>
+        <p className="mt-0.5 text-sm text-admin-muted">{row.kind === 'module' && row.module ? row.module.description : row.detail}</p>
+        {granting && row.module?.caution ? (
+          <p className="mt-1 text-sm text-amber-800">{row.module.caution}</p>
+        ) : null}
+        {granting && row.module && !row.module.platformEnabled ? (
+          <p className="mt-1 text-sm text-amber-800">
+            This module is off platform-wide. Granting turns the platform switch on. Other tenants still need their own grant.
+          </p>
+        ) : null}
+        {locked ? <p className="mt-1 text-sm text-admin-warn">{locked}</p> : null}
+        <div className="mt-2 flex flex-wrap gap-3 text-xs">
+          <Link href={`/organizations/${org.id}`} className="font-medium text-admin-accent-ink hover:underline">Open organization</Link>
+          {row.kind === 'module' ? <Link href="/integrations" className="font-medium text-admin-accent-ink hover:underline">Platform switches</Link> : null}
+          {row.kind === 'legal' ? <Link href="/legal-review" className="font-medium text-admin-accent-ink hover:underline">Legal review</Link> : null}
+          {row.kind === 'flag' ? <Link href="/flags" className="font-medium text-admin-accent-ink hover:underline">Feature flags</Link> : null}
+        </div>
+      </div>
+      {label && !locked ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => onApply(row, org)}
+          className={cn(
+            'shrink-0 rounded-admin-sm px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50',
+            label === 'Revoke' || label === 'Disable' || label === 'Turn off' || label === 'Override off' ? 'bg-red-700 hover:bg-red-800' : 'bg-admin-ink hover:bg-slate-800',
+          )}
+        >
+          {busy ? 'Saving…' : `${label} for ${org.name || 'this tenant'}`}
+        </button>
+      ) : null}
     </div>
   );
 }

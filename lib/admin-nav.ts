@@ -120,7 +120,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/organizations', '/onboarding'],
       },
       {
-        name: 'Feature matrix',
+        name: 'Tenant features',
         href: '/tenant-features',
         icon: LayoutGrid,
         match: ['/tenant-features'],

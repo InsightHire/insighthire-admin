@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { trpc } from '@/lib/trpc';
 import {
@@ -73,6 +74,8 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'identity_full',
   'job_previews',
   'qoh_insights',
+  'agency_partners',
+  'vms',
 ]);
 
 type ConfigField = {
@@ -280,6 +283,11 @@ function TenantAccessPanel({
             so no tenants can use this feature regardless of their grant.
           </p>
         )}
+        <p className="mt-2">
+          <Link href={`/tenant-features?feature=${encodeURIComponent(integration.slug)}`} className="font-medium text-blue-800 hover:underline">
+            See this module across every tenant
+          </Link>
+        </p>
       </div>
 
       <div className="flex items-center gap-3">

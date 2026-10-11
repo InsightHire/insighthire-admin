@@ -162,9 +162,9 @@ export function OrgFeatureGrantsSection({ organizationId }: { organizationId: st
             <Link href="/integrations" className="text-blue-600 hover:text-blue-700 font-medium">
               Integrations
             </Link>{' '}
-            before a grant is live. Compare with every tenant in the{' '}
+            before a grant is live.             Compare with every tenant on{' '}
             <Link href="/tenant-features" className="text-blue-600 hover:text-blue-700 font-medium">
-              Feature matrix
+              Tenant features
             </Link>
             .
           </p>
