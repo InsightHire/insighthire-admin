@@ -470,8 +470,12 @@ export function FeatureSettings({ featureKey, demoOrgs }: { featureKey: string; 
       <CombinedSettings demoOrgs={demoOrgs} />
     ) : featureKey === 'vms.program_fee_billing' ? (
       <ProgramFeeSettings demoOrgs={demoOrgs} />
-    ) : (
+    ) : featureKey === 'vms.msp_paying_agent' ? (
       <p className="text-sm text-gray-500">The MSP program and its paying-agent setting are configured per client in the VMS MSP settings.</p>
+    ) : featureKey === 'vms.direct_1099' ? (
+      <p className="text-sm text-gray-500">No staff settings. Until approved, only demo tenants and enabled customers can engage new direct contractors; existing engagements keep working.</p>
+    ) : (
+      <p className="text-sm text-gray-500">No staff settings. The client configures each AI agent&apos;s pricing, budget and policy in Contractors.</p>
     );
   return (
     <section className="bg-white rounded-lg shadow p-5 space-y-4">
