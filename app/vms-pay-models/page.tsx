@@ -196,7 +196,7 @@ type AccountView = {
   program: AccountScope;
   overrides: AccountScope[];
   features: Array<{ feature: string; own: boolean; label: string }>;
-  insighthireFee: { bps: number; perWorkerCents: number };
+  insighthireFee: { bps?: number; perWorkerCents?: number };
   accruedFees: { cents: number; runs: number };
 };
 
@@ -256,7 +256,7 @@ function ClientPaymentAccount({ org }: { org: Org }) {
         <h2 className="font-semibold text-gray-900">Payment account</h2>
         <p className="text-xs text-gray-500">
           Which account direct worker pay runs on. With an own account, worker accounts, charges, payouts and 1099 filing live on the client&apos;s account,
-          and InsightHire&apos;s fee is accrued per pay run and billed from the VMS account. Keys are never shown here.
+          and InsightHire&apos;s fee is recorded as a receivable per paid run (nothing is taken on their account). Keys are never shown here.
         </p>
       </div>
       {v.demo && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Demo tenant: own accounts here are simulated and no money moves.</p>}
@@ -285,8 +285,8 @@ function ClientPaymentAccount({ org }: { org: Org }) {
         </tbody>
       </table>
       <dl className="grid gap-x-6 gap-y-1 text-xs text-gray-600 sm:grid-cols-3">
-        <div>InsightHire fee on own account: {(fee.bps / 100).toFixed(2)}% + {dollars(fee.perWorkerCents)} per worker per run</div>
-        <div>Accrued, not yet billed: {dollars(v.accruedFees.cents)} ({v.accruedFees.runs} runs)</div>
+        <div>InsightHire fee on own account: {((fee.bps ?? 0) / 100).toFixed(2)}% + {dollars(fee.perWorkerCents ?? 0)} per worker per run</div>
+        <div>Receivable, not yet invoiced: {dollars(v.accruedFees.cents)} ({v.accruedFees.runs} runs)</div>
         <div>Own account supports: {v.features.filter((f) => f.own).map((f) => f.label).join(', ') || 'nothing'}; the rest stay on InsightHire payments</div>
       </dl>
       <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
