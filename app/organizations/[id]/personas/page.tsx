@@ -2,9 +2,14 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { Plus, UserCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowLeftIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { DetailList } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass } from '@/components/admin/controls';
 
 export default function OrganizationPersonasPage() {
   const params = useParams();
@@ -22,97 +27,83 @@ export default function OrganizationPersonasPage() {
   });
 
   if (authLoading || isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin h-12 w-12 border-b-2 border-blue-600 rounded-full"></div></div>;
+    return <div className="flex justify-center py-12"><div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent"></div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center space-x-4">
-            <Link href={`/organizations/${orgId}`} className="p-2 hover:bg-gray-100 rounded-lg">
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold">AI Interview Avatars</h1>
-              <p className="text-gray-600">{orgData?.organization?.name || 'Organization'}</p>
-            </div>
-            <Link
-              href={`/admin/personas/create?orgId=${orgId}`}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Create Persona
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data?.personas.map((persona) => (
-            <div key={persona.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-center space-x-4 mb-4">
-                {persona.image_url ? (
-                  <img
-                    src={persona.image_url}
-                    alt={persona.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-purple-400 rounded-full flex items-center justify-center">
-                    <UserCircleIcon className="h-10 w-10 text-white" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-semibold text-gray-900">{persona.name}</h3>
-                  {persona.is_default && (
-                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-                      Org Default
-                    </span>
-                  )}
+    <AdminPageChrome
+      icon={<UserCircle />}
+      breadcrumbs={[
+        { label: 'Tenants', href: '/organizations' },
+        { label: orgData?.organization?.name || 'Organization', href: `/organizations/${orgId}` },
+        { label: 'AI interview avatars' },
+      ]}
+      title="AI Interview Avatars"
+      description={orgData?.organization?.name || 'Organization'}
+      actions={
+        <Link href={`/admin/personas/create?orgId=${orgId}`} className={buttonClass.primary}>
+          <Plus className="h-4 w-4" />
+          Create Persona
+        </Link>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {data?.personas.map((persona) => (
+          <div key={persona.id} className="admin-panel admin-panel-hover p-5">
+            <div className="mb-4 flex items-center gap-4">
+              {persona.image_url ? (
+                <img
+                  src={persona.image_url}
+                  alt={persona.name}
+                  className="h-14 w-14 rounded-full border border-admin-border object-cover"
+                />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-admin-accent-border bg-admin-accent-soft text-admin-accent">
+                  <UserCircle className="h-8 w-8" />
                 </div>
-              </div>
-
-              {persona.description && (
-                <p className="text-sm text-gray-600 mb-4">{persona.description}</p>
               )}
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Avatar:</span>
-                  <span className="font-medium text-gray-900">
-                    {persona.heygen_avatar_name || 'Not set'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Voice:</span>
-                  <span className="font-medium text-gray-900">
-                    {persona.elevenlabs_voice_name || 'Not set'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Status:</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${
-                    persona.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {persona.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
+              <div className="min-w-0">
+                <h3 className="truncate font-semibold text-admin-ink">{persona.name}</h3>
+                {persona.is_default && (
+                  <StatusPill tone="brand" dot={false} className="mt-1">
+                    Org Default
+                  </StatusPill>
+                )}
               </div>
             </div>
-          ))}
-        </div>
 
-        {data?.personas.length === 0 && (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <UserCircleIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No AI avatars configured</p>
-            <p className="text-sm text-gray-500 mt-2">
-              This org has no personas. New orgs receive a default persona on creation; older orgs may not. Use Create Persona above.
-            </p>
+            {persona.description && (
+              <p className="mb-4 text-sm text-admin-secondary">{persona.description}</p>
+            )}
+
+            <div className="rounded-admin-sm border border-admin-border bg-admin-bg/50 p-3">
+              <DetailList
+                cols={2}
+                items={[
+                  { label: 'Avatar', value: persona.heygen_avatar_name || 'Not set' },
+                  { label: 'Voice', value: persona.elevenlabs_voice_name || 'Not set' },
+                  {
+                    label: 'Status',
+                    value: (
+                      <StatusPill tone={persona.is_active ? 'success' : 'neutral'}>
+                        {persona.is_active ? 'Active' : 'Inactive'}
+                      </StatusPill>
+                    ),
+                  },
+                ]}
+              />
+            </div>
           </div>
-        )}
+        ))}
       </div>
-    </div>
+
+      {data?.personas.length === 0 && (
+        <EmptyState
+          icon={<UserCircle />}
+          title="No AI avatars configured"
+          description="This org has no personas. New orgs receive a default persona on creation; older orgs may not. Use Create Persona above."
+        />
+      )}
+    </AdminPageChrome>
   );
 }

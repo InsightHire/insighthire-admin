@@ -1,7 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { Building2, Search } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, inputClass } from '@/components/admin/controls';
 
 type Enablement = { id: string; organizationId: string; organizationName: string; enabled: boolean; note: string | null; updatedAt: string; demoTenant: boolean };
 type Org = { id: string; name: string; demoTenant?: boolean };
@@ -34,55 +39,74 @@ export function Customers({
   const toggle = (organizationId: string, enabled: boolean) => setOrg.mutate({ key: featureKey, organizationId, enabled, note: note.trim() || null });
 
   return (
-    <section className="bg-white rounded-lg shadow p-5 space-y-4">
-      <h2 className="font-semibold text-gray-900">Customers</h2>
-      <p className="text-sm text-gray-500">
-        Always on for demo tenants{demoOrgs.length ? ` (${demoOrgs.map((o) => o.name).join(', ')})` : ''}.{' '}
-        {approved ? 'Enabled customers below can use it now.' : 'Enabled customers get it only after this review is approved.'} Changing this needs a super admin.
-      </p>
+    <SectionCard
+      icon={<Building2 />}
+      title="Customers"
+      description={
+        <>
+          Always on for demo tenants{demoOrgs.length ? ` (${demoOrgs.map((o) => o.name).join(', ')})` : ''}.{' '}
+          {approved ? 'Enabled customers below can use it now.' : 'Enabled customers get it only after this review is approved.'} Changing this needs a super admin.
+        </>
+      }
+      padded={false}
+    >
       {enablements.length > 0 && (
-        <table className="min-w-full text-sm">
-          <thead className="text-xs uppercase text-gray-500">
-            <tr>
-              <th className="text-left py-2">Organization</th>
-              <th className="text-left py-2">Enabled</th>
-              <th className="text-left py-2">Live now</th>
-              <th className="text-left py-2">Note</th>
-              <th className="py-2" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {enablements.map((e) => (
-              <tr key={e.id}>
-                <td className="py-2">
-                  {e.organizationName} <span className="text-xs font-mono text-gray-400">{e.organizationId}</span>
-                </td>
-                <td className="py-2">{e.enabled ? 'Yes' : 'No'}</td>
-                <td className="py-2">{e.demoTenant || (e.enabled && approved) ? 'Yes' : 'No'}</td>
-                <td className="py-2 text-gray-600">{e.note ?? ''}</td>
-                <td className="py-2 text-right">
-                  <button onClick={() => toggle(e.organizationId, !e.enabled)} disabled={setOrg.isLoading} className="text-blue-600 hover:text-blue-700 text-sm">
-                    {e.enabled ? 'Disable' : 'Enable'}
-                  </button>
-                </td>
+        <div className="overflow-x-auto border-b border-admin-border">
+          <DataTableEl>
+            <thead>
+              <tr>
+                <Th>Organization</Th>
+                <Th>Enabled</Th>
+                <Th>Live now</Th>
+                <Th>Note</Th>
+                <Th />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {enablements.map((e) => (
+                <tr key={e.id}>
+                  <Td>
+                    <span className="font-medium text-admin-ink">{e.organizationName}</span>{' '}
+                    <span className="font-mono text-xs text-admin-muted">{e.organizationId}</span>
+                  </Td>
+                  <Td>
+                    <StatusPill tone={e.enabled ? 'success' : 'neutral'}>{e.enabled ? 'Yes' : 'No'}</StatusPill>
+                  </Td>
+                  <Td>
+                    {e.demoTenant || (e.enabled && approved) ? (
+                      <StatusPill tone="success">Yes</StatusPill>
+                    ) : (
+                      <StatusPill tone="neutral">No</StatusPill>
+                    )}
+                  </Td>
+                  <Td>{e.note ?? ''}</Td>
+                  <Td className="text-right">
+                    <button onClick={() => toggle(e.organizationId, !e.enabled)} disabled={setOrg.isLoading} className={buttonClass.small}>
+                      {e.enabled ? 'Disable' : 'Enable'}
+                    </button>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTableEl>
+        </div>
       )}
-      <div className="space-y-2">
+      <div className="space-y-2 p-5">
         <div className="flex flex-wrap gap-3">
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an organization to enable" className="flex-1 min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (e.g. signed agreement date)" className="flex-1 min-w-[220px] rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-admin-muted" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an organization to enable" className={`${inputClass} pl-9`} />
+          </div>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (e.g. signed agreement date)" className={`${inputClass} min-w-[220px] flex-1`} />
         </div>
         {(search.data ?? []).length > 0 && (
-          <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg">
+          <ul className="divide-y divide-admin-border overflow-hidden rounded-admin-sm border border-admin-border">
             {(search.data as Org[]).map((o) => (
               <li key={o.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                <span>{o.name}</span>
-                <span className="text-xs font-mono text-gray-400">{o.id}</span>
-                {o.demoTenant && <span className="text-xs text-gray-500">demo tenant</span>}
-                <button onClick={() => toggle(o.id, true)} disabled={setOrg.isLoading} className="ml-auto text-blue-600 hover:text-blue-700">
+                <span className="font-medium text-admin-ink">{o.name}</span>
+                <span className="font-mono text-xs text-admin-muted">{o.id}</span>
+                {o.demoTenant && <StatusPill tone="warn" dot={false}>demo tenant</StatusPill>}
+                <button onClick={() => toggle(o.id, true)} disabled={setOrg.isLoading} className={`${buttonClass.small} ml-auto`}>
                   Enable
                 </button>
               </li>
@@ -90,6 +114,6 @@ export function Customers({
           </ul>
         )}
       </div>
-    </section>
+    </SectionCard>
   );
 }

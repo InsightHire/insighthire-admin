@@ -1,10 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowLeftIcon, ArrowPathIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircle2, Image as ImageIcon, RefreshCw, Search, UserSquare2, Users } from 'lucide-react';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Td, Th } from '@/components/admin/data-table';
+import { buttonClass, checkboxClass, inputClass } from '@/components/admin/controls';
 
 export default function PlatformAvatarLibraryPage() {
   const { isAuthenticated, isLoading: authLoading } = useAdminAuth();
@@ -55,7 +61,7 @@ export default function PlatformAvatarLibraryPage() {
   if (authLoading || !isAuthenticated) {
     return (
       <div className="flex justify-center py-12">
-        <div className="animate-spin h-12 w-12 border-b-2 border-blue-600 rounded-full" />
+        <div className="animate-spin h-12 w-12 border-b-2 border-admin-accent rounded-full" />
       </div>
     );
   }
@@ -63,41 +69,24 @@ export default function PlatformAvatarLibraryPage() {
   const pickerCount = listQuery.data?.rows.filter((r) => r.includeInPersonaPicker).length ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-4">
-            <Link href="/organizations" className="p-2 hover:bg-gray-100 rounded-lg">
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Avatar library</h1>
-              <p className="text-gray-600">
-                Platform-wide catalog for customer persona pickers. Sync the latest AI avatars, then curate which ones appear.
-                New rows default to <span className="font-medium">office-style</span> names in the picker until you
-                change checkboxes.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-3 items-center">
-          <button
-            type="button"
-            onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            <ArrowPathIcon className={`h-5 w-5 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-            {syncMutation.isPending ? 'Syncing avatars…' : 'Sync avatars'}
-          </button>
+    <AdminPageChrome
+      icon={<UserSquare2 />}
+      breadcrumbs={[{ label: 'Tenants', href: '/organizations' }, { label: 'Personas' }, { label: 'Avatar library' }]}
+      title="Avatar library"
+      description={
+        <>
+          Platform-wide catalog for customer persona pickers. Sync the latest AI avatars, then curate which ones appear.
+          New rows default to <span className="font-medium">office-style</span> names in the picker until you
+          change checkboxes.
+        </>
+      }
+      actions={
+        <>
           <button
             type="button"
             onClick={() => bulkOfficeMutation.mutate()}
             disabled={bulkOfficeMutation.isPending || !listQuery.data?.total}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-gray-800"
+            className={buttonClass.secondary}
           >
             Enable all office-style
           </button>
@@ -109,62 +98,94 @@ export default function PlatformAvatarLibraryPage() {
               }
             }}
             disabled={bulkClearMutation.isPending || !listQuery.data?.total}
-            className="px-4 py-2 border border-amber-300 text-amber-900 rounded-lg hover:bg-amber-50 disabled:opacity-50"
+            className={`${buttonClass.secondary} border-amber-300 text-amber-900 hover:border-amber-400 hover:bg-amber-50`}
           >
             Clear picker selection
           </button>
-          <span className="text-sm text-gray-600 ml-auto">
-            {listQuery.data?.total ?? '—'} in catalog · {pickerCount} in picker
-          </span>
-        </div>
+          <button
+            type="button"
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className={buttonClass.primary}
+          >
+            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? 'Syncing avatars…' : 'Sync avatars'}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-6">
+        <StatGrid cols={2}>
+          <StatTile label="In catalog" icon={ImageIcon} tone="brand" loading={listQuery.isLoading} value={listQuery.data?.total ?? '—'} />
+          <StatTile label="In picker" icon={Users} tone="ok" loading={listQuery.isLoading} value={pickerCount} hint="Shown in customer persona picker" />
+        </StatGrid>
 
         {syncMutation.isError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+          <div className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft p-4 text-sm text-red-800">
             {(syncMutation.error as Error)?.message || 'Sync failed'}
           </div>
         )}
         {syncNotice && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 text-sm flex justify-between gap-4">
+          <div className="flex justify-between gap-4 rounded-admin-sm border border-admin-ok/20 bg-admin-ok-soft p-4 text-sm text-emerald-800">
             <span>{syncNotice}</span>
-            <button type="button" className="text-green-900 underline shrink-0" onClick={() => setSyncNotice(null)}>
+            <button type="button" className="shrink-0 text-emerald-900 underline" onClick={() => setSyncNotice(null)}>
               Dismiss
             </button>
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow p-4">
-          <input
-            type="search"
-            placeholder="Filter by name or ID…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-lg mb-4"
-          />
-
+        <SectionCard
+          padded={false}
+          icon={<UserSquare2 />}
+          title="Avatars"
+          description="Check a row to show it in the customer persona picker"
+          actions={
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-admin-muted" />
+              <input
+                type="search"
+                placeholder="Filter by name or ID…"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className={`${inputClass} w-64 max-w-full pl-9`}
+              />
+            </div>
+          }
+          footer={
+            <>
+              Customer app persona create/edit reads this catalog first (checked rows, then office-style, then full catalog);
+              if empty, it fetches avatars live.
+            </>
+          }
+        >
           {listQuery.isLoading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin h-10 w-10 border-b-2 border-blue-600 rounded-full" />
+              <div className="animate-spin h-10 w-10 border-b-2 border-admin-accent rounded-full" />
             </div>
           ) : !listQuery.data?.total ? (
-            <p className="text-gray-600">
-              No rows yet. Run <strong>Sync avatars</strong> once (may take up to a minute).
-            </p>
+            <EmptyState
+              compact
+              className="border-0 shadow-none"
+              icon={<UserSquare2 />}
+              title="No rows yet"
+              description={<>Run <strong>Sync avatars</strong> once (may take up to a minute).</>}
+            />
           ) : (
-            <div className="overflow-x-auto max-h-[70vh] overflow-y-auto border border-gray-200 rounded-lg">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0 z-10">
+            <div className="max-h-[70vh] overflow-auto">
+              <DataTableEl>
+                <thead className="sticky top-0 z-10">
                   <tr>
-                    <th className="text-left p-2 font-medium text-gray-700">Picker</th>
-                    <th className="text-left p-2 font-medium text-gray-700">Preview</th>
-                    <th className="text-left p-2 font-medium text-gray-700">Name</th>
-                    <th className="text-left p-2 font-medium text-gray-700">ID</th>
-                    <th className="text-left p-2 font-medium text-gray-700">Flags</th>
+                    <Th>Picker</Th>
+                    <Th>Preview</Th>
+                    <Th>Name</Th>
+                    <Th>ID</Th>
+                    <Th>Flags</Th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRows.map((row) => (
-                    <tr key={row.avatarId} className="border-t border-gray-100 hover:bg-gray-50/80">
-                      <td className="p-2 align-middle">
+                    <tr key={row.avatarId}>
+                      <Td className="py-2 align-middle">
                         <input
                           type="checkbox"
                           checked={row.includeInPersonaPicker}
@@ -175,52 +196,47 @@ export default function PlatformAvatarLibraryPage() {
                               include: e.target.checked,
                             })
                           }
-                          className="h-4 w-4 rounded border-gray-300"
+                          className={checkboxClass}
                         />
-                      </td>
-                      <td className="p-2 align-middle">
+                      </Td>
+                      <Td className="py-2 align-middle">
                         {row.previewImageUrl ? (
                           <img
                             src={row.previewImageUrl}
                             alt=""
-                            className="h-12 w-12 object-cover rounded-md border border-gray-200"
+                            className="h-12 w-12 rounded-admin-sm border border-admin-border object-cover"
                           />
                         ) : (
-                          <div className="h-12 w-12 bg-gray-100 rounded-md" />
+                          <div className="h-12 w-12 rounded-admin-sm bg-admin-bg" />
                         )}
-                      </td>
-                      <td className="p-2 align-middle font-medium text-gray-900">{row.avatarName}</td>
-                      <td className="p-2 align-middle font-mono text-xs text-gray-600 max-w-[200px] truncate">
+                      </Td>
+                      <Td className="py-2 align-middle font-medium text-admin-ink">{row.avatarName}</Td>
+                      <Td mono className="max-w-[200px] truncate py-2 align-middle">
                         {row.avatarId}
-                      </td>
-                      <td className="p-2 align-middle">
-                        <div className="flex flex-wrap gap-1">
+                      </Td>
+                      <Td className="py-2 align-middle">
+                        <div className="flex flex-wrap items-center gap-1">
                           {row.isOfficeStyle && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-sky-100 text-sky-900">Office-style</span>
+                            <StatusPill tone="info" dot={false}>Office-style</StatusPill>
                           )}
                           {row.source === 'talking_photo' && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-violet-100 text-violet-900">Photo avatar</span>
+                            <StatusPill tone="neutral" dot={false} className="bg-violet-100 text-violet-900 ring-violet-600/15">Photo avatar</StatusPill>
                           )}
                           {row.includeInPersonaPicker && (
                             <span title="Shown in customer persona picker">
-                              <CheckCircleIcon className="h-5 w-5 text-green-600" aria-hidden />
+                              <CheckCircle2 className="h-5 w-5 text-admin-ok" aria-hidden />
                             </span>
                           )}
                         </div>
-                      </td>
+                      </Td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTableEl>
             </div>
           )}
-        </div>
-
-        <p className="text-sm text-gray-500">
-          Customer app persona create/edit reads this catalog first (checked rows, then office-style, then full catalog);
-          if empty, it fetches avatars live.
-        </p>
+        </SectionCard>
       </div>
-    </div>
+    </AdminPageChrome>
   );
 }

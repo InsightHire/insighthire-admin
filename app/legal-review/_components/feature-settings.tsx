@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SlidersHorizontal } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, checkboxClass, inputClass } from '@/components/admin/controls';
 import { dollars, percent } from '../status';
 
 type Org = { id: string; name: string };
@@ -13,13 +18,25 @@ const errorAlert = (e: { message: string }) => alert(e.message);
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="text-sm block">
-      <span className="block text-gray-600 mb-1">{label}</span>
+      <span className="mb-1 block text-admin-secondary">{label}</span>
       {children}
-      {hint && <span className="block text-xs text-gray-400 mt-0.5">{hint}</span>}
+      {hint && <span className="mt-0.5 block text-xs text-admin-muted">{hint}</span>}
     </label>
   );
 }
-const inputCls = 'w-full rounded-lg border border-gray-300 px-3 py-2';
+const inputCls = inputClass;
+
+function SubTable({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+      <DataTableEl>{children}</DataTableEl>
+    </div>
+  );
+}
+
+function Rows({ children }: { children: React.ReactNode }) {
+  return <ul className="divide-y divide-admin-border overflow-hidden rounded-admin-sm border border-admin-border text-sm">{children}</ul>;
+}
 
 function EarlyPaySettings() {
   const settings = (trpc as any).platformAdmin.vmsMoneySettings.useQuery(undefined, { refetchOnWindowFocus: false });
@@ -79,7 +96,7 @@ function EarlyPaySettings() {
           <input value={form.ttl ?? ''} onChange={set('ttl')} className={inputCls} inputMode="numeric" />
         </Field>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-admin-muted">
         With Stripe Capital, Stripe sets the amount and fee for each agency and these rates are not used. The demo uses a simulated funder with these rates.
       </p>
       <button
@@ -97,51 +114,53 @@ function EarlyPaySettings() {
           })
         }
         disabled={save.isLoading}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className={buttonClass.primary}
       >
         {save.isLoading ? 'Saving…' : 'Save early-pay terms'}
       </button>
 
       {o && (
-        <div className="pt-4 space-y-2">
-          <h3 className="text-sm font-semibold text-gray-900">Advances</h3>
-          <p className="text-xs text-gray-500">
+        <div className="space-y-2 border-t border-admin-border pt-5">
+          <h3 className="text-sm font-semibold text-admin-ink">Advances</h3>
+          <p className="text-xs text-admin-muted">
             {o.funded} funded · {dollars(o.outstandingCents)} outstanding · {o.open} open offers · {dollars(o.feesCents)} fees to date
           </p>
-          <table className="min-w-full text-sm">
-            <thead className="text-xs uppercase text-gray-500">
+          <SubTable>
+            <thead>
               <tr>
-                <th className="text-left py-2">Agency</th>
-                <th className="text-left py-2">Invoice</th>
-                <th className="text-right py-2">Advance</th>
-                <th className="text-right py-2">Fee</th>
-                <th className="text-right py-2">Est. APR</th>
-                <th className="text-left py-2 pl-4">Funder</th>
-                <th className="text-left py-2">Status</th>
-                <th className="py-2" />
+                <Th>Agency</Th>
+                <Th>Invoice</Th>
+                <Th className="text-right">Advance</Th>
+                <Th className="text-right">Fee</Th>
+                <Th className="text-right">Est. APR</Th>
+                <Th>Funder</Th>
+                <Th>Status</Th>
+                <Th />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {(o.advances ?? []).map((a: any) => (
                 <tr key={a.id}>
-                  <td className="py-2">{a.agencyName}</td>
-                  <td className="py-2">{a.invoiceNumber}</td>
-                  <td className="py-2 text-right">{dollars(a.advanceCents)}</td>
-                  <td className="py-2 text-right">{dollars(a.feeCents)}</td>
-                  <td className="py-2 text-right">{percent(a.estimatedAprBps)}</td>
-                  <td className="py-2 pl-4">{a.simulated ? 'Simulated' : a.provider}</td>
-                  <td className="py-2">{a.status}</td>
-                  <td className="py-2 text-right">
+                  <Td className="py-2 text-admin-ink">{a.agencyName}</Td>
+                  <Td className="py-2">{a.invoiceNumber}</Td>
+                  <Td className="py-2 text-right tabular-nums">{dollars(a.advanceCents)}</Td>
+                  <Td className="py-2 text-right tabular-nums">{dollars(a.feeCents)}</Td>
+                  <Td className="py-2 text-right tabular-nums">{percent(a.estimatedAprBps)}</Td>
+                  <Td className="py-2">{a.simulated ? 'Simulated' : a.provider}</Td>
+                  <Td className="py-2">
+                    <StatusPill dot={false}>{a.status}</StatusPill>
+                  </Td>
+                  <Td className="py-2 text-right">
                     {(a.status === 'OFFERED' || a.status === 'ACCEPTED') && (
-                      <button onClick={() => confirm('Cancel this early-pay offer?') && cancel.mutate({ id: a.id })} className="text-xs text-red-600">
+                      <button onClick={() => confirm('Cancel this early-pay offer?') && cancel.mutate({ id: a.id })} className="text-xs font-medium text-admin-danger hover:text-red-700">
                         Cancel
                       </button>
                     )}
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </SubTable>
         </div>
       )}
     </>
@@ -171,32 +190,32 @@ function CombinedSettings({ demoOrgs }: { demoOrgs: Org[] }) {
           <input value={max} onChange={(e) => setMax(e.target.value)} className={inputCls} inputMode="numeric" />
         </Field>
       </div>
-      <p className="text-xs text-gray-500">The client picks one invoice per agency or one combined invoice in the VMS Payments tab, once this is cleared for them.</p>
+      <p className="text-xs text-admin-muted">The client picks one invoice per agency or one combined invoice in the VMS Payments tab, once this is cleared for them.</p>
       <button
         onClick={() => save.mutate({ daysUntilDue: num(days), maxAgencies: num(max) })}
         disabled={save.isLoading}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className={buttonClass.primary}
       >
         Save
       </button>
       {overview.data && (
-        <div className="pt-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">
+        <div className="border-t border-admin-border pt-5">
+          <h3 className="mb-2 text-sm font-semibold text-admin-ink">
             {demo?.name}: {overview.data.billingMode === 'B' ? 'one combined invoice' : 'one invoice per agency'}
           </h3>
-          <ul className="text-sm divide-y divide-gray-100">
+          <Rows>
             {(overview.data.invoices ?? []).map((c: any) => (
-              <li key={c.id} className="py-1.5 flex gap-4">
-                <span className="font-medium">{c.number}</span>
-                <span className="text-gray-600">
+              <li key={c.id} className="flex flex-wrap items-center gap-4 px-3 py-2">
+                <span className="font-medium text-admin-ink">{c.number}</span>
+                <span className="text-admin-secondary">
                   {c.periodStart?.slice(0, 10)} to {c.periodEnd?.slice(0, 10)}
                 </span>
-                <span>{dollars(c.totalCents)}</span>
-                <span className="text-gray-500">{c.status}</span>
-                {c.simulated && <span className="text-xs text-gray-400">simulated</span>}
+                <span className="tabular-nums text-admin-ink">{dollars(c.totalCents)}</span>
+                <StatusPill dot={false}>{c.status}</StatusPill>
+                {c.simulated && <span className="text-xs text-admin-muted">simulated</span>}
               </li>
             ))}
-          </ul>
+          </Rows>
         </div>
       )}
     </>
@@ -232,31 +251,33 @@ function ProgramFeeSettings({ demoOrgs }: { demoOrgs: Org[] }) {
 
   return (
     <>
-      <h3 className="text-sm font-semibold text-gray-900">Plans</h3>
-      <table className="min-w-full text-sm">
-        <thead className="text-xs uppercase text-gray-500">
+      <h3 className="text-sm font-semibold text-admin-ink">Plans</h3>
+      <SubTable>
+        <thead>
           <tr>
-            <th className="text-left py-2">Plan</th>
-            <th className="text-right py-2">Per agency</th>
-            <th className="text-right py-2">Per worker</th>
-            <th className="text-right py-2">% of spend</th>
-            <th className="text-right py-2">Min / cap</th>
-            <th className="text-left py-2 pl-4">Active</th>
-            <th className="py-2" />
+            <Th>Plan</Th>
+            <Th className="text-right">Per agency</Th>
+            <Th className="text-right">Per worker</Th>
+            <Th className="text-right">% of spend</Th>
+            <Th className="text-right">Min / cap</Th>
+            <Th>Active</Th>
+            <Th />
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100">
+        <tbody>
           {(plans.data?.plans ?? []).map((x: any) => (
             <tr key={x.id}>
-              <td className="py-2">{x.name}</td>
-              <td className="py-2 text-right">{dollars(x.flatCents)}</td>
-              <td className="py-2 text-right">{dollars(x.perWorkerCents)}</td>
-              <td className="py-2 text-right">{percent(x.spendBps)}</td>
-              <td className="py-2 text-right">
+              <Td className="py-2 font-medium text-admin-ink">{x.name}</Td>
+              <Td className="py-2 text-right tabular-nums">{dollars(x.flatCents)}</Td>
+              <Td className="py-2 text-right tabular-nums">{dollars(x.perWorkerCents)}</Td>
+              <Td className="py-2 text-right tabular-nums">{percent(x.spendBps)}</Td>
+              <Td className="py-2 text-right tabular-nums">
                 {dollars(x.minCents)} / {x.maxCents == null ? 'none' : dollars(x.maxCents)}
-              </td>
-              <td className="py-2 pl-4">{x.active ? 'Yes' : 'No'}</td>
-              <td className="py-2 text-right">
+              </Td>
+              <Td className="py-2">
+                <StatusPill tone={x.active ? 'success' : 'neutral'}>{x.active ? 'Yes' : 'No'}</StatusPill>
+              </Td>
+              <Td className="py-2 text-right">
                 <button
                   onClick={() =>
                     setPlan({
@@ -272,18 +293,18 @@ function ProgramFeeSettings({ demoOrgs }: { demoOrgs: Org[] }) {
                       active: x.active,
                     })
                   }
-                  className="text-blue-600 text-xs"
+                  className={buttonClass.small}
                 >
                   Edit
                 </button>
-              </td>
+              </Td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </SubTable>
 
-      <div className="rounded-lg border border-gray-200 p-4 space-y-3">
-        <h4 className="text-sm font-medium text-gray-900">{plan.id ? `Edit ${plan.name}` : 'New plan'}</h4>
+      <div className="space-y-3 rounded-admin-sm border border-admin-border bg-admin-bg/50 p-4">
+        <h4 className="text-sm font-medium text-admin-ink">{plan.id ? `Edit ${plan.name}` : 'New plan'}</h4>
         <div className="grid sm:grid-cols-4 gap-3">
           <Field label="Name">
             <input value={plan.name} onChange={p('name')} className={inputCls} />
@@ -307,7 +328,7 @@ function ProgramFeeSettings({ demoOrgs }: { demoOrgs: Org[] }) {
             <input value={plan.days} onChange={p('days')} className={inputCls} inputMode="numeric" />
           </Field>
           <Field label="Active">
-            <input type="checkbox" checked={plan.active} onChange={(e) => setPlan({ ...plan, active: e.target.checked })} className="h-4 w-4" />
+            <input type="checkbox" checked={plan.active} onChange={(e) => setPlan({ ...plan, active: e.target.checked })} className={checkboxClass} />
           </Field>
         </div>
         <Field label="Description (shown to agencies)">
@@ -330,39 +351,41 @@ function ProgramFeeSettings({ demoOrgs }: { demoOrgs: Org[] }) {
               })
             }
             disabled={savePlan.isLoading || !plan.name.trim()}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className={buttonClass.primary}
           >
             Save plan
           </button>
           {plan.id && (
-            <button onClick={() => setPlan(EMPTY_PLAN)} className="text-sm text-gray-600">
+            <button onClick={() => setPlan(EMPTY_PLAN)} className={buttonClass.ghost}>
               Cancel
             </button>
           )}
         </div>
       </div>
 
-      <h3 className="text-sm font-semibold text-gray-900 pt-2">Program</h3>
+      <h3 className="border-t border-admin-border pt-5 text-sm font-semibold text-admin-ink">Program</h3>
       <Field label="Client organization id" hint={demoOrgs.length ? `Demo: ${demoOrgs.map((o) => `${o.name} (${o.id})`).join(', ')}` : undefined}>
         <input value={clientOrgId} onChange={(e) => setClientOrgId(e.target.value.trim())} className={inputCls} />
       </Field>
       {clientOrgId && (
         <>
-          <ul className="text-sm divide-y divide-gray-100">
-            {(plans.data?.assignments ?? []).map((a: any) => (
-              <li key={a.id} className="py-1.5 flex gap-4 items-center">
-                <span className="font-medium">{a.planName}</span>
-                <span className="text-gray-600">{a.partnershipId ? `Agency partnership ${a.partnershipId}` : 'Every agency on the program'}</span>
-                <span className="text-gray-500">
-                  from {String(a.startsOn).slice(0, 10)}
-                  {a.endsOn ? ` to ${String(a.endsOn).slice(0, 10)}` : ''}
-                </span>
-                <button onClick={() => unassign.mutate({ id: a.id })} className="ml-auto text-xs text-red-600">
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
+          {(plans.data?.assignments ?? []).length > 0 && (
+            <Rows>
+              {(plans.data?.assignments ?? []).map((a: any) => (
+                <li key={a.id} className="flex flex-wrap items-center gap-4 px-3 py-2">
+                  <span className="font-medium text-admin-ink">{a.planName}</span>
+                  <span className="text-admin-secondary">{a.partnershipId ? `Agency partnership ${a.partnershipId}` : 'Every agency on the program'}</span>
+                  <span className="text-admin-muted">
+                    from {String(a.startsOn).slice(0, 10)}
+                    {a.endsOn ? ` to ${String(a.endsOn).slice(0, 10)}` : ''}
+                  </span>
+                  <button onClick={() => unassign.mutate({ id: a.id })} className="ml-auto text-xs font-medium text-admin-danger hover:text-red-700">
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </Rows>
+          )}
           <div className="grid sm:grid-cols-4 gap-3 items-end">
             <Field label="Plan">
               <select value={assign.planId} onChange={(e) => setAssign({ ...assign, planId: e.target.value })} className={inputCls}>
@@ -383,13 +406,13 @@ function ProgramFeeSettings({ demoOrgs }: { demoOrgs: Org[] }) {
             <button
               onClick={() => doAssign.mutate({ clientOrgId, planId: assign.planId, partnershipId: assign.partnershipId || null, startsOn: assign.startsOn })}
               disabled={!assign.planId || doAssign.isLoading}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className={buttonClass.primary}
             >
               Assign
             </button>
           </div>
 
-          <h3 className="text-sm font-semibold text-gray-900 pt-2">Bill a period</h3>
+          <h3 className="border-t border-admin-border pt-5 text-sm font-semibold text-admin-ink">Bill a period</h3>
           <div className="grid sm:grid-cols-4 gap-3 items-end">
             <Field label="From">
               <input type="date" value={period.periodStart} onChange={(e) => setPeriod({ ...period, periodStart: e.target.value })} className={inputCls} />
@@ -400,62 +423,62 @@ function ProgramFeeSettings({ demoOrgs }: { demoOrgs: Org[] }) {
             <button
               onClick={() => runPreview.mutate({ clientOrgId, ...period })}
               disabled={!period.periodStart || !period.periodEnd}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+              className={buttonClass.secondary}
             >
               Preview
             </button>
             <button
               onClick={() => confirm('Send program-fee invoices to these agencies through Stripe?') && run.mutate({ clientOrgId, ...period })}
               disabled={!preview?.length || run.isLoading}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className={buttonClass.primary}
             >
               {run.isLoading ? 'Billing…' : 'Send invoices'}
             </button>
           </div>
           {preview && (
-            <ul className="text-sm divide-y divide-gray-100">
-              {preview.length === 0 && <li className="py-1.5 text-gray-500">No agency on a plan had approved time in that period.</li>}
+            <Rows>
+              {preview.length === 0 && <li className="px-3 py-2 text-admin-muted">No agency on a plan had approved time in that period.</li>}
               {preview.map((a) => (
-                <li key={a.partnershipId} className="py-1.5 flex gap-4">
-                  <span className="font-medium">{a.agencyName}</span>
-                  <span className="text-gray-600">{a.planName}</span>
-                  <span className="text-gray-500">{a.workers} workers</span>
-                  <span className="text-gray-500">{dollars(a.spendCents)} spend</span>
-                  <span className="ml-auto font-medium">{dollars(a.totalCents)}</span>
+                <li key={a.partnershipId} className="flex flex-wrap items-center gap-4 px-3 py-2">
+                  <span className="font-medium text-admin-ink">{a.agencyName}</span>
+                  <span className="text-admin-secondary">{a.planName}</span>
+                  <span className="text-admin-muted">{a.workers} workers</span>
+                  <span className="text-admin-muted">{dollars(a.spendCents)} spend</span>
+                  <span className="ml-auto font-medium tabular-nums text-admin-ink">{dollars(a.totalCents)}</span>
                 </li>
               ))}
-            </ul>
+            </Rows>
           )}
 
-          <h3 className="text-sm font-semibold text-gray-900 pt-2">Agency invoices</h3>
-          <table className="min-w-full text-sm">
-            <thead className="text-xs uppercase text-gray-500">
+          <h3 className="border-t border-admin-border pt-5 text-sm font-semibold text-admin-ink">Agency invoices</h3>
+          <SubTable>
+            <thead>
               <tr>
-                <th className="text-left py-2">Agency</th>
-                <th className="text-left py-2">Period</th>
-                <th className="text-left py-2">Plan</th>
-                <th className="text-right py-2">Total</th>
-                <th className="text-left py-2 pl-4">Status</th>
+                <Th>Agency</Th>
+                <Th>Period</Th>
+                <Th>Plan</Th>
+                <Th className="text-right">Total</Th>
+                <Th>Status</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {(invoices.data?.invoices ?? []).map((i: any) => (
                 <tr key={i.id}>
-                  <td className="py-2">{i.agencyName}</td>
-                  <td className="py-2">
+                  <Td className="py-2 text-admin-ink">{i.agencyName}</Td>
+                  <Td className="py-2">
                     {String(i.periodStart).slice(0, 10)} to {String(i.periodEnd).slice(0, 10)}
-                  </td>
-                  <td className="py-2">{i.planName}</td>
-                  <td className="py-2 text-right">{dollars(Number(i.totalCents))}</td>
-                  <td className="py-2 pl-4">
+                  </Td>
+                  <Td className="py-2">{i.planName}</Td>
+                  <Td className="py-2 text-right tabular-nums">{dollars(Number(i.totalCents))}</Td>
+                  <Td className="py-2">
                     {i.status}
                     {i.simulated ? ' (simulated)' : ''}
-                    {i.error ? ` · ${i.error}` : ''}
-                  </td>
+                    {i.error ? <span className="text-admin-danger">{` · ${i.error}`}</span> : ''}
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </SubTable>
         </>
       )}
     </>
@@ -471,16 +494,15 @@ export function FeatureSettings({ featureKey, demoOrgs }: { featureKey: string; 
     ) : featureKey === 'vms.program_fee_billing' ? (
       <ProgramFeeSettings demoOrgs={demoOrgs} />
     ) : featureKey === 'vms.msp_paying_agent' ? (
-      <p className="text-sm text-gray-500">The MSP program and its paying-agent setting are configured per client in the VMS MSP settings.</p>
+      <p className="text-sm text-admin-muted">The MSP program and its paying-agent setting are configured per client in the VMS MSP settings.</p>
     ) : featureKey === 'vms.direct_1099' ? (
-      <p className="text-sm text-gray-500">No staff settings. Until approved, only demo tenants and enabled customers can engage new direct contractors; existing engagements keep working.</p>
+      <p className="text-sm text-admin-muted">No staff settings. Until approved, only demo tenants and enabled customers can engage new direct contractors; existing engagements keep working.</p>
     ) : (
-      <p className="text-sm text-gray-500">No staff settings. The client configures each AI agent&apos;s pricing, budget and policy in Contractors.</p>
+      <p className="text-sm text-admin-muted">No staff settings. The client configures each AI agent&apos;s pricing, budget and policy in Contractors.</p>
     );
   return (
-    <section className="bg-white rounded-lg shadow p-5 space-y-4">
-      <h2 className="font-semibold text-gray-900">Feature settings</h2>
+    <SectionCard icon={<SlidersHorizontal />} title="Feature settings" bodyClassName="space-y-4">
       {body}
-    </section>
+    </SectionCard>
   );
 }

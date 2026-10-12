@@ -11,6 +11,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { AlertTriangle, Blocks, Building2, FlaskConical, LayoutGrid, MousePointerClick, PowerOff, TimerOff } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { cn } from '@/lib/cn';
 import { useAdminAuth } from '@/lib/use-admin-auth';
@@ -18,7 +19,9 @@ import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { PageHeader } from '@/components/admin/page-header';
 import { FilterBar, FilterInput, FilterSelect } from '@/components/admin/filter-bar';
-import { SeverityBadge } from '@/components/admin/severity-badge';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, checkboxClass } from '@/components/admin/controls';
 import {
   CATEGORY_LABELS,
   TIER_LABEL,
@@ -221,21 +224,22 @@ function TenantFeatureMatrixInner() {
   return (
     <div className="mx-auto flex h-[calc(100vh-3.5rem)] max-w-[1800px] flex-col overflow-auto px-4 py-4 sm:px-6">
       <PageHeader
-        className="mb-3"
-        eyebrow="Tenants"
+        className="mb-4"
+        icon={<LayoutGrid />}
+        breadcrumbs={[{ label: 'Tenants', href: '/organizations' }, { label: 'Tenant features' }]}
         title="Tenant features"
         description="Every module, legal gate, flag override, and support setting down the side. Each column is a tenant. Select a cell to see why it is or isn't live, then change it."
       />
 
       {totals ? (
-        <div className="mb-4 flex flex-wrap gap-2 text-xs">
-          <SeverityBadge severity="info">{totals.orgs} tenants</SeverityBadge>
-          <SeverityBadge severity="muted">{totals.demo} demo</SeverityBadge>
-          <SeverityBadge severity="muted">{totals.modules} modules · {totals.legal} legal · {totals.flags} flags</SeverityBadge>
-          <SeverityBadge severity="muted">{totals.modulesOff} modules off platform-wide</SeverityBadge>
-          {totals.blocked > 0 ? <SeverityBadge severity="warn">{totals.blocked} grants not live</SeverityBadge> : null}
-          {totals.expired > 0 ? <SeverityBadge severity="critical">{totals.expired} expired trials</SeverityBadge> : null}
-        </div>
+        <StatGrid cols={6} className="mb-4">
+          <StatTile label="Tenants" icon={Building2} tone="brand" value={totals.orgs} />
+          <StatTile label="Modules" icon={Blocks} tone="info" value={totals.modules} hint={`${totals.legal} legal · ${totals.flags} flags`} />
+          <StatTile label="Demo tenants" icon={FlaskConical} tone="muted" value={totals.demo} />
+          <StatTile label="Off platform-wide" icon={PowerOff} tone="muted" value={totals.modulesOff} hint="Modules" />
+          <StatTile label="Grants not live" icon={AlertTriangle} tone={totals.blocked > 0 ? 'warn' : 'muted'} value={totals.blocked} />
+          <StatTile label="Expired trials" icon={TimerOff} tone={totals.expired > 0 ? 'critical' : 'muted'} value={totals.expired} />
+        </StatGrid>
       ) : null}
 
       <div className="mb-3 flex flex-wrap gap-1 border-b border-admin-border">
@@ -244,12 +248,16 @@ function TenantFeatureMatrixInner() {
             key={s.id || 'all'}
             type="button"
             onClick={() => setSection(s.id)}
+            aria-current={section === s.id ? 'page' : undefined}
             className={cn(
-              '-mb-px border-b-2 px-3 py-2 text-sm font-medium',
-              section === s.id ? 'border-admin-accent text-admin-ink' : 'border-transparent text-admin-muted hover:text-admin-ink',
+              'relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+              section === s.id ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
             )}
           >
             {s.label}
+            {section === s.id ? (
+              <span className="nav-indicator absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-admin-accent" />
+            ) : null}
           </button>
         ))}
       </div>
@@ -306,7 +314,7 @@ function TenantFeatureMatrixInner() {
             type="checkbox"
             checked={hideUnused}
             onChange={(e) => setHideUnused(e.target.checked)}
-            className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+            className={checkboxClass}
           />
           Hide modules off and granted to nobody
         </label>
@@ -315,7 +323,7 @@ function TenantFeatureMatrixInner() {
             type="checkbox"
             checked={problemsOnly}
             onChange={(e) => setProblemsOnly(e.target.checked)}
-            className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+            className={checkboxClass}
           />
           Problems only
         </label>
@@ -355,9 +363,9 @@ function TenantFeatureMatrixInner() {
           {(query.error as { message?: string }).message}
         </div>
       ) : orgs.length === 0 ? (
-        <div className="admin-panel py-16 text-center text-sm text-admin-muted">No tenants match these filters.</div>
+        <EmptyState icon={<Building2 />} title="No tenants match these filters." />
       ) : rows.length === 0 ? (
-        <div className="admin-panel py-16 text-center text-sm text-admin-muted">No configurations match these filters.</div>
+        <EmptyState icon={<Blocks />} title="No configurations match these filters." />
       ) : (
         <div className="admin-panel min-h-[20rem] flex-1 overflow-auto">
           <table className="border-separate border-spacing-0 text-sm">
@@ -483,7 +491,8 @@ function Inspector({
 }) {
   if (!selection) {
     return (
-      <div className="admin-panel mb-3 px-4 py-3 text-sm text-admin-muted">
+      <div className="admin-panel mb-3 flex items-center gap-3 border-dashed px-4 py-3 text-sm text-admin-muted shadow-none">
+        <MousePointerClick className="h-4 w-4 shrink-0" />
         Select a cell to change it. The number beside each name is how many tenants in view have it on.
       </div>
     );
@@ -527,8 +536,8 @@ function Inspector({
           disabled={busy}
           onClick={() => onApply(row, org)}
           className={cn(
-            'shrink-0 rounded-admin-sm px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50',
-            label === 'Revoke' || label === 'Disable' || label === 'Turn off' || label === 'Override off' ? 'bg-red-700 hover:bg-red-800' : 'bg-admin-ink hover:bg-slate-800',
+            'shrink-0',
+            label === 'Revoke' || label === 'Disable' || label === 'Turn off' || label === 'Override off' ? buttonClass.danger : buttonClass.primary,
           )}
         >
           {busy ? 'Saving…' : `${label} for ${org.name || 'this tenant'}`}

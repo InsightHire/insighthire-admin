@@ -3,9 +3,15 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { Briefcase } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowLeftIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill, type StatusTone } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { selectClass } from '@/components/admin/controls';
 
 export default function OrganizationPositionsPage() {
   const params = useParams();
@@ -35,107 +41,101 @@ export default function OrganizationPositionsPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link href={`/organizations/${orgId}`} className="p-2 hover:bg-gray-100 rounded-lg">
-                <ArrowLeftIcon className="h-5 w-5" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold">Positions</h1>
-                <p className="text-gray-600">{orgData?.organization?.name || 'Organization'}</p>
-              </div>
-            </div>
-            <select
-              value={statusFilter || ''}
-              onChange={(e) => setStatusFilter(e.target.value || undefined)}
-              className="px-3 py-2 border rounded-lg text-sm text-gray-900 bg-white"
-            >
-              <option value="">All Statuses</option>
-              <option value="DRAFT">Draft</option>
-              <option value="OPEN">Open</option>
-              <option value="ON_HOLD">On Hold</option>
-              <option value="CLOSED">Closed</option>
-              <option value="FILLED">Filled</option>
-            </select>
-          </div>
+    <AdminPageChrome
+      icon={<Briefcase />}
+      breadcrumbs={[
+        { label: 'Tenants', href: '/organizations' },
+        { label: orgData?.organization?.name || 'Organization', href: `/organizations/${orgId}` },
+        { label: 'Positions' },
+      ]}
+      title="Positions"
+      description={orgData?.organization?.name || 'Organization'}
+      actions={
+        <select
+          value={statusFilter || ''}
+          onChange={(e) => setStatusFilter(e.target.value || undefined)}
+          className={selectClass}
+        >
+          <option value="">All Statuses</option>
+          <option value="DRAFT">Draft</option>
+          <option value="OPEN">Open</option>
+          <option value="ON_HOLD">On Hold</option>
+          <option value="CLOSED">Closed</option>
+          <option value="FILLED">Filled</option>
+        </select>
+      }
+    >
+      {error && (
+        <div className="mb-6 rounded-admin border border-admin-danger/30 bg-admin-danger-soft p-4">
+          <p className="font-medium text-red-800">Error loading positions</p>
+          <p className="text-sm text-admin-danger">{error.message}</p>
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800 font-medium">Error loading positions</p>
-            <p className="text-red-600 text-sm">{error.message}</p>
-          </div>
-        )}
+      )}
+      <SectionCard
+        icon={<Briefcase />}
+        title={`Positions (${filteredPositions.length})`}
+        description="Click a row to open the position"
+        padded={false}
+      >
         {filteredPositions.length > 0 ? (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-x-auto">
+            <DataTableEl>
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hiring Progress</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Applications</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <Th>Position</Th>
+                  <Th>Department</Th>
+                  <Th>Location</Th>
+                  <Th>Status</Th>
+                  <Th>Hiring Progress</Th>
+                  <Th>Applications</Th>
+                  <Th>Created</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody>
                 {filteredPositions.map((position: any) => (
                   <tr
                     key={position.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className="cursor-pointer"
                     onClick={() => {
                       window.location.href = `/organizations/${orgId}/positions/${position.id}`;
                     }}
                   >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-3">
-                        <BriefcaseIcon className="h-5 w-5 text-gray-400" />
+                    <Td>
+                      <div className="flex items-center gap-3">
+                        <Briefcase className="h-4 w-4 text-admin-muted" />
                         <div>
                           <Link
                             href={`/organizations/${orgId}/positions/${position.id}`}
-                            className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline"
+                            className="font-medium text-admin-ink hover:text-admin-accent-ink hover:underline"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {position.title}
                           </Link>
-                          <div className="text-xs text-gray-500 font-mono">{position.id.slice(0, 8)}...</div>
+                          <div className="admin-mono text-[11px] text-admin-muted">{position.id.slice(0, 8)}...</div>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {position.department || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {position.location || '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(position.status)}`}>
-                        {position.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
+                    </Td>
+                    <Td>{position.department || '—'}</Td>
+                    <Td>{position.location || '—'}</Td>
+                    <Td>
+                      <StatusPill tone={getStatusTone(position.status)}>{position.status}</StatusPill>
+                    </Td>
+                    <Td>
                       {position.targetHires ? (
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium tabular-nums text-admin-ink">
                             {position.currentHires || 0} / {position.targetHires}
                           </div>
-                          <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
+                          <div className="mt-1 h-1.5 w-24 rounded-full bg-slate-100">
                             <div 
-                              className="bg-green-600 h-2 rounded-full" 
+                              className="h-1.5 rounded-full bg-admin-accent" 
                               style={{ 
                                 width: `${Math.min(100, ((position.currentHires || 0) / position.targetHires) * 100)}%` 
                               }}
@@ -143,57 +143,57 @@ export default function OrganizationPositionsPage() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-400">—</span>
+                        <span className="text-admin-muted">—</span>
                       )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center space-x-4">
+                    </Td>
+                    <Td>
+                      <div className="flex items-center gap-4">
                         <div className="text-center">
-                          <div className="text-lg font-bold text-blue-600">{position._count?.applications || 0}</div>
-                          <div className="text-xs text-gray-500">Apps</div>
+                          <div className="text-base font-semibold tabular-nums text-admin-ink">{position._count?.applications || 0}</div>
+                          <div className="text-[11px] text-admin-muted">Apps</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-green-600">{position._count?.candidate_profiles || 0}</div>
-                          <div className="text-xs text-gray-500">Candidates</div>
+                          <div className="text-base font-semibold tabular-nums text-admin-accent-ink">{position._count?.candidate_profiles || 0}</div>
+                          <div className="text-[11px] text-admin-muted">Candidates</div>
                         </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500">
+                    </Td>
+                    <Td className="text-admin-muted">
                       {new Date(position.createdAt).toLocaleDateString()}
                       {position.closedAt && (
-                        <div className="text-xs text-red-500">
+                        <div className="text-xs text-admin-danger">
                           Closed: {new Date(position.closedAt).toLocaleDateString()}
                         </div>
                       )}
-                    </td>
+                    </Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTableEl>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <BriefcaseIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Positions Found</h3>
-            <p className="text-gray-500">
-              {statusFilter 
-                ? `No positions with status "${statusFilter}" found for this organization.`
-                : 'This organization has not created any positions yet.'}
-            </p>
-          </div>
+          <EmptyState
+            compact
+            className="border-0 shadow-none"
+            icon={<Briefcase />}
+            title="No Positions Found"
+            description={statusFilter 
+              ? `No positions with status "${statusFilter}" found for this organization.`
+              : 'This organization has not created any positions yet.'}
+          />
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </AdminPageChrome>
   );
 }
 
-function getStatusColor(status: string) {
+function getStatusTone(status: string): StatusTone {
   switch (status) {
-    case 'OPEN': return 'bg-green-100 text-green-800';
-    case 'DRAFT': return 'bg-gray-100 text-gray-800';
-    case 'ON_HOLD': return 'bg-yellow-100 text-yellow-800';
-    case 'CLOSED': return 'bg-red-100 text-red-800';
-    case 'FILLED': return 'bg-blue-100 text-blue-800';
-    default: return 'bg-gray-100 text-gray-800';
+    case 'OPEN': return 'success';
+    case 'DRAFT': return 'neutral';
+    case 'ON_HOLD': return 'warn';
+    case 'CLOSED': return 'danger';
+    case 'FILLED': return 'info';
+    default: return 'neutral';
   }
 }

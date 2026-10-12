@@ -2,22 +2,28 @@
 
 import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import {
-  ArrowLeftIcon,
-  MagnifyingGlassIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
-  UserGroupIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  XCircleIcon,
-  TrophyIcon,
-  ArrowsUpDownIcon,
-  FunnelIcon,
-} from '@heroicons/react/24/outline';
+  ArrowUpDown,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Filter,
+  Route,
+  Search,
+  Trophy,
+  Users,
+  XCircle,
+} from 'lucide-react';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, inputClass, selectClass } from '@/components/admin/controls';
 
 type SortKey = 'candidateName' | 'status' | 'score' | 'startedAt' | 'lastActivityAt' | 'completionPercentage' | 'rank';
 type SortDir = 'asc' | 'desc';
@@ -146,15 +152,15 @@ export default function OrganizationJourneysPage() {
 
   const SortHeader = ({ label, sortField, className = '' }: { label: string; sortField: SortKey; className?: string }) => (
     <th
-      className={`px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none ${className}`}
+      className={`cursor-pointer select-none whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted hover:text-admin-ink ${className}`}
       onClick={() => toggleSort(sortField)}
     >
       <div className="flex items-center gap-1">
         {label}
         {sortKey === sortField ? (
-          sortDir === 'asc' ? <ChevronUpIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />
+          sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
         ) : (
-          <ArrowsUpDownIcon className="h-3 w-3 text-gray-300" />
+          <ArrowUpDown className="h-3 w-3 text-admin-border-strong" />
         )}
       </div>
     </th>
@@ -181,173 +187,115 @@ export default function OrganizationJourneysPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex min-h-[40vh] items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-900">Error loading hiring flows</h2>
-          <pre className="mt-2 text-sm text-red-600 bg-red-50 p-3 rounded max-w-lg">{error.message}</pre>
+          <h2 className="text-xl font-bold text-admin-ink">Error loading hiring flows</h2>
+          <pre className="mt-2 max-w-lg rounded-admin-sm bg-admin-danger-soft p-3 text-sm text-admin-danger">{error.message}</pre>
         </div>
       </div>
     );
   }
 
   return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-[1400px] mx-auto px-6 py-5">
-            <div className="flex items-center gap-4">
-              <Link href={`/organizations/${orgId}`} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Hiring flow sessions</h1>
-                <p className="text-sm text-gray-500">{orgData?.organization?.name || 'Organization'}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <AdminPageChrome
+      width="wide"
+      icon={<Route />}
+      breadcrumbs={[
+        { label: 'Tenants', href: '/organizations' },
+        { label: orgData?.organization?.name || 'Organization', href: `/organizations/${orgId}` },
+        { label: 'Hiring flow sessions' },
+      ]}
+      title="Hiring flow sessions"
+      description={orgData?.organization?.name || 'Organization'}
+    >
+      <div className="space-y-6">
+        {/* Stats Cards */}
+        {stats && (
+          <StatGrid cols={5}>
+            <StatTile label="Total Candidates" icon={Users} tone="brand" value={stats.total} />
+            <StatTile label="Completed" icon={CheckCircle2} tone="ok" value={stats.completed} />
+            <StatTile label="In Progress" icon={Clock} tone="info" value={stats.inProgress} />
+            <StatTile label="Abandoned" icon={XCircle} tone="critical" value={stats.abandoned} />
+            <StatTile label="Avg Score" icon={Trophy} tone="warn" value={stats.avgScore !== null ? `${stats.avgScore}%` : '-'} />
+          </StatGrid>
+        )}
 
-        <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-6">
-          {/* Stats Cards */}
-          {stats && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-gray-100 rounded-lg">
-                    <UserGroupIcon className="h-5 w-5 text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                    <p className="text-xs text-gray-500">Total Candidates</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-50 rounded-lg">
-                    <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-700">{stats.completed}</p>
-                    <p className="text-xs text-gray-500">Completed</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-50 rounded-lg">
-                    <ClockIcon className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-blue-700">{stats.inProgress}</p>
-                    <p className="text-xs text-gray-500">In Progress</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-50 rounded-lg">
-                    <XCircleIcon className="h-5 w-5 text-red-500" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-600">{stats.abandoned}</p>
-                    <p className="text-xs text-gray-500">Abandoned</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-50 rounded-lg">
-                    <TrophyIcon className="h-5 w-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-amber-700">{stats.avgScore !== null ? `${stats.avgScore}%` : '-'}</p>
-                    <p className="text-xs text-gray-500">Avg Score</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
+        <SectionCard padded={false}>
           {/* Filters Bar */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 text-gray-400">
-                <FunnelIcon className="h-4 w-4" />
-              </div>
-              {/* Search */}
-              <div className="relative flex-1 min-w-[200px] max-w-sm">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search name, email, journey..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              {/* Status */}
-              <select
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="ABANDONED">Abandoned</option>
-              </select>
-              {/* Journey */}
-              {data?.journeyNames && data.journeyNames.length > 1 && (
-                <select
-                  value={journeyFilter}
-                  onChange={(e) => { setJourneyFilter(e.target.value); setPage(1); }}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[200px] truncate"
-                >
-                  <option value="ALL">All hiring flows</option>
-                  {data.journeyNames.map((j: string) => (
-                    <option key={j} value={j}>{j}</option>
-                  ))}
-                </select>
-              )}
-              {/* Position */}
-              {data?.positionTitles && data.positionTitles.length > 1 && (
-                <select
-                  value={positionFilter}
-                  onChange={(e) => { setPositionFilter(e.target.value); setPage(1); }}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[200px] truncate"
-                >
-                  <option value="ALL">All Positions</option>
-                  {data.positionTitles.map((p: string) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              )}
-              {/* Result count */}
-              <span className="text-xs text-gray-400 ml-auto">
-                {totalFiltered} result{totalFiltered !== 1 ? 's' : ''}
-              </span>
+          <div className="flex flex-wrap items-center gap-3 border-b border-admin-border px-4 py-3">
+            <Filter className="h-4 w-4 text-admin-muted" />
+            {/* Search */}
+            <div className="relative min-w-[200px] max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-admin-muted" />
+              <input
+                type="text"
+                placeholder="Search name, email, journey..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className={`${inputClass} pl-9`}
+              />
             </div>
+            {/* Status */}
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              className={selectClass}
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="ABANDONED">Abandoned</option>
+            </select>
+            {/* Journey */}
+            {data?.journeyNames && data.journeyNames.length > 1 && (
+              <select
+                value={journeyFilter}
+                onChange={(e) => { setJourneyFilter(e.target.value); setPage(1); }}
+                className={`${selectClass} max-w-[200px] truncate`}
+              >
+                <option value="ALL">All hiring flows</option>
+                {data.journeyNames.map((j: string) => (
+                  <option key={j} value={j}>{j}</option>
+                ))}
+              </select>
+            )}
+            {/* Position */}
+            {data?.positionTitles && data.positionTitles.length > 1 && (
+              <select
+                value={positionFilter}
+                onChange={(e) => { setPositionFilter(e.target.value); setPage(1); }}
+                className={`${selectClass} max-w-[200px] truncate`}
+              >
+                <option value="ALL">All Positions</option>
+                {data.positionTitles.map((p: string) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            )}
+            {/* Result count */}
+            <span className="ml-auto text-xs text-admin-muted">
+              {totalFiltered} result{totalFiltered !== 1 ? 's' : ''}
+            </span>
           </div>
 
           {/* Table */}
           {filtered.length > 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <>
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                <DataTableEl>
+                  <thead>
                     <tr>
                       <SortHeader label="Rank" sortField="rank" className="w-16" />
                       <SortHeader label="Candidate" sortField="candidateName" />
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Hiring flow / Position</th>
+                      <Th>Hiring flow / Position</Th>
                       <SortHeader label="Progress" sortField="completionPercentage" />
                       <SortHeader label="Status" sortField="status" />
                       <SortHeader label="Score" sortField="score" className="w-20" />
@@ -355,7 +303,7 @@ export default function OrganizationJourneysPage() {
                       <SortHeader label="Last Activity" sortField="lastActivityAt" />
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody>
                     {filtered.map((session: any) => {
                       const score = session.overallScore ? Math.round(parseFloat(session.overallScore)) : null;
                       const scoreColor = score !== null
@@ -365,117 +313,119 @@ export default function OrganizationJourneysPage() {
                       return (
                         <tr
                           key={session.id}
-                          className="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                          className="cursor-pointer"
                           onClick={() => window.location.href = `/candidate/${session.candidateId}`}
                         >
                           {/* Rank */}
-                          <td className="px-4 py-3 text-center">
+                          <Td className="text-center">
                             {session.rank ? (
-                              <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
+                              <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
                                 session.rank === 1 ? 'bg-amber-100 text-amber-700' :
-                                session.rank === 2 ? 'bg-gray-200 text-gray-700' :
+                                session.rank === 2 ? 'bg-slate-200 text-slate-700' :
                                 session.rank === 3 ? 'bg-orange-100 text-orange-700' :
-                                'bg-gray-100 text-gray-500'
+                                'bg-slate-100 text-admin-muted'
                               }`}>
                                 #{session.rank}
                               </span>
                             ) : (
-                              <span className="text-gray-300">-</span>
+                              <span className="text-admin-border-strong">-</span>
                             )}
-                          </td>
+                          </Td>
                           {/* Candidate */}
-                          <td className="px-4 py-3">
+                          <Td>
                             <div className="flex items-center gap-3">
-                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+                              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-admin-accent-border bg-admin-accent-soft text-xs font-bold text-admin-accent-ink">
                                 {(session.candidateName || '?')[0]?.toUpperCase()}
                               </div>
                               <div className="min-w-0">
-                                <div className="text-sm font-medium text-gray-900 truncate">{session.candidateName}</div>
-                                <div className="text-xs text-gray-500 truncate">{session.candidateEmail}</div>
+                                <div className="truncate font-medium text-admin-ink">{session.candidateName}</div>
+                                <div className="truncate text-xs text-admin-muted">{session.candidateEmail}</div>
                               </div>
                             </div>
-                          </td>
+                          </Td>
                           {/* Journey / Position */}
-                          <td className="px-4 py-3">
-                            <div className="text-sm text-gray-900 truncate max-w-[200px]">{session.journeyName || '-'}</div>
+                          <Td>
+                            <div className="max-w-[200px] truncate text-admin-ink">{session.journeyName || '-'}</div>
                             {session.positionTitle && (
-                              <div className="text-xs text-gray-500 truncate max-w-[200px]">{session.positionTitle}</div>
+                              <div className="max-w-[200px] truncate text-xs text-admin-muted">{session.positionTitle}</div>
                             )}
-                          </td>
+                          </Td>
                           {/* Progress */}
-                          <td className="px-4 py-3">
+                          <Td>
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-gray-100 rounded-full h-1.5 w-20">
+                              <div className="h-1.5 w-20 flex-1 rounded-full bg-slate-100">
                                 <div
                                   className={`h-1.5 rounded-full transition-all ${
-                                    session.status === 'COMPLETED' ? 'bg-green-500' :
+                                    session.status === 'COMPLETED' ? 'bg-admin-ok' :
                                     session.status === 'ABANDONED' ? 'bg-red-400' :
-                                    'bg-blue-500'
+                                    'bg-admin-accent'
                                   }`}
                                   style={{ width: `${Math.min(100, parseFloat(session.completionPercentage || '0'))}%` }}
                                 />
                               </div>
-                              <span className="text-xs text-gray-500 w-8 text-right">
+                              <span className="w-8 text-right text-xs tabular-nums text-admin-muted">
                                 {Math.round(parseFloat(session.completionPercentage || '0'))}%
                               </span>
                             </div>
                             {session.totalSteps > 0 && (
-                              <div className="text-[10px] text-gray-400 mt-0.5">
+                              <div className="mt-0.5 text-[10px] text-admin-muted">
                                 {session.completedSteps}/{session.totalSteps} questions
                               </div>
                             )}
-                          </td>
+                          </Td>
                           {/* Status */}
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                              session.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                              session.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-600'
-                            }`}>
+                          <Td className="whitespace-nowrap">
+                            <StatusPill
+                              tone={
+                                session.status === 'COMPLETED' ? 'success' :
+                                session.status === 'IN_PROGRESS' ? 'info' :
+                                'neutral'
+                              }
+                            >
                               {session.status === 'IN_PROGRESS' ? 'In Progress' :
                                session.status === 'COMPLETED' ? 'Completed' :
                                session.status === 'ABANDONED' ? 'Abandoned' : session.status}
-                            </span>
+                            </StatusPill>
                             {session.sessionCount > 1 && (
-                              <span className="ml-1 text-[10px] text-gray-400">{session.sessionCount} attempts</span>
+                              <span className="ml-1 text-[10px] text-admin-muted">{session.sessionCount} attempts</span>
                             )}
-                          </td>
+                          </Td>
                           {/* Score */}
-                          <td className="px-4 py-3">
+                          <Td>
                             {score !== null ? (
-                              <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded ${scoreColor}`}>
+                              <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-bold ${scoreColor}`}>
                                 {score}%
                               </span>
                             ) : (
-                              <span className="text-xs text-gray-300">-</span>
+                              <span className="text-xs text-admin-border-strong">-</span>
                             )}
-                          </td>
+                          </Td>
                           {/* Started */}
-                          <td className="px-4 py-3 text-xs text-gray-500">
+                          <Td className="text-xs text-admin-muted">
                             {formatDate(session.startedAt)}
-                          </td>
+                          </Td>
                           {/* Last Activity */}
-                          <td className="px-4 py-3 text-xs text-gray-500">
+                          <Td className="text-xs text-admin-muted">
                             {timeAgo(session.lastActivityAt)}
-                          </td>
+                          </Td>
                         </tr>
                       );
                     })}
                   </tbody>
-                </table>
+                </DataTableEl>
               </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
-                  <p className="text-xs text-gray-500">
+                <div className="flex items-center justify-between border-t border-admin-border bg-admin-bg/50 px-4 py-3">
+                  <p className="text-xs text-admin-muted">
                     Showing {(page - 1) * perPage + 1}-{Math.min(page * perPage, totalFiltered)} of {totalFiltered}
                   </p>
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={page === 1}
-                      className="px-3 py-1 text-xs border rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                      className={buttonClass.small}
                     >
                       Previous
                     </button>
@@ -494,10 +444,10 @@ export default function OrganizationJourneysPage() {
                         <button
                           key={pageNum}
                           onClick={() => setPage(pageNum)}
-                          className={`w-8 h-8 text-xs rounded-md ${
+                          className={`h-8 w-8 rounded-admin-sm text-xs ${
                             page === pageNum
-                              ? 'bg-blue-600 text-white font-medium'
-                              : 'hover:bg-white border border-transparent hover:border-gray-200'
+                              ? 'bg-admin-accent font-medium text-white'
+                              : 'border border-transparent text-admin-secondary hover:border-admin-border hover:bg-white'
                           }`}
                         >
                           {pageNum}
@@ -507,24 +457,25 @@ export default function OrganizationJourneysPage() {
                     <button
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
-                      className="px-3 py-1 text-xs border rounded-md hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+                      className={buttonClass.small}
                     >
                       Next
                     </button>
                   </div>
                 </div>
               )}
-            </div>
+            </>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <UserGroupIcon className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">No hiring flow sessions found</p>
-              <p className="text-sm text-gray-400 mt-1">
-                {search || statusFilter !== 'ALL' ? 'Try adjusting your filters' : 'No candidates have started journeys yet'}
-              </p>
-            </div>
+            <EmptyState
+              compact
+              className="border-0 shadow-none"
+              icon={<Users />}
+              title="No hiring flow sessions found"
+              description={search || statusFilter !== 'ALL' ? 'Try adjusting your filters' : 'No candidates have started journeys yet'}
+            />
           )}
-        </div>
+        </SectionCard>
       </div>
+    </AdminPageChrome>
   );
 }

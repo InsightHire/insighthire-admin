@@ -1,10 +1,14 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import { Video } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowLeftIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
 
 export default function OrganizationInterviewsPage() {
   const params = useParams();
@@ -22,79 +26,68 @@ export default function OrganizationInterviewsPage() {
   });
 
   if (authLoading || isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin h-12 w-12 border-b-2 border-blue-600 rounded-full"></div></div>;
+    return <div className="flex justify-center py-12"><div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent"></div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center space-x-4">
-            <Link href={`/organizations/${orgId}`} className="p-2 hover:bg-gray-100 rounded-lg">
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold">Interview Templates</h1>
-              <p className="text-gray-600">{orgData?.organization?.name || 'Organization'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b">
-            <h2 className="font-semibold">Interview Templates ({data?.interviews.length || 0})</h2>
-          </div>
-
-          <table className="min-w-full divide-y">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Difficulty</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Questions</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Times Used</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {data?.interviews.map((interview) => (
-                <tr key={interview.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="font-medium">{interview.title}</div>
-                    {interview.description && (
-                      <div className="text-sm text-gray-500 truncate max-w-xs">{interview.description}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm">{interview.category}</td>
-                  <td className="px-6 py-4 text-sm">Level {interview.difficulty}</td>
-                  <td className="px-6 py-4 text-sm">{interview._count.interview_template_questions}</td>
-                  <td className="px-6 py-4 text-sm">{interview.usageCount}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      interview.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {interview.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(interview.createdAt).toLocaleDateString()}
-                  </td>
+    <AdminPageChrome
+      icon={<Video />}
+      breadcrumbs={[
+        { label: 'Tenants', href: '/organizations' },
+        { label: orgData?.organization?.name || 'Organization', href: `/organizations/${orgId}` },
+        { label: 'Interview templates' },
+      ]}
+      title="Interview Templates"
+      description={orgData?.organization?.name || 'Organization'}
+    >
+      <SectionCard
+        icon={<Video />}
+        title={`Interview Templates (${data?.interviews.length || 0})`}
+        description="Reusable interview templates for this organization"
+        padded={false}
+      >
+        {data?.interviews.length === 0 ? (
+          <EmptyState compact className="border-0 shadow-none" icon={<Video />} title="No interview templates created yet" />
+        ) : (
+          <div className="overflow-x-auto">
+            <DataTableEl>
+              <thead>
+                <tr>
+                  <Th>Title</Th>
+                  <Th>Category</Th>
+                  <Th>Difficulty</Th>
+                  <Th className="text-right">Questions</Th>
+                  <Th className="text-right">Times Used</Th>
+                  <Th>Status</Th>
+                  <Th>Created</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {data?.interviews.length === 0 && (
-            <div className="text-center py-12">
-              <VideoCameraIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">No interview templates created yet</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+              </thead>
+              <tbody>
+                {data?.interviews.map((interview) => (
+                  <tr key={interview.id}>
+                    <Td>
+                      <div className="font-medium text-admin-ink">{interview.title}</div>
+                      {interview.description && (
+                        <div className="max-w-xs truncate text-xs text-admin-muted">{interview.description}</div>
+                      )}
+                    </Td>
+                    <Td>{interview.category}</Td>
+                    <Td>Level {interview.difficulty}</Td>
+                    <Td className="text-right tabular-nums">{interview._count.interview_template_questions}</Td>
+                    <Td className="text-right tabular-nums">{interview.usageCount}</Td>
+                    <Td>
+                      <StatusPill tone={interview.isActive ? 'success' : 'neutral'}>
+                        {interview.isActive ? 'Active' : 'Inactive'}
+                      </StatusPill>
+                    </Td>
+                    <Td className="text-admin-muted">{new Date(interview.createdAt).toLocaleDateString()}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTableEl>
+          </div>
+        )}
+      </SectionCard>
+    </AdminPageChrome>
   );
 }

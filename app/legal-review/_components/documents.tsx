@@ -1,7 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { FileText, Upload } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { SectionCard } from '@/components/admin/section-card';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, inputClass } from '@/components/admin/controls';
 
 type Doc = { id: string; filename: string; contentType: string; sizeBytes: number; note: string | null; uploadedByEmail: string | null; createdAt: string };
 
@@ -56,33 +60,38 @@ export function Documents({ featureKey, documents, onChange }: { featureKey: str
   };
 
   return (
-    <section className="bg-white rounded-lg shadow p-5 space-y-4">
-      <h2 className="font-semibold text-gray-900">Documents</h2>
-      <p className="text-sm text-gray-500">Counsel memos, agreements and opinions. Up to 25 MB each.</p>
-      <div className="flex flex-wrap items-center gap-3">
-        <input ref={file} type="file" accept={ACCEPT} className="text-sm" />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="flex-1 min-w-[200px] rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-        <button onClick={upload} disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+    <SectionCard icon={<FileText />} title="Documents" description="Counsel memos, agreements and opinions. Up to 25 MB each." padded={false}>
+      <div className="flex flex-wrap items-center gap-3 border-b border-admin-border px-5 py-4">
+        <input
+          ref={file}
+          type="file"
+          accept={ACCEPT}
+          className="text-sm text-admin-secondary file:mr-3 file:rounded-admin-sm file:border file:border-admin-border file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-admin-ink hover:file:bg-admin-bg"
+        />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className={`${inputClass} min-w-[200px] flex-1`} />
+        <button onClick={upload} disabled={busy} className={buttonClass.primary}>
+          <Upload className="h-4 w-4" />
           {busy ? 'Uploading…' : 'Upload'}
         </button>
       </div>
       {documents.length === 0 ? (
-        <p className="text-sm text-gray-500">No documents yet.</p>
+        <EmptyState compact className="border-0 shadow-none" icon={<FileText />} title="No documents yet." />
       ) : (
-        <ul className="divide-y divide-gray-100 text-sm">
+        <ul className="divide-y divide-admin-border text-sm">
           {documents.map((d) => (
-            <li key={d.id} className="py-2 flex items-center gap-3">
-              <button onClick={() => open(d.id)} className="text-blue-600 hover:text-blue-700 font-medium">
+            <li key={d.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
+              <FileText className="h-4 w-4 shrink-0 text-admin-muted" />
+              <button onClick={() => open(d.id)} className="font-medium text-admin-accent-ink hover:underline">
                 {d.filename}
               </button>
-              <span className="text-gray-400 text-xs">{(d.sizeBytes / 1024).toFixed(0)} KB</span>
-              {d.note && <span className="text-gray-600">{d.note}</span>}
-              <span className="ml-auto text-xs text-gray-400">
+              <span className="text-xs text-admin-muted">{(d.sizeBytes / 1024).toFixed(0)} KB</span>
+              {d.note && <span className="text-admin-secondary">{d.note}</span>}
+              <span className="ml-auto text-xs text-admin-muted">
                 {d.uploadedByEmail ?? ''} · {new Date(d.createdAt).toLocaleDateString()}
               </span>
               <button
                 onClick={() => confirm(`Remove ${d.filename}?`) && remove.mutate({ id: d.id })}
-                className="text-xs text-red-600 hover:text-red-700"
+                className="text-xs font-medium text-admin-danger hover:text-red-700"
               >
                 Remove
               </button>
@@ -90,6 +99,6 @@ export function Documents({ featureKey, documents, onChange }: { featureKey: str
           ))}
         </ul>
       )}
-    </section>
+    </SectionCard>
   );
 }

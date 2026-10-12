@@ -38,8 +38,6 @@ import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import {
-  ArrowLeftIcon,
-  ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -47,6 +45,11 @@ import {
   InformationCircleIcon,
   XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { ExternalLink, HeartHandshake } from 'lucide-react';
+import { AdminPage } from '@/components/admin/page-chrome';
+import { PageHeader } from '@/components/admin/page-header';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { buttonClass, checkboxClass } from '@/components/admin/controls';
 import { openImpersonationLink } from '@/lib/impersonation-link';
 
 type CultureStatus =
@@ -81,7 +84,7 @@ function statusPill(status: CultureStatus | undefined) {
     case 'NOT_GRANTED':
       return {
         label: 'Not granted',
-        className: 'bg-gray-200 text-gray-800 ring-gray-300',
+        className: 'bg-slate-200 text-admin-ink ring-slate-300',
         helper: 'Platform-wide flag is on, but this tenant has no org_feature_grants row (or granted = false).',
       };
     case 'PLATFORM_OFF':
@@ -93,7 +96,7 @@ function statusPill(status: CultureStatus | undefined) {
     default:
       return {
         label: '…',
-        className: 'bg-gray-100 text-gray-700 ring-gray-200',
+        className: 'bg-slate-100 text-admin-secondary ring-slate-200',
         helper: 'Loading status…',
       };
   }
@@ -114,10 +117,10 @@ function formatPercent(weight: number | null | undefined): string {
 function ImportancePill({ importance }: { importance: 'LOW' | 'MEDIUM' | 'HIGH' }) {
   const cls =
     importance === 'HIGH'
-      ? 'bg-indigo-100 text-indigo-800 ring-indigo-200'
+      ? 'bg-admin-accent-soft text-admin-accent-ink ring-admin-accent-border'
       : importance === 'MEDIUM'
-        ? 'bg-blue-50 text-blue-800 ring-blue-200'
-        : 'bg-gray-100 text-gray-700 ring-gray-200';
+        ? 'bg-admin-info-soft text-sky-800 ring-sky-200'
+        : 'bg-slate-100 text-admin-secondary ring-slate-200';
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${cls}`}
@@ -133,25 +136,25 @@ function DimensionStaticSlider({ dim }: { dim: DimensionRow }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-gray-900 truncate" title={dim.label}>
+        <span className="text-sm font-medium text-admin-ink truncate" title={dim.label}>
           {dim.label}
         </span>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs font-mono text-gray-600">{dim.value}</span>
+          <span className="text-xs font-mono text-admin-secondary">{dim.value}</span>
           <ImportancePill importance={dim.importance} />
         </div>
       </div>
-      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-blue-100 via-gray-100 to-amber-100">
+      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-sky-100 via-slate-100 to-amber-100">
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-indigo-600 ring-2 ring-white"
+          className="absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-admin-accent ring-2 ring-white"
           style={{ left: `calc(${pct}% - 6px)` }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-px w-px bg-gray-400"
+          className="absolute top-1/2 -translate-y-1/2 h-px w-px bg-slate-400"
           style={{ left: '50%' }}
         />
       </div>
-      <div className="flex justify-between text-[11px] text-gray-500">
+      <div className="flex justify-between text-[11px] text-admin-muted">
         <span>{dim.leftAnchor}</span>
         <span>{dim.rightAnchor}</span>
       </div>
@@ -176,8 +179,8 @@ function CollapsibleSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section id={id} className="bg-white rounded-xl shadow-sm border border-gray-200/60 overflow-hidden scroll-mt-20">
-      <header className="px-6 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
+    <section id={id} className="admin-panel scroll-mt-20 overflow-hidden">
+      <header className="border-b border-admin-border px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -185,27 +188,27 @@ function CollapsibleSection({
             className="flex items-center gap-2 text-left flex-1 min-w-0"
           >
             {open ? (
-              <ChevronDownIcon className="h-5 w-5 text-gray-500 shrink-0" />
+              <ChevronDownIcon className="h-4 w-4 text-admin-muted shrink-0" />
             ) : (
-              <ChevronRightIcon className="h-5 w-5 text-gray-500 shrink-0" />
+              <ChevronRightIcon className="h-4 w-4 text-admin-muted shrink-0" />
             )}
-            <h2 className="text-lg font-semibold text-gray-900 truncate">{title}</h2>
+            <h2 className="truncate text-[15px] font-semibold text-admin-ink">{title}</h2>
             {typeof count === 'number' && (
-              <span className="ml-1 text-sm text-gray-500">({count})</span>
+              <span className="ml-1 text-sm text-admin-muted">({count})</span>
             )}
           </button>
           {toolbar && <div className="flex items-center gap-2 shrink-0">{toolbar}</div>}
         </div>
       </header>
-      {open && <div className="p-6">{children}</div>}
+      {open && <div className="p-5">{children}</div>}
     </section>
   );
 }
 
 function EmptyHint({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-600">
-      <InformationCircleIcon className="h-5 w-5 text-gray-400 shrink-0" />
+    <div className="flex items-center gap-2 rounded-admin-sm border border-dashed border-admin-border-strong bg-admin-bg px-4 py-6 text-sm text-admin-secondary">
+      <InformationCircleIcon className="h-5 w-5 text-admin-muted shrink-0" />
       <span>{children}</span>
     </div>
   );
@@ -274,8 +277,8 @@ export default function OrganizationCulturePage() {
 
   if (authLoading || loadingSummary) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent" />
       </div>
     );
   }
@@ -288,53 +291,43 @@ export default function OrganizationCulturePage() {
   const dimensions = (profile?.dimensions ?? []) as DimensionRow[];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4 min-w-0">
-              <Link
-                href={`/organizations/${orgId}`}
-                className="p-2 hover:bg-gray-100 rounded-lg shrink-0"
-                aria-label="Back to organization"
-              >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-              </Link>
-              <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wide text-gray-500">Company Culture</p>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl font-bold text-gray-900 truncate">{orgName}</h1>
-                  <span
-                    title={pill.helper}
-                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ${pill.className}`}
-                  >
-                    {pill.label}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">{pill.helper}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
-                disabled={impersonateMutation.isPending}
-                title="Open the customer app as an org admin to make changes"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
-              >
-                <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                {impersonateMutation.isPending ? 'Opening…' : 'Login as Admin'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <AdminPage>
+      <PageHeader
+        eyebrow="Company Culture"
+        icon={<HeartHandshake />}
+        breadcrumbs={[
+          { label: 'Tenants', href: '/organizations' },
+          { label: orgName, href: `/organizations/${orgId}` },
+          { label: 'Company culture' },
+        ]}
+        title={orgName}
+        meta={
+          <span
+            title={pill.helper}
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${pill.className}`}
+          >
+            {pill.label}
+          </span>
+        }
+        description={pill.helper}
+        actions={
+          <button
+            type="button"
+            onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
+            disabled={impersonateMutation.isPending}
+            title="Open the customer app as an org admin to make changes"
+            className={buttonClass.primary}
+          >
+            <ExternalLink className="h-4 w-4" />
+            {impersonateMutation.isPending ? 'Opening…' : 'Login as Admin'}
+          </button>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="space-y-6">
         {/* Summary cards */}
         <section aria-label="Culture status summary">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatGrid cols={5}>
             <SummaryCard
               title="Platform flag"
               value={summary?.platform.enabled ? 'On' : 'Off'}
@@ -379,7 +372,7 @@ export default function OrganizationCulturePage() {
                   : 'No profile saved yet'
               }
             />
-          </div>
+          </StatGrid>
         </section>
 
         {/* Sections */}
@@ -405,25 +398,25 @@ export default function OrganizationCulturePage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Values</h3>
+                <div className="rounded-admin-sm border border-admin-border bg-admin-bg/50 p-4">
+                  <h3 className="text-sm font-semibold text-admin-ink mb-2">Values</h3>
                   {profile?.values && profile.values.length > 0 ? (
                     <ul className="flex flex-wrap gap-2">
                       {profile.values.map((v: string) => (
                         <li
                           key={v}
-                          className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-800 ring-1 ring-gray-200"
+                          className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-medium text-admin-ink ring-1 ring-slate-200"
                         >
                           {v}
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-gray-500">No values set.</p>
+                    <p className="text-sm text-admin-muted">No values set.</p>
                   )}
                 </div>
 
-                <div className="rounded-lg border border-red-200 bg-red-50/40 p-4">
+                <div className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft/60 p-4">
                   <h3 className="text-sm font-semibold text-red-900 mb-2 flex items-center gap-1">
                     <ExclamationTriangleIcon className="h-4 w-4" />
                     Dealbreakers
@@ -459,59 +452,59 @@ export default function OrganizationCulturePage() {
           ) : !groupsData || groupsData.groups.length === 0 ? (
             <EmptyHint>No culture groups for this organization.</EmptyHint>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+              <table className="min-w-full divide-y divide-admin-border text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Name</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Description</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Scoring weight</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Positions</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Version</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Last updated</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Name</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Description</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Scoring weight</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Positions</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Version</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Last updated</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-admin-border">
                   {groupsData.groups.map((g: any) => {
                     const isOpen = openGroupId === g.id;
                     return (
                       <>
                         <tr
                           key={g.id}
-                          className="hover:bg-blue-50/50 cursor-pointer"
+                          className="hover:bg-admin-bg/70 cursor-pointer"
                           onClick={() => setOpenGroupId(isOpen ? null : g.id)}
                         >
-                          <td className="px-4 py-2 font-medium text-gray-900">
+                          <td className="px-4 py-2 font-medium text-admin-ink">
                             <div className="flex items-center gap-2">
                               {isOpen ? (
-                                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                                <ChevronDownIcon className="h-4 w-4 text-admin-muted" />
                               ) : (
-                                <ChevronRightIcon className="h-4 w-4 text-gray-500" />
+                                <ChevronRightIcon className="h-4 w-4 text-admin-muted" />
                               )}
                               {g.name}
                             </div>
                           </td>
-                          <td className="px-4 py-2 text-gray-600 truncate max-w-xs">
+                          <td className="px-4 py-2 text-admin-secondary truncate max-w-xs">
                             {g.description || '—'}
                           </td>
-                          <td className="px-4 py-2 text-right text-gray-700">
+                          <td className="px-4 py-2 text-right text-admin-secondary">
                             {g.scoringWeight === null ? (
-                              <span className="text-gray-500" title="Inherits org default">
+                              <span className="text-admin-muted" title="Inherits org default">
                                 inherit
                               </span>
                             ) : (
                               formatPercent(g.scoringWeight)
                             )}
                           </td>
-                          <td className="px-4 py-2 text-right text-gray-700">{g.positionCount}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">v{g.groupVersion}</td>
-                          <td className="px-4 py-2 text-right text-gray-500">
+                          <td className="px-4 py-2 text-right text-admin-secondary">{g.positionCount}</td>
+                          <td className="px-4 py-2 text-right text-admin-secondary">v{g.groupVersion}</td>
+                          <td className="px-4 py-2 text-right text-admin-muted">
                             {formatDate(g.updatedAt)}
                           </td>
                           <td className="px-4 py-2">
                             {g.isArchived ? (
-                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-admin-secondary">
                                 Archived
                               </span>
                             ) : (
@@ -522,7 +515,7 @@ export default function OrganizationCulturePage() {
                           </td>
                         </tr>
                         {isOpen && (
-                          <tr className="bg-blue-50/30">
+                          <tr className="bg-admin-accent-soft/40">
                             <td colSpan={7} className="px-4 py-4">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
                                 {g.dimensions.map((d: DimensionRow) => (
@@ -563,47 +556,47 @@ export default function OrganizationCulturePage() {
               Settings → Culture in the customer app.
             </EmptyHint>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+              <table className="min-w-full divide-y divide-admin-border text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Title</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Profile source</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Questions</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Usage</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Updated</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Status</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Title</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Profile source</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Questions</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Usage</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Updated</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-admin-border">
                   {interviewTemplatesData.templates.map((t: any) => {
                     const isOpen = openInterviewTemplateId === t.id;
                     return (
                       <>
                         <tr
                           key={t.id}
-                          className="hover:bg-blue-50/50 cursor-pointer"
+                          className="hover:bg-admin-bg/70 cursor-pointer"
                           onClick={() => setOpenInterviewTemplateId(isOpen ? null : t.id)}
                         >
-                          <td className="px-4 py-2 font-medium text-gray-900">
+                          <td className="px-4 py-2 font-medium text-admin-ink">
                             <div className="flex items-center gap-2">
                               {isOpen ? (
-                                <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                                <ChevronDownIcon className="h-4 w-4 text-admin-muted" />
                               ) : (
-                                <ChevronRightIcon className="h-4 w-4 text-gray-500" />
+                                <ChevronRightIcon className="h-4 w-4 text-admin-muted" />
                               )}
                               <span>{t.title}</span>
                             </div>
                             {t.description && (
-                              <p className="text-xs text-gray-500 ml-6 truncate max-w-md">
+                              <p className="text-xs text-admin-muted ml-6 truncate max-w-md">
                                 {t.description}
                               </p>
                             )}
                           </td>
-                          <td className="px-4 py-2 text-gray-700">{t.cultureProfileSourceLabel}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{t.questionCount}</td>
-                          <td className="px-4 py-2 text-right text-gray-700">{t.usageCount}</td>
-                          <td className="px-4 py-2 text-right text-gray-500">
+                          <td className="px-4 py-2 text-admin-secondary">{t.cultureProfileSourceLabel}</td>
+                          <td className="px-4 py-2 text-right text-admin-secondary">{t.questionCount}</td>
+                          <td className="px-4 py-2 text-right text-admin-secondary">{t.usageCount}</td>
+                          <td className="px-4 py-2 text-right text-admin-muted">
                             {formatDate(t.updatedAt)}
                           </td>
                           <td className="px-4 py-2">
@@ -612,14 +605,14 @@ export default function OrganizationCulturePage() {
                                 Active
                               </span>
                             ) : (
-                              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700">
+                              <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs text-admin-secondary">
                                 Archived
                               </span>
                             )}
                           </td>
                         </tr>
                         {isOpen && (
-                          <tr className="bg-blue-50/30">
+                          <tr className="bg-admin-accent-soft/40">
                             <td colSpan={6} className="px-4 py-4">
                               <InterviewTemplateQuestions questions={t.questions} />
                             </td>
@@ -648,44 +641,44 @@ export default function OrganizationCulturePage() {
               positions are configured, or no candidates have completed scoreable signals yet.
             </EmptyHint>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+              <table className="min-w-full divide-y divide-admin-border text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Candidate</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Position</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Score</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Source layers</th>
-                    <th className="px-4 py-2 text-right font-medium text-gray-600">Computed</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Candidate</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Position</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Score</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Source layers</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Computed</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-admin-border">
                   {signalsData.signals.map((s: any) => (
-                    <tr key={s.id} className="hover:bg-gray-50">
+                    <tr key={s.id} className="hover:bg-admin-bg/70">
                       <td className="px-4 py-2">
                         <Link
                           href={`/candidate/${s.candidateId}`}
-                          className="text-indigo-600 hover:underline font-medium"
+                          className="text-admin-accent-ink hover:underline font-medium"
                         >
                           {s.candidateName || s.candidateEmail || s.candidateId}
                         </Link>
                         {s.candidateEmail && (
-                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                          <p className="text-xs text-admin-muted truncate max-w-xs">
                             {s.candidateEmail}
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        <span className="text-gray-800">{s.positionTitle}</span>
-                        <p className="text-xs text-gray-500">{s.positionStatus}</p>
+                        <span className="text-admin-ink">{s.positionTitle}</span>
+                        <p className="text-xs text-admin-muted">{s.positionStatus}</p>
                       </td>
-                      <td className="px-4 py-2 text-right font-mono text-gray-800">
+                      <td className="px-4 py-2 text-right font-mono text-admin-ink">
                         {Math.round(Number(s.overallScore))}
                       </td>
-                      <td className="px-4 py-2 text-xs text-gray-600">
+                      <td className="px-4 py-2 text-xs text-admin-secondary">
                         <SignalSourceLayers signal={s} />
                       </td>
-                      <td className="px-4 py-2 text-right text-gray-500">
+                      <td className="px-4 py-2 text-right text-admin-muted">
                         {formatDate(s.computedAt)}
                       </td>
                     </tr>
@@ -693,7 +686,7 @@ export default function OrganizationCulturePage() {
                 </tbody>
               </table>
               {signalsData.nextCursor && (
-                <p className="mt-4 text-xs text-gray-500">
+                <p className="border-t border-admin-border px-4 py-3 text-xs text-admin-muted">
                   Showing the most recent 50 signals. Older signals are still in
                   the database — use a direct DB query for deeper investigations.
                 </p>
@@ -728,42 +721,42 @@ export default function OrganizationCulturePage() {
               here. Logging is fire-and-forget and never blocks reads.
             </EmptyHint>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-sm">
-                <thead className="bg-gray-50">
+            <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+              <table className="min-w-full divide-y divide-admin-border text-sm">
+                <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">When</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Reader</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Candidate</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Position</th>
-                    <th className="px-4 py-2 text-left font-medium text-gray-600">Surface</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">When</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Reader</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Candidate</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Position</th>
+                    <th className="whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Surface</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-admin-border">
                   {accessLogData.accesses.map((a: any) => (
-                    <tr key={a.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 text-gray-600 whitespace-nowrap">
+                    <tr key={a.id} className="hover:bg-admin-bg/70">
+                      <td className="px-4 py-2 text-admin-secondary whitespace-nowrap">
                         {formatDate(a.readAt)}
                       </td>
                       <td className="px-4 py-2">
-                        <span className="text-gray-900 font-medium">
+                        <span className="text-admin-ink font-medium">
                           {a.readByName}
                         </span>
                         {a.readByEmail && (
-                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                          <p className="text-xs text-admin-muted truncate max-w-xs">
                             {a.readByEmail}
                           </p>
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        <span className="text-gray-800">{a.candidateName}</span>
+                        <span className="text-admin-ink">{a.candidateName}</span>
                         {a.candidateEmail && (
-                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                          <p className="text-xs text-admin-muted truncate max-w-xs">
                             {a.candidateEmail}
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-2 text-gray-700">{a.positionTitle}</td>
+                      <td className="px-4 py-2 text-admin-secondary">{a.positionTitle}</td>
                       <td className="px-4 py-2">
                         <SourcePill source={a.source} />
                       </td>
@@ -772,7 +765,7 @@ export default function OrganizationCulturePage() {
                 </tbody>
               </table>
               {accessLogData.nextCursor && (
-                <p className="mt-4 text-xs text-gray-500">
+                <p className="border-t border-admin-border px-4 py-3 text-xs text-admin-muted">
                   Showing the most recent 50 reads. Older entries remain in
                   the audit log and can be queried directly for deeper
                   forensic investigations.
@@ -782,7 +775,7 @@ export default function OrganizationCulturePage() {
           )}
         </CollapsibleSection>
       </div>
-    </div>
+    </AdminPage>
   );
 }
 
@@ -790,12 +783,12 @@ function SourcePill({ source }: { source: string }) {
   const map: Record<string, { label: string; cls: string; help: string }> = {
     candidate_detail: {
       label: 'Candidate Fit card',
-      cls: 'bg-indigo-100 text-indigo-800 ring-indigo-200',
+      cls: 'bg-admin-accent-soft text-admin-accent-ink ring-admin-accent-border',
       help: 'Recruiter opened the Culture Fit card on the candidate detail page.',
     },
     position_list_column: {
       label: 'Position pipeline',
-      cls: 'bg-blue-100 text-blue-800 ring-blue-200',
+      cls: 'bg-admin-info-soft text-sky-800 ring-sky-200',
       help: 'Culture column on the position pipeline list (deduped per recruiter+position per 5 min).',
     },
     platform_admin: {
@@ -811,7 +804,7 @@ function SourcePill({ source }: { source: string }) {
   };
   const meta = map[source] ?? {
     label: source,
-    cls: 'bg-gray-100 text-gray-700 ring-gray-200',
+    cls: 'bg-slate-100 text-admin-secondary ring-slate-200',
     help: source,
   };
   return (
@@ -833,14 +826,14 @@ function ArchiveToggle({
 }) {
   return (
     <label
-      className="inline-flex items-center gap-2 text-xs text-gray-600 cursor-pointer"
+      className="inline-flex items-center gap-2 text-xs text-admin-secondary cursor-pointer"
       onClick={(e) => e.stopPropagation()}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+        className={checkboxClass}
       />
       Include archived
     </label>
@@ -858,37 +851,14 @@ function SummaryCard({
   tone: 'good' | 'warn' | 'bad' | 'neutral';
   hint: string;
 }) {
-  const toneClass =
-    tone === 'good'
-      ? 'border-emerald-200 bg-emerald-50/40'
-      : tone === 'warn'
-        ? 'border-amber-200 bg-amber-50/40'
-        : tone === 'bad'
-          ? 'border-red-200 bg-red-50/40'
-          : 'border-gray-200 bg-white';
-  const valueClass =
-    tone === 'good'
-      ? 'text-emerald-800'
-      : tone === 'warn'
-        ? 'text-amber-900'
-        : tone === 'bad'
-          ? 'text-red-900'
-          : 'text-gray-900';
-  return (
-    <div className={`rounded-lg border p-4 ${toneClass}`}>
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{title}</p>
-      <p className={`mt-1 text-xl font-bold ${valueClass}`}>{value}</p>
-      <p className="text-xs text-gray-500 mt-1 truncate" title={hint}>
-        {hint}
-      </p>
-    </div>
-  );
+  const statTone = tone === 'good' ? 'ok' : tone === 'warn' ? 'warn' : tone === 'bad' ? 'critical' : 'muted';
+  return <StatTile label={title} value={value} hint={<span title={hint}>{hint}</span>} tone={statTone} />;
 }
 
 function SectionLoading() {
   return (
     <div className="flex items-center justify-center py-8">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" />
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-admin-accent border-t-transparent" />
     </div>
   );
 }
@@ -911,29 +881,29 @@ function InterviewTemplateQuestions({
   }>;
 }) {
   if (!questions.length) {
-    return <p className="text-sm text-gray-500">No questions on this template.</p>;
+    return <p className="text-sm text-admin-muted">No questions on this template.</p>;
   }
   return (
     <ol className="space-y-2">
       {questions.map((q) => (
-        <li key={q.id} className="rounded-lg border border-gray-200 bg-white p-3">
+        <li key={q.id} className="rounded-admin-sm border border-admin-border bg-white p-3">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-admin-muted">
               #{q.order} · {q.category ?? '—'} · {q.type ?? '—'}
               {!q.isRequired && (
-                <span className="ml-2 inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-medium text-gray-700">
+                <span className="ml-2 inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium text-admin-secondary">
                   optional
                 </span>
               )}
             </p>
-            <span className="text-xs text-gray-500 font-mono">weight {q.weight}</span>
+            <span className="text-xs text-admin-muted font-mono">weight {q.weight}</span>
           </div>
-          <p className="text-sm text-gray-900 mt-1">{q.text || '(no text)'}</p>
+          <p className="text-sm text-admin-ink mt-1">{q.text || '(no text)'}</p>
           {q.description && (
-            <p className="text-xs text-gray-600 mt-1">{q.description}</p>
+            <p className="text-xs text-admin-secondary mt-1">{q.description}</p>
           )}
           {q.skills.length > 0 && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-admin-muted mt-1">
               Skills: {q.skills.join(', ')}
             </p>
           )}
@@ -990,7 +960,7 @@ function SignalSourceLayers({
             ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
             : l.tone === 'warn'
               ? 'bg-amber-50 text-amber-900 ring-amber-200'
-              : 'bg-gray-100 text-gray-700 ring-gray-200';
+              : 'bg-slate-100 text-admin-secondary ring-slate-200';
         return (
           <span
             key={idx}

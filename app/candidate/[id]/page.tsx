@@ -3,11 +3,14 @@
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ArrowLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, ArrowLeft, UserSearch } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { CandidateForensicsView } from '@/components/forensics/CandidateForensicsView';
+import { AdminPage } from '@/components/admin/page-chrome';
+import { PageHeader } from '@/components/admin/page-header';
+import { buttonClass } from '@/components/admin/controls';
 
 /**
  * Legacy standalone candidate page.
@@ -96,38 +99,37 @@ function LegacyPageShell({
 
   if (authLoading || bootstrapLoading || (orgId && forensicsLoading)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-            <p className="text-red-800 font-medium">Error loading candidate</p>
-            <p className="text-red-600 text-sm mt-1">{error.message}</p>
-            <Link href="/organizations" className="inline-flex items-center mt-4 text-sm text-blue-700 hover:text-blue-900">
-              <ArrowLeftIcon className="h-4 w-4 mr-1" /> Back to organizations
-            </Link>
-          </div>
+      <AdminPage>
+        <div className="rounded-admin border border-admin-danger/30 bg-admin-danger-soft p-6">
+          <p className="font-medium text-red-800">Error loading candidate</p>
+          <p className="mt-1 text-sm text-admin-danger">{error.message}</p>
+          <Link href="/organizations" className={`${buttonClass.secondary} mt-4`}>
+            <ArrowLeft className="h-4 w-4" /> Back to organizations
+          </Link>
         </div>
-      </div>
+      </AdminPage>
     );
   }
 
   if (!orgId) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-            <p className="text-amber-800 font-medium">Candidate not in an organization</p>
-            <p className="text-amber-600 text-sm mt-1">This candidate profile has no organizationId, so forensics cannot be loaded.</p>
+      <AdminPage>
+        <div className="flex gap-3 rounded-admin border border-admin-warn/25 bg-admin-warn-soft p-6">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-admin-warn" />
+          <div>
+            <p className="font-medium text-amber-900">Candidate not in an organization</p>
+            <p className="mt-1 text-sm text-amber-800">This candidate profile has no organizationId, so forensics cannot be loaded.</p>
           </div>
         </div>
-      </div>
+      </AdminPage>
     );
   }
 
@@ -139,55 +141,48 @@ function LegacyPageShell({
     'Candidate';
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-5">
-          <div className="flex items-center text-xs text-gray-500 mb-2">
-            <Link href="/organizations" className="hover:text-gray-900">Organizations</Link>
-            <ChevronRightIcon className="h-3.5 w-3.5 mx-1" />
-            <Link href={`/organizations/${orgId}`} className="hover:text-gray-900">{data.organization?.name || 'Organization'}</Link>
-            {positionId && data.position && (
-              <>
-                <ChevronRightIcon className="h-3.5 w-3.5 mx-1" />
-                <Link href={`/organizations/${orgId}/positions/${positionId}`} className="hover:text-gray-900">{data.position.title}</Link>
-              </>
-            )}
-            <ChevronRightIcon className="h-3.5 w-3.5 mx-1" />
-            <span className="text-gray-900">{candName}</span>
-          </div>
-          <div className="flex items-start space-x-3">
-            <Link
-              href={positionId ? `/organizations/${orgId}/positions/${positionId}` : `/organizations/${orgId}`}
-              className="p-2 hover:bg-gray-100 rounded-lg mt-0.5"
-              aria-label="Back"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{candName}</h1>
-              <p className="text-sm text-gray-600">
-                {data.organization?.name || 'Organization'}
-                {data.position && <> ·  {data.position.title}</>}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <AdminPage className="pb-24">
+      <PageHeader
+        icon={<UserSearch />}
+        breadcrumbs={[
+          { label: 'Organizations', href: '/organizations' },
+          { label: data.organization?.name || 'Organization', href: `/organizations/${orgId}` },
+          ...(positionId && data.position
+            ? [{ label: data.position.title as string, href: `/organizations/${orgId}/positions/${positionId}` }]
+            : []),
+          { label: candName },
+        ]}
+        title={candName}
+        description={
+          <>
+            {data.organization?.name || 'Organization'}
+            {data.position && <> ·  {data.position.title}</>}
+          </>
+        }
+        actions={
+          <Link
+            href={positionId ? `/organizations/${orgId}/positions/${positionId}` : `/organizations/${orgId}`}
+            className={buttonClass.secondary}
+            aria-label="Back"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Link>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <SessionSync />
-        <CandidateForensicsView
-          data={data as any}
-          onSessionChange={(sid) => {
-            const url = new URL(window.location.href);
-            url.searchParams.set('sessionId', sid);
-            window.history.replaceState(null, '', url.toString());
-            onRefresh();
-          }}
-          onRefresh={onRefresh}
-        />
-      </div>
-    </div>
+      <SessionSync />
+      <CandidateForensicsView
+        data={data as any}
+        onSessionChange={(sid) => {
+          const url = new URL(window.location.href);
+          url.searchParams.set('sessionId', sid);
+          window.history.replaceState(null, '', url.toString());
+          onRefresh();
+        }}
+        onRefresh={onRefresh}
+      />
+    </AdminPage>
   );
 }
 

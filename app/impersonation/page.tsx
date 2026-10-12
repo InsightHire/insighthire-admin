@@ -8,9 +8,15 @@ export const dynamic = 'force-dynamic';
  */
 import { useState } from 'react';
 import Link from 'next/link';
+import { History, UserCog } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
 
 const DAY_OPTIONS = [7, 30, 90] as const;
 
@@ -26,78 +32,83 @@ export default function ImpersonationPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Impersonation</h1>
-            <p className="text-sm text-gray-500">
-              Every impersonation session started by a platform admin. Actions during the
-              session are recorded in the organization's timeline.
-            </p>
-          </div>
-          <div className="flex gap-1">
-            {DAY_OPTIONS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={`px-2.5 py-1 text-xs rounded-full font-medium ${
-                  days === d ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
+      <AdminPageChrome
+        width="narrow"
+        icon={<UserCog />}
+        breadcrumbs={[{ label: 'System' }, { label: 'Impersonation' }]}
+        title="Impersonation"
+        description={
+          <>
+            Every impersonation session started by a platform admin. Actions during the
+            session are recorded in the organization&apos;s timeline.
+          </>
+        }
+        actions={
+          <Segmented
+            size="sm"
+            ariaLabel="Period"
+            options={DAY_OPTIONS.map((d) => ({ value: d as number, label: `${d}d` }))}
+            value={days}
+            onChange={setDays}
+          />
+        }
+      >
+        <SectionCard
+          icon={<History />}
+          title="Sessions"
+          description={`Last ${days} days`}
+          padded={false}
+        >
           {list.isLoading ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Loading…</p>
+            <p className="px-5 py-6 text-sm text-admin-muted">Loading…</p>
           ) : events.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-gray-400">
-              No impersonation sessions in the last {days} days.
-            </p>
+            <EmptyState
+              compact
+              className="border-0 shadow-none"
+              icon={<UserCog />}
+              title={`No impersonation sessions in the last ${days} days.`}
+            />
           ) : (
-            events.map((e) => {
-              const meta = (e.metadata ?? {}) as Record<string, unknown>;
-              const targetEmail = typeof meta.userEmail === 'string' ? meta.userEmail : null;
-              return (
-                <div key={e.id} className="px-4 py-3 flex flex-wrap items-start gap-3">
-                  <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 font-medium ${
-                    e.action === 'impersonate_user' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-100 text-indigo-800'
-                  }`}>
-                    {e.action === 'impersonate_user' ? 'user' : 'organization'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {e.adminName || e.adminEmail || e.adminId}
-                      <span className="text-gray-400 font-normal"> impersonated </span>
-                      {targetEmail ?? e.targetUserId ?? 'organization'}
-                      {e.orgName && (
-                        <>
-                          <span className="text-gray-400 font-normal"> at </span>
-                          {e.orgId ? (
-                            <Link href={`/organizations/${e.orgId}`} className="text-purple-700 hover:underline">
-                              {e.orgName}
-                            </Link>
-                          ) : (
-                            e.orgName
-                          )}
-                        </>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {new Date(e.at).toLocaleString()}
-                      {e.ipAddress ? <span className="ml-2 font-mono">{e.ipAddress}</span> : null}
-                      {typeof meta.userRole === 'string' ? <span className="ml-2">role: {meta.userRole}</span> : null}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
+            <ul className="divide-y divide-admin-border">
+              {events.map((e) => {
+                const meta = (e.metadata ?? {}) as Record<string, unknown>;
+                const targetEmail = typeof meta.userEmail === 'string' ? meta.userEmail : null;
+                return (
+                  <li key={e.id} className="flex flex-wrap items-start gap-3 px-5 py-3 transition-colors hover:bg-admin-bg/70">
+                    <StatusPill tone={e.action === 'impersonate_user' ? 'brand' : 'info'} dot={false} className="shrink-0">
+                      {e.action === 'impersonate_user' ? 'user' : 'organization'}
+                    </StatusPill>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-admin-ink">
+                        {e.adminName || e.adminEmail || e.adminId}
+                        <span className="font-normal text-admin-muted"> impersonated </span>
+                        {targetEmail ?? e.targetUserId ?? 'organization'}
+                        {e.orgName && (
+                          <>
+                            <span className="font-normal text-admin-muted"> at </span>
+                            {e.orgId ? (
+                              <Link href={`/organizations/${e.orgId}`} className="text-admin-accent-ink hover:underline">
+                                {e.orgName}
+                              </Link>
+                            ) : (
+                              e.orgName
+                            )}
+                          </>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs text-admin-muted">
+                        {new Date(e.at).toLocaleString()}
+                        {e.ipAddress ? <span className="ml-2 font-mono">{e.ipAddress}</span> : null}
+                        {typeof meta.userRole === 'string' ? <span className="ml-2">role: {meta.userRole}</span> : null}
+                      </p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
-      </div>
+        </SectionCard>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

@@ -7,11 +7,13 @@ import { useSearchParams } from 'next/navigation';
 import { Building2, LayoutGrid, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { AdminPage } from '@/components/admin/page-chrome';
 import { PageHeader } from '@/components/admin/page-header';
 import { FilterBar, FilterInput, FilterSelect } from '@/components/admin/filter-bar';
 import { DataTable, DataTableEl, Td, Th } from '@/components/admin/data-table';
 import { SeverityBadge } from '@/components/admin/severity-badge';
 import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, checkboxClass } from '@/components/admin/controls';
 import { EditOrganizationModal } from '@/components/platform-admin/edit-organization-modal';
 
 function statusSeverity(status: string): 'ok' | 'warn' | 'critical' | 'muted' | 'info' {
@@ -65,7 +67,7 @@ function OrganizationsPageInner() {
   const editingOrg = editingOrgId ? orgs.find((o: any) => o.id === editingOrgId) : null;
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6">
+    <AdminPage width="wide">
       <EditOrganizationModal
         organizationId={editingOrgId}
         open={!!editingOrgId}
@@ -75,21 +77,16 @@ function OrganizationsPageInner() {
       />
       <PageHeader
         eyebrow="Tenants"
+        icon={<Building2 />}
         title="Organizations"
         description="Customer tenants — plan, status, and hiring volume at a glance."
         actions={
           <>
-          <Link
-            href="/tenant-features"
-            className="inline-flex items-center gap-1.5 rounded-admin-sm border border-admin-border bg-white px-3 py-1.5 text-sm font-medium text-admin-ink hover:bg-slate-50"
-          >
+          <Link href="/tenant-features" className={buttonClass.secondary}>
             <LayoutGrid className="h-4 w-4" />
             Tenant features
           </Link>
-          <Link
-            href="/onboarding"
-            className="inline-flex items-center gap-1.5 rounded-admin-sm bg-admin-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
-          >
+          <Link href="/onboarding" className={buttonClass.primary}>
             <Plus className="h-4 w-4" />
             Add organization
           </Link>
@@ -133,7 +130,7 @@ function OrganizationsPageInner() {
             type="checkbox"
             checked={includeArchived}
             onChange={(e) => setIncludeArchived(e.target.checked)}
-            className="rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+            className={checkboxClass}
           />
           Show archived
         </label>
@@ -147,7 +144,7 @@ function OrganizationsPageInner() {
         </div>
       ) : orgs.length === 0 ? (
         <EmptyState
-          icon={<Building2 className="h-8 w-8" />}
+          icon={<Building2 />}
           title="No organizations"
           description="Try clearing filters or add a new organization."
         />
@@ -167,9 +164,9 @@ function OrganizationsPageInner() {
                 <Th />
               </tr>
             </thead>
-            <tbody className="divide-y divide-admin-border">
+            <tbody>
               {orgs.map((org: any) => (
-                <tr key={org.id} className="hover:bg-slate-50/80">
+                <tr key={org.id}>
                   <Td>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium text-admin-ink">{org.name || '(Incomplete)'}</span>
@@ -233,7 +230,7 @@ function OrganizationsPageInner() {
           </DataTableEl>
         </DataTable>
       )}
-    </div>
+    </AdminPage>
   );
 }
 

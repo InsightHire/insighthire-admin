@@ -2,9 +2,14 @@
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
-import { ArrowLeftIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { Plus, Users } from 'lucide-react';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, inputClass, selectClass } from '@/components/admin/controls';
 import { openImpersonationLink } from '@/lib/impersonation-link';
 
 const EDITABLE_ROLES = ['RECRUITER', 'HIRING_MANAGER', 'ADMIN', 'ORGANIZATION_ADMIN', 'ORG_ADMINISTRATOR'] as const;
@@ -106,180 +111,164 @@ export default function OrganizationUsersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center space-x-4">
-            <Link
-              href={`/organizations/${orgId}`}
-              className="p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-            </Link>
-            <div className="flex items-center space-x-3">
-              <UserGroupIcon className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Organization Users</h1>
-                <p className="text-sm text-gray-600">{data?.users.length || 0} users</p>
-              </div>
-            </div>
-            <div className="flex-1" />
-            <button
-              onClick={() => setShowInvite(true)}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
-            >
-              + Invite User
-            </button>
-          </div>
+    <AdminPageChrome
+      icon={<Users />}
+      breadcrumbs={[
+        { label: 'Tenants', href: '/organizations' },
+        { label: 'Organization', href: `/organizations/${orgId}` },
+        { label: 'Users' },
+      ]}
+      title="Organization Users"
+      description={`${data?.users.length || 0} users`}
+      actions={
+        <button onClick={() => setShowInvite(true)} className={buttonClass.primary}>
+          <Plus className="h-4 w-4" />
+          Invite User
+        </button>
+      }
+    >
+      {data?.users.length === 0 && (
+        <div className="mb-6 rounded-admin-sm border border-admin-warn/25 bg-admin-warn-soft px-4 py-3 text-sm text-amber-900">
+          This organization has no users yet. Invite the customer&apos;s first admin with
+          <span className="font-medium"> + Invite User</span>, or use{' '}
+          <span className="font-medium">Login as Admin</span> on the organization page — it now
+          creates a &quot;Platform Setup&quot; admin automatically so you can configure the
+          tenant yourself.
         </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {data?.users.length === 0 && (
-          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            This organization has no users yet. Invite the customer&apos;s first admin with
-            <span className="font-medium"> + Invite User</span>, or use{' '}
-            <span className="font-medium">Login as Admin</span> on the organization page — it now
-            creates a &quot;Platform Setup&quot; admin automatically so you can configure the
-            tenant yourself.
+      )}
+      <SectionCard
+        icon={<Users />}
+        title="Members"
+        description="Roles, status and support actions for people in this organization"
+        padded={false}
+      >
+        {data?.users.length === 0 ? (
+          <EmptyState compact className="border-0 shadow-none" icon={<Users />} title="No users yet" />
+        ) : (
+          <div className="overflow-x-auto">
+            <DataTableEl>
+              <thead>
+                <tr>
+                  <Th>Name / Email</Th>
+                  <Th>Role</Th>
+                  <Th>Status</Th>
+                  <Th>Last Login</Th>
+                  <Th>Actions</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {data?.users.map((user: any) => (
+                  <tr key={user.id}>
+                    <Td className="text-admin-ink">
+                      {(user.firstName || user.lastName) && (
+                        <p className="font-medium">{[user.firstName, user.lastName].filter(Boolean).join(' ')}</p>
+                      )}
+                      <p className={user.firstName || user.lastName ? 'text-xs text-admin-muted' : ''}>{user.email}</p>
+                    </Td>
+                    <Td>
+                      {isSuperAdmin ? (
+                        <select
+                          value={EDITABLE_ROLES.includes(user.role) ? user.role : ''}
+                          onChange={(e) => updateUserRole.mutate({ userId: user.id, role: e.target.value })}
+                          disabled={updateUserRole.isPending}
+                          className={`${selectClass} py-1 text-xs`}
+                        >
+                          {!EDITABLE_ROLES.includes(user.role) && <option value="">{user.role}</option>}
+                          {EDITABLE_ROLES.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <StatusPill tone="brand" dot={false}>{user.role}</StatusPill>
+                      )}
+                    </Td>
+                    <Td>
+                      <StatusPill tone={user.isActive ? 'success' : 'danger'}>
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </StatusPill>
+                    </Td>
+                    <Td className="text-admin-muted">
+                      {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
+                    </Td>
+                    <Td className="space-x-3 whitespace-nowrap">
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => openEdit(user)}
+                          className="font-medium text-admin-secondary hover:text-admin-ink"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => handleImpersonate(user.id)}
+                          disabled={!user.isActive}
+                          className="font-medium text-admin-accent-ink hover:underline disabled:opacity-50"
+                        >
+                          Impersonate
+                        </button>
+                      )}
+                      {user.isActive ? (
+                        <button
+                          onClick={() => handleDeactivate(user.id)}
+                          className="font-medium text-red-600 hover:text-red-700"
+                        >
+                          Deactivate
+                        </button>
+                      ) : (
+                        isSuperAdmin && (
+                          <button
+                            onClick={() => reactivateUser.mutate({ userId: user.id })}
+                            disabled={reactivateUser.isPending}
+                            className="font-medium text-green-700 hover:text-green-800"
+                          >
+                            Reactivate
+                          </button>
+                        )
+                      )}
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => handleDelete(user.id, user.email)}
+                          className="font-medium text-red-700 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTableEl>
           </div>
         )}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Name / Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Role
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Last Login
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {data?.users.map((user: any) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {(user.firstName || user.lastName) && (
-                      <p className="font-medium">{[user.firstName, user.lastName].filter(Boolean).join(' ')}</p>
-                    )}
-                    <p className={user.firstName || user.lastName ? 'text-gray-500 text-xs' : ''}>{user.email}</p>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {isSuperAdmin ? (
-                      <select
-                        value={EDITABLE_ROLES.includes(user.role) ? user.role : ''}
-                        onChange={(e) => updateUserRole.mutate({ userId: user.id, role: e.target.value })}
-                        disabled={updateUserRole.isPending}
-                        className="text-xs font-medium rounded-full border border-gray-200 bg-blue-50 px-2 py-1 text-blue-800"
-                      >
-                        {!EDITABLE_ROLES.includes(user.role) && <option value="">{user.role}</option>}
-                        {EDITABLE_ROLES.map((r) => (
-                          <option key={r} value={r}>{r}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        {user.role}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
-                  </td>
-                  <td className="px-6 py-4 text-sm space-x-3 whitespace-nowrap">
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => openEdit(user)}
-                        className="text-gray-600 hover:text-gray-900 font-medium"
-                      >
-                        Edit
-                      </button>
-                    )}
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => handleImpersonate(user.id)}
-                        disabled={!user.isActive}
-                        className="text-purple-600 hover:text-purple-700 font-medium disabled:opacity-50"
-                      >
-                        Impersonate
-                      </button>
-                    )}
-                    {user.isActive ? (
-                      <button
-                        onClick={() => handleDeactivate(user.id)}
-                        className="text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Deactivate
-                      </button>
-                    ) : (
-                      isSuperAdmin && (
-                        <button
-                          onClick={() => reactivateUser.mutate({ userId: user.id })}
-                          disabled={reactivateUser.isPending}
-                          className="text-green-700 hover:text-green-800 font-medium"
-                        >
-                          Reactivate
-                        </button>
-                      )
-                    )}
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => handleDelete(user.id, user.email)}
-                        className="text-red-700 hover:text-red-900 font-medium"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      </SectionCard>
 
       {/* Edit user modal */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold text-gray-900">Edit user</h2>
-            <p className="mt-1 text-sm text-gray-500">Support-desk correction — not a general profile editor.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-admin border border-admin-border bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-admin-ink">Edit user</h2>
+            <p className="mt-1 text-sm text-admin-muted">Support-desk correction — not a general profile editor.</p>
             <div className="mt-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <input
                   placeholder="First name"
                   value={editForm.firstName}
                   onChange={(e) => setEditForm((p) => ({ ...p, firstName: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
                 <input
                   placeholder="Last name"
                   value={editForm.lastName}
                   onChange={(e) => setEditForm((p) => ({ ...p, lastName: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
               </div>
               <input
@@ -287,20 +276,17 @@ export default function OrganizationUsersPage() {
                 placeholder="email@company.com"
                 value={editForm.email}
                 onChange={(e) => setEditForm((p) => ({ ...p, email: e.target.value }))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className={inputClass}
               />
             </div>
             <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setEditingUser(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+              <button onClick={() => setEditingUser(null)} className={buttonClass.ghost}>
                 Cancel
               </button>
               <button
                 onClick={() => updateUserProfile.mutate({ userId: editingUser.id, ...editForm })}
                 disabled={updateUserProfile.isPending || !editForm.firstName || !editForm.lastName || !editForm.email}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 {updateUserProfile.isPending ? 'Saving…' : 'Save'}
               </button>
@@ -311,10 +297,10 @@ export default function OrganizationUsersPage() {
 
       {/* Invite user modal */}
       {showInvite && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold text-gray-900">Invite user to this organization</h2>
-            <p className="mt-1 text-sm text-gray-500">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-admin border border-admin-border bg-white p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-admin-ink">Invite user to this organization</h2>
+            <p className="mt-1 text-sm text-admin-muted">
               Sends a WorkOS invitation plus a branded email. The user appears as Pending until
               they accept.
             </p>
@@ -324,7 +310,7 @@ export default function OrganizationUsersPage() {
                 placeholder="email@company.com"
                 value={inviteForm.email}
                 onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className={inputClass}
                 autoFocus
               />
               <div className="grid grid-cols-2 gap-3">
@@ -332,13 +318,13 @@ export default function OrganizationUsersPage() {
                   placeholder="First name"
                   value={inviteForm.firstName}
                   onChange={(e) => setInviteForm((p) => ({ ...p, firstName: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
                 <input
                   placeholder="Last name"
                   value={inviteForm.lastName}
                   onChange={(e) => setInviteForm((p) => ({ ...p, lastName: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  className={inputClass}
                 />
               </div>
               <select
@@ -346,7 +332,7 @@ export default function OrganizationUsersPage() {
                 onChange={(e) =>
                   setInviteForm((p) => ({ ...p, role: e.target.value as typeof p.role }))
                 }
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                className={`${selectClass} w-full`}
               >
                 <option value="ORGANIZATION_ADMIN">Organization Admin</option>
                 <option value="RECRUITER">Recruiter</option>
@@ -354,10 +340,7 @@ export default function OrganizationUsersPage() {
               </select>
             </div>
             <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setShowInvite(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-              >
+              <button onClick={() => setShowInvite(false)} className={buttonClass.ghost}>
                 Cancel
               </button>
               <button
@@ -370,7 +353,7 @@ export default function OrganizationUsersPage() {
                   !inviteForm.firstName ||
                   !inviteForm.lastName
                 }
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 {inviteOrgAdmin.isPending ? 'Sending…' : 'Send invitation'}
               </button>
@@ -378,6 +361,6 @@ export default function OrganizationUsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPageChrome>
   );
 }

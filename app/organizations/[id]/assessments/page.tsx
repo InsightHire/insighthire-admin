@@ -1,10 +1,15 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import Link from 'next/link';
+import { ClipboardList, FileText, Plus } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowLeftIcon, DocumentTextIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass } from '@/components/admin/controls';
 
 export default function OrganizationAssessmentsPage() {
   const params = useParams();
@@ -22,93 +27,80 @@ export default function OrganizationAssessmentsPage() {
   });
 
   if (authLoading || isLoading) {
-    return <div className="flex justify-center py-12"><div className="animate-spin h-12 w-12 border-b-2 border-blue-600 rounded-full"></div></div>;
+    return <div className="flex justify-center py-12"><div className="h-10 w-10 animate-spin rounded-full border-4 border-admin-accent border-t-transparent"></div></div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center space-x-4">
-            <Link href={`/organizations/${orgId}`} className="p-2 hover:bg-gray-100 rounded-lg">
-              <ArrowLeftIcon className="h-5 w-5" />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold">Assessments</h1>
-              <p className="text-gray-600">{orgData?.organization?.name || 'Organization'}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b flex justify-between items-center">
-            <h2 className="font-semibold">All Assessments ({data?.assessments.length || 0})</h2>
-            <button
-              onClick={() => {
-                // Impersonate org admin to create assessment
-                alert('Impersonate an admin from this org to create assessments');
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Create Assessment
-            </button>
-          </div>
-
-          <table className="min-w-full divide-y">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Questions</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Responses</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {data?.assessments.map((assessment) => (
-                <tr key={assessment.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div>
-                      <div className="font-medium text-gray-900">{assessment.title}</div>
-                      {assessment.description && (
-                        <div className="text-sm text-gray-500 truncate max-w-xs">{assessment.description}</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm">{assessment.type}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      assessment.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {assessment.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">{assessment._count.assessment_questions}</td>
-                  <td className="px-6 py-4 text-sm">{assessment._count.assessment_responses}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(assessment.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <button className="text-blue-600 hover:text-blue-700 font-medium">View</button>
-                  </td>
+    <AdminPageChrome
+      icon={<ClipboardList />}
+      breadcrumbs={[
+        { label: 'Tenants', href: '/organizations' },
+        { label: orgData?.organization?.name || 'Organization', href: `/organizations/${orgId}` },
+        { label: 'Assessments' },
+      ]}
+      title="Assessments"
+      description={orgData?.organization?.name || 'Organization'}
+      actions={
+        <button
+          onClick={() => {
+            // Impersonate org admin to create assessment
+            alert('Impersonate an admin from this org to create assessments');
+          }}
+          className={buttonClass.primary}
+        >
+          <Plus className="h-4 w-4" />
+          Create Assessment
+        </button>
+      }
+    >
+      <SectionCard
+        icon={<FileText />}
+        title={`All Assessments (${data?.assessments.length || 0})`}
+        description="Assessments this organization has built"
+        padded={false}
+      >
+        {data?.assessments.length === 0 ? (
+          <EmptyState compact className="border-0 shadow-none" icon={<FileText />} title="No assessments created yet" />
+        ) : (
+          <div className="overflow-x-auto">
+            <DataTableEl>
+              <thead>
+                <tr>
+                  <Th>Title</Th>
+                  <Th>Type</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">Questions</Th>
+                  <Th className="text-right">Responses</Th>
+                  <Th>Created</Th>
+                  <Th>Actions</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {data?.assessments.length === 0 && (
-            <div className="text-center py-12">
-              <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">No assessments created yet</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+              </thead>
+              <tbody>
+                {data?.assessments.map((assessment) => (
+                  <tr key={assessment.id}>
+                    <Td>
+                      <div className="font-medium text-admin-ink">{assessment.title}</div>
+                      {assessment.description && (
+                        <div className="max-w-xs truncate text-xs text-admin-muted">{assessment.description}</div>
+                      )}
+                    </Td>
+                    <Td>{assessment.type}</Td>
+                    <Td>
+                      <StatusPill tone={assessment.status === 'PUBLISHED' ? 'success' : 'neutral'}>{assessment.status}</StatusPill>
+                    </Td>
+                    <Td className="text-right tabular-nums">{assessment._count.assessment_questions}</Td>
+                    <Td className="text-right tabular-nums">{assessment._count.assessment_responses}</Td>
+                    <Td className="text-admin-muted">{new Date(assessment.createdAt).toLocaleDateString()}</Td>
+                    <Td>
+                      <button className="font-medium text-admin-accent-ink hover:underline">View</button>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTableEl>
+          </div>
+        )}
+      </SectionCard>
+    </AdminPageChrome>
   );
 }

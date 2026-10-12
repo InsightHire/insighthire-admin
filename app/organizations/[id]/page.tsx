@@ -7,11 +7,6 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import {
-  ArrowLeftIcon,
-  BuildingOfficeIcon,
-  UsersIcon,
-  ChartBarIcon,
-  ArrowTopRightOnSquareIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   EnvelopeIcon,
@@ -21,7 +16,6 @@ import {
   ExclamationTriangleIcon,
   DocumentChartBarIcon,
   PaperClipIcon,
-  SparklesIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
@@ -33,6 +27,34 @@ import { SupportActionsSection } from '@/components/platform-admin/support-actio
 import { OrgAuthenticationSection } from '@/components/platform-admin/org-authentication';
 import { OrgLegalAcceptanceSection } from '@/components/platform-admin/org-legal-acceptance';
 import { openImpersonationLink } from '@/lib/impersonation-link';
+import {
+  AlertTriangle,
+  Building2,
+  ClipboardList,
+  CreditCard,
+  ExternalLink,
+  FileBarChart,
+  Gauge,
+  Info,
+  Languages,
+  LayoutDashboard,
+  ListChecks,
+  Receipt,
+  Route,
+  Sparkles,
+  Users,
+  Briefcase,
+  History,
+  PenSquare,
+  Zap,
+} from 'lucide-react';
+import { AdminPage } from '@/components/admin/page-chrome';
+import { PageHeader } from '@/components/admin/page-header';
+import { SectionCard, DetailList } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill, type StatusTone } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, checkboxClass, inputClass, selectClass } from '@/components/admin/controls';
 
 type DangerModal = 'none' | 'suspend' | 'archive' | 'reactivate' | 'permanent';
 
@@ -185,7 +207,11 @@ export default function OrganizationDetailPage() {
   }
 
   if (!data) {
-    return <div className="p-6 text-sm text-admin-muted">Organization not found</div>;
+    return (
+      <AdminPage>
+        <EmptyState icon={<Building2 />} title="Organization not found" />
+      </AdminPage>
+    );
   }
 
   const { organization, usage } = data;
@@ -197,90 +223,80 @@ export default function OrganizationDetailPage() {
     (organization.name || organization.domain || '').trim() || '(organization has no name or domain — set one before permanent delete)';
 
   return (
-    <div>
-      {/* Header */}
-      <div className="border-b border-admin-border bg-admin-panel">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/organizations"
-                className="rounded-admin-sm p-2 hover:bg-slate-100"
-              >
-                <ArrowLeftIcon className="h-5 w-5 text-admin-muted" />
-              </Link>
-              <div className="flex items-center space-x-3">
-                <BuildingOfficeIcon className="h-8 w-8 text-admin-accent" />
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-bold text-admin-ink">
-                      {organization.name || '(Onboarding Incomplete)'}
-                    </h1>
-                    {isArchived && (
-                      <span className="rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-admin-ink text-white">
-                        Archived
-                      </span>
-                    )}
-                    {isDemoTenant && <DemoTenantBadge />}
-                    {isSandbox && <SandboxBadge />}
-                  </div>
-                  <p className="text-sm text-admin-muted">{organization.domain}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2 space-x-3">
-              <Link
-                href={`/attention?org=${orgId}`}
-                className="inline-flex items-center gap-2 rounded-admin-sm border border-admin-warn/40 bg-admin-warn-soft px-3 py-2 text-sm font-medium text-admin-warn hover:bg-amber-100"
-              >
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                Attention
-              </Link>
+    <AdminPage width="wide">
+      <PageHeader
+        icon={<Building2 />}
+        breadcrumbs={[
+          { label: 'Tenants', href: '/organizations' },
+          { label: 'Organizations', href: '/organizations' },
+          { label: organization.name || '(Onboarding Incomplete)' },
+        ]}
+        title={organization.name || '(Onboarding Incomplete)'}
+        meta={
+          <>
+            {isArchived && (
+              <span className="rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide bg-admin-ink text-white">
+                Archived
+              </span>
+            )}
+            {isDemoTenant && <DemoTenantBadge />}
+            {isSandbox && <SandboxBadge />}
+            <StatusPill tone={getStatusTone(organization.subscriptionStatus)}>
+              {organization.subscriptionStatus}
+            </StatusPill>
+            <StatusPill tone="info" dot={false}>
+              {organization.subscriptionPlan}
+            </StatusPill>
+          </>
+        }
+        description={organization.domain}
+        actions={
+          <>
+            <Link
+              href={`/attention?org=${orgId}`}
+              className="inline-flex items-center gap-1.5 rounded-admin-sm border border-admin-warn/40 bg-admin-warn-soft px-3.5 py-2 text-sm font-medium text-amber-800 shadow-sm hover:bg-amber-100"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Attention
+            </Link>
+            <button
+              type="button"
+              onClick={() =>
+                backfillOrgDefaultsMutation.mutate({
+                  organizationId: orgId,
+                  dryRun: false,
+                })
+              }
+              disabled={backfillOrgDefaultsMutation.isPending || isArchived}
+              title="Adds missing default email templates, rejection reasons, and rating categories (idempotent)"
+              className={buttonClass.secondary}
+            >
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              {backfillOrgDefaultsMutation.isPending ? 'Seeding…' : 'Seed org defaults'}
+            </button>
+            {isSuperAdmin && (
               <button
                 type="button"
-                onClick={() =>
-                  backfillOrgDefaultsMutation.mutate({
-                    organizationId: orgId,
-                    dryRun: false,
-                  })
-                }
-                disabled={backfillOrgDefaultsMutation.isPending || isArchived}
-                title="Adds missing default email templates, rejection reasons, and rating categories (idempotent)"
-                className="inline-flex items-center gap-2 rounded-admin-sm border border-admin-border bg-white px-3 py-2 text-sm font-medium text-admin-ink hover:bg-slate-50 disabled:opacity-50"
+                onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
+                disabled={impersonateMutation.isPending || isArchived}
+                title={isArchived ? 'Archived organizations cannot be opened via Login as Admin' : undefined}
+                className={buttonClass.primary}
               >
-                <SparklesIcon className="h-4 w-4 text-amber-500" />
-                {backfillOrgDefaultsMutation.isPending ? 'Seeding…' : 'Seed org defaults'}
+                <ExternalLink className="h-4 w-4" />
+                {impersonateMutation.isPending ? 'Opening...' : 'Login as Admin'}
               </button>
-              {isSuperAdmin && (
-                <button
-                  type="button"
-                  onClick={() => impersonateMutation.mutate({ organizationId: orgId })}
-                  disabled={impersonateMutation.isPending || isArchived}
-                  title={isArchived ? 'Archived organizations cannot be opened via Login as Admin' : undefined}
-                  className="inline-flex items-center gap-2 rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-                >
-                  <ArrowTopRightOnSquareIcon className="h-4 w-4" />
-                  {impersonateMutation.isPending ? 'Opening...' : 'Login as Admin'}
-                </button>
-              )}
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(organization.subscriptionStatus)}`}>
-                {organization.subscriptionStatus}
-              </span>
-              <span className="rounded-full bg-admin-info-soft px-3 py-1 text-sm font-medium text-admin-info">
-                {organization.subscriptionPlan}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+            )}
+          </>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        {actionMessage && (
+      {actionMessage && (
+        <div className="mb-6">
           <div
-            className={`rounded-lg px-4 py-3 text-sm ${
+            className={`rounded-admin-sm px-4 py-3 text-sm ${
               actionMessage.type === 'ok'
-                ? 'bg-green-50 border border-green-200 text-green-900'
-                : 'bg-red-50 border border-red-200 text-red-900'
+                ? 'border border-admin-ok/20 bg-admin-ok-soft text-emerald-900'
+                : 'border border-admin-danger/20 bg-admin-danger-soft text-red-900'
             }`}
             role="alert"
           >
@@ -293,111 +309,53 @@ export default function OrganizationDetailPage() {
               Dismiss
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Position → Candidates Tracking (full detail) */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200/60 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <DocumentChartBarIcon className="h-6 w-6 text-indigo-600" />
-                    <h2 className="text-lg font-semibold text-gray-900">Position & Candidate Tracking</h2>
-                  </div>
-                  <Link
-                    href={`/organizations/${orgId}/positions`}
-                    className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                  >
-                    View All Positions →
-                  </Link>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Email sent, visited, steps, AI scoring, report. Status shows where they are (invited, in progress, waiting on processing, or done).
-                </p>
-              </div>
+            <SectionCard
+              icon={<FileBarChart />}
+              title="Position & Candidate Tracking"
+              description="Email sent, visited, steps, AI scoring, report. Status shows where they are (invited, in progress, waiting on processing, or done)."
+              href={`/organizations/${orgId}/positions`}
+              hrefLabel="View All Positions"
+              padded={false}
+            >
               <PositionCandidatesTrackingSection orgId={orgId} />
-            </div>
+            </SectionCard>
 
             {/* Scoring Health */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200/60 overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <SparklesIcon className="h-6 w-6 text-amber-600" />
-                  <h2 className="text-lg font-semibold text-gray-900">Scoring Health</h2>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">Responses pending, processing, or failed in the AI scoring pipeline</p>
-              </div>
+            <SectionCard
+              icon={<Gauge />}
+              title="Scoring Health"
+              description="Responses pending, processing, or failed in the AI scoring pipeline"
+              padded={false}
+            >
               <ScoringHealthSection orgId={orgId} />
-            </div>
+            </SectionCard>
 
             {/* Usage Stats */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Usage Statistics</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-blue-600 font-medium">Total Users</p>
-                      <p className="text-2xl font-bold text-blue-900">{usage.total_users || 0}</p>
-                    </div>
-                    <UsersIcon className="h-8 w-8 text-blue-600" />
-                  </div>
-                </div>
-
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-green-600 font-medium">Candidates</p>
-                      <p className="text-2xl font-bold text-green-900">{usage.total_candidates || 0}</p>
-                    </div>
-                    <ChartBarIcon className="h-8 w-8 text-green-600" />
-                  </div>
-                </div>
-
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-purple-600 font-medium">Assessments</p>
-                      <p className="text-2xl font-bold text-purple-900">{usage.total_assessments || 0}</p>
-                    </div>
-                    <ChartBarIcon className="h-8 w-8 text-purple-600" />
-                  </div>
-                </div>
-
-                <div className="bg-orange-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-orange-600 font-medium">Hiring Flows</p>
-                      <p className="text-2xl font-bold text-orange-900">{usage.total_journeys || 0}</p>
-                    </div>
-                    <ChartBarIcon className="h-8 w-8 text-orange-600" />
-                  </div>
-                </div>
-
-                <div className="bg-indigo-50 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-indigo-600 font-medium">Positions</p>
-                      <p className="text-2xl font-bold text-indigo-900">{usage.total_positions || 0}</p>
-                    </div>
-                    <ChartBarIcon className="h-8 w-8 text-indigo-600" />
-                  </div>
-                </div>
-              </div>
-
-              {usage.avg_journey_score > 0 && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">Average hiring flow score</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {Math.round(parseFloat(usage.avg_journey_score))}%
-                  </p>
-                </div>
-              )}
-            </div>
+            <SectionCard icon={<Users />} title="Usage Statistics" description="Totals across this organization">
+              <StatGrid cols={3}>
+                <StatTile label="Total Users" icon={Users} tone="brand" value={usage.total_users || 0} />
+                <StatTile label="Candidates" icon={Users} tone="ok" value={usage.total_candidates || 0} />
+                <StatTile label="Assessments" icon={ClipboardList} tone="info" value={usage.total_assessments || 0} />
+                <StatTile label="Hiring Flows" icon={Route} tone="warn" value={usage.total_journeys || 0} />
+                <StatTile label="Positions" icon={Briefcase} tone="muted" value={usage.total_positions || 0} />
+                {usage.avg_journey_score > 0 && (
+                  <StatTile
+                    label="Average hiring flow score"
+                    icon={Gauge}
+                    tone="brand"
+                    value={`${Math.round(parseFloat(usage.avg_journey_score))}%`}
+                  />
+                )}
+              </StatGrid>
+            </SectionCard>
 
             <DemoTenantToggle
               organizationId={orgId}
@@ -427,50 +385,46 @@ export default function OrganizationDetailPage() {
 
             {/* Payment History */}
             {data.paymentHistory && data.paymentHistory.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment History</h2>
+              <SectionCard icon={<Receipt />} title="Payment History">
                 <div className="space-y-3">
                   {data.paymentHistory.map((payment) => (
-                    <div key={payment.id} className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <div key={payment.id} className="flex justify-between items-center py-2 border-b border-admin-border">
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-admin-ink">
                           ${payment.amount.toFixed(2)} {payment.currency.toUpperCase()}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-admin-muted">
                           {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : 'Pending'}
                         </p>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        payment.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                      }`}>
+                      <StatusPill tone={payment.status === 'paid' ? 'success' : 'warn'}>
                         {payment.status}
-                      </span>
+                      </StatusPill>
                     </div>
                   ))}
                 </div>
-              </div>
+              </SectionCard>
             )}
 
             {/* Subscription History */}
             {data.subscriptionHistory && data.subscriptionHistory.length > 0 && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Subscription Changes</h2>
+              <SectionCard icon={<History />} title="Subscription Changes">
                 <div className="space-y-3">
                   {data.subscriptionHistory.map((change, idx) => (
-                    <div key={idx} className="py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{change.action}</p>
-                      <p className="text-xs text-gray-500">
+                    <div key={idx} className="py-2 border-b border-admin-border">
+                      <p className="text-sm font-medium text-admin-ink">{change.action}</p>
+                      <p className="text-xs text-admin-muted">
                         {new Date(change.changedAt).toLocaleString()}
                       </p>
                       {change.details && (
-                        <p className="text-xs text-gray-600 mt-1">
+                        <p className="text-xs text-admin-secondary mt-1">
                           {JSON.stringify(change.details)}
                         </p>
                       )}
                     </div>
                   ))}
                 </div>
-              </div>
+              </SectionCard>
             )}
 
             {/* Authoring settings (PR — admin alignment) */}
@@ -493,10 +447,11 @@ export default function OrganizationDetailPage() {
             <OrgPositionsReadinessSection organizationId={orgId} />
 
             {/* Subscription Management */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Subscription</h2>
-                {!editingSubscription && (
+            <SectionCard
+              icon={<CreditCard />}
+              title="Subscription"
+              actions={
+                !editingSubscription && (
                   <button
                     onClick={() => {
                       setEditingSubscription(true);
@@ -509,23 +464,23 @@ export default function OrganizationDetailPage() {
                           : ''
                       );
                     }}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    className={buttonClass.small}
                   >
                     Edit
                   </button>
-                )}
-              </div>
-
+                )
+              }
+            >
               {editingSubscription ? (
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-admin-secondary mb-2">
                       Subscription Plan
                     </label>
                     <select
                       value={newPlan}
                       onChange={(e) => setNewPlan(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className={`${selectClass} w-full`}
                     >
                       <option value="TRIAL">Trial</option>
                       <option value="STARTER">Starter</option>
@@ -536,13 +491,13 @@ export default function OrganizationDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-admin-secondary mb-2">
                       Status
                     </label>
                     <select
                       value={newStatus}
                       onChange={(e) => setNewStatus(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className={`${selectClass} w-full`}
                     >
                       <option value="TRIAL">Trial</option>
                       <option value="ACTIVE">Active</option>
@@ -553,29 +508,29 @@ export default function OrganizationDetailPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-admin-secondary mb-2">
                       Subscription expires (optional)
                     </label>
                     <input
                       type="datetime-local"
                       value={newExpiresAt}
                       onChange={(e) => setNewExpiresAt(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      className={inputClass}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Leave blank to keep current expiry unchanged when saving.</p>
+                    <p className="text-xs text-admin-muted mt-1">Leave blank to keep current expiry unchanged when saving.</p>
                   </div>
 
-                  <div className="rounded-lg border border-violet-100 bg-violet-50/50 p-4">
+                  <div className="rounded-admin-sm border border-violet-100 bg-violet-50/50 p-4">
                     <label className="flex items-start gap-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={newBillingComped}
                         onChange={(e) => setNewBillingComped(e.target.checked)}
-                        className="mt-1 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                        className="mt-1 rounded border-admin-border-strong text-violet-600 focus:ring-violet-500"
                       />
                       <span>
-                        <span className="block text-sm font-medium text-gray-900">Complimentary (comped) billing</span>
-                        <span className="block text-xs text-gray-600 mt-1">
+                        <span className="block text-sm font-medium text-admin-ink">Complimentary (comped) billing</span>
+                        <span className="block text-xs text-admin-secondary mt-1">
                           Plan is granted without Stripe. Paid MRR on the billing dashboard excludes this org. Use for pilots,
                           partners, and legacy accounts before Stripe checkout.
                         </span>
@@ -587,13 +542,13 @@ export default function OrganizationDetailPage() {
                     <button
                       onClick={handleUpdateSubscription}
                       disabled={updateSubscription.isLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      className={buttonClass.primary}
                     >
                       {updateSubscription.isLoading ? 'Saving...' : 'Save Changes'}
                     </button>
                     <button
                       onClick={() => setEditingSubscription(false)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                      className={buttonClass.secondary}
                     >
                       Cancel
                     </button>
@@ -602,36 +557,36 @@ export default function OrganizationDetailPage() {
               ) : (
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Plan</span>
-                    <span className="text-sm font-medium text-gray-900">{organization.subscriptionPlan}</span>
+                    <span className="text-sm text-admin-secondary">Plan</span>
+                    <span className="text-sm font-medium text-admin-ink">{organization.subscriptionPlan}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Status</span>
-                    <span className="text-sm font-medium text-gray-900">{organization.subscriptionStatus}</span>
+                    <span className="text-sm text-admin-secondary">Status</span>
+                    <span className="text-sm font-medium text-admin-ink">{organization.subscriptionStatus}</span>
                   </div>
                   {organization.subscriptionExpiresAt && (
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Expires</span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm text-admin-secondary">Expires</span>
+                      <span className="text-sm font-medium text-admin-ink">
                         {new Date(organization.subscriptionExpiresAt).toLocaleDateString()}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-                    <span className="text-sm text-gray-600">Billing</span>
+                  <div className="flex justify-between items-center pt-2 border-t border-admin-border">
+                    <span className="text-sm text-admin-secondary">Billing</span>
                     {(organization as { billingComped?: boolean }).billingComped ? (
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-violet-100 text-violet-900">
                         Comped
                       </span>
                     ) : organization.stripeCustomerId ? (
-                      <span className="text-xs font-medium text-indigo-800">Stripe</span>
+                      <span className="text-xs font-medium text-admin-accent-ink">Stripe</span>
                     ) : (
-                      <span className="text-xs text-gray-500">No Stripe customer</span>
+                      <span className="text-xs text-admin-muted">No Stripe customer</span>
                     )}
                   </div>
                 </div>
               )}
-            </div>
+            </SectionCard>
           </div>
 
           {/* Sidebar */}
@@ -645,54 +600,53 @@ export default function OrganizationDetailPage() {
             />
 
             {/* Quick Actions */}
-            <div className="rounded-admin border border-admin-border bg-admin-panel p-6 shadow-sm">
-              <h2 className="mb-4 text-lg font-semibold text-admin-ink">Quick Actions</h2>
-              <div className="space-y-2">
+            <SectionCard icon={<Zap />} title="Quick Actions" bodyClassName="p-3">
+              <div className="space-y-0.5">
                 <Link
                   href={`/attention?org=${orgId}`}
-                  className="block w-full rounded-admin-sm px-4 py-2 text-left text-sm font-medium text-admin-warn hover:bg-admin-warn-soft"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm font-medium text-amber-700 hover:bg-admin-warn-soft"
                 >
                   Open attention queue →
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/candidates`}
-                  className="block w-full rounded-admin-sm px-4 py-2 text-left text-sm text-admin-secondary hover:bg-slate-50"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Candidates ({usage.total_candidates || 0})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/positions`}
-                  className="block w-full text-left px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm font-medium text-admin-accent-ink hover:bg-admin-accent-soft"
                 >
                   Candidate AI Forensics →
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/users`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   Manage Users ({organization._count.users})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/assessments`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Assessments ({organization._count.assessments})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/interviews`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Interviews ({organization._count.interview_sessions})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/journeys`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Journeys ({usage.total_journeys || 0})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/personas`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View AI Avatars
                 </Link>
@@ -701,32 +655,32 @@ export default function OrganizationDetailPage() {
                     the org doesn't have culture configured) so platform ops
                     can see "no culture configured" at-a-glance without
                     clicking in. */}
-                <div className="my-2 border-t border-gray-100" />
+                <div className="my-2 border-t border-admin-border" />
                 <Link
                   href={`/organizations/${orgId}/culture`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Culture Profiles ({cultureSummary?.counts.profiles ?? 0})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/culture#groups`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Culture Groups ({cultureSummary?.counts.groups ?? 0})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/culture#interview-templates`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Culture Interview Templates ({cultureSummary?.counts.interviewTemplates ?? 0})
                 </Link>
                 <Link
                   href={`/organizations/${orgId}/culture#candidate-signals`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Candidate Culture Signals ({cultureSummary?.counts.candidateSignals ?? 0})
                 </Link>
-                <div className="my-2 border-t border-gray-100" />
+                <div className="my-2 border-t border-admin-border" />
 
                 {/*
                   Public careers page (job listings + direct apply).
@@ -740,14 +694,14 @@ export default function OrganizationDetailPage() {
                     href={careersSummary.publicUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                    className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                     title={`Open ${careersSummary.publicUrl} in a new tab`}
                   >
                     Careers Page (Enabled · {careersSummary.publishedPositionCount} listed) ↗
                   </a>
                 ) : (
                   <span
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-500 rounded-lg cursor-default"
+                    className="block w-full cursor-default rounded-admin-sm px-3 py-2 text-left text-sm text-admin-muted"
                     title={
                       careersSummary
                         ? 'Org admin has not enabled the public careers page yet.'
@@ -758,7 +712,7 @@ export default function OrganizationDetailPage() {
                   </span>
                 )}
                 {careersSummary?.customCareersDomain ? (
-                  <div className="px-4 py-2 text-sm text-gray-700">
+                  <div className="px-3 py-2 text-sm text-admin-secondary">
                     <p className="break-all">
                       {careersSummary.customCareersDomain}
                       {' · '}
@@ -766,7 +720,7 @@ export default function OrganizationDetailPage() {
                     </p>
                     <button
                       type="button"
-                      className="mt-1 text-sm font-medium text-blue-700 hover:text-blue-900 disabled:opacity-50"
+                      className="mt-1 text-sm font-medium text-admin-accent-ink hover:underline disabled:opacity-50"
                       disabled={verifyCareersDomain.isPending}
                       onClick={() => verifyCareersDomain.mutate({
                         organizationId: orgId,
@@ -777,30 +731,35 @@ export default function OrganizationDetailPage() {
                     </button>
                   </div>
                 ) : null}
-                <div className="my-2 border-t border-gray-100" />
+                <div className="my-2 border-t border-admin-border" />
 
                 <Link
                   href={`/audit?org=${orgId}`}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg"
+                  className="block w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink"
                 >
                   View Audit Logs
                 </Link>
-                <button type="button" className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg">
+                <button type="button" className="w-full rounded-admin-sm px-3 py-2 text-left text-sm text-admin-secondary hover:bg-admin-accent-soft hover:text-admin-accent-ink">
                   Export Metadata
                 </button>
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="bg-white rounded-lg shadow border border-red-100 p-6">
-              <h2 className="text-lg font-semibold text-red-900 mb-1 flex items-center gap-2">
-                <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
-                Account control
-              </h2>
-              <p className="text-xs text-gray-600 mb-4">
-                Suspend, archive, reactivate, or permanently delete. All actions are audited.
-              </p>
+            <section className="admin-panel overflow-hidden border-admin-danger/25">
+              <header className="flex items-center gap-3 border-b border-admin-danger/15 bg-admin-danger-soft/50 px-5 py-4">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-admin-danger/20 bg-white text-admin-danger">
+                  <AlertTriangle className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-[15px] font-semibold text-red-900">Account control</h2>
+                  <p className="mt-0.5 text-xs text-admin-muted">
+                    Suspend, archive, reactivate, or permanently delete. All actions are audited.
+                  </p>
+                </div>
+              </header>
+              <div className="p-5">
               {!isSuperAdmin ? (
-                <p className="text-sm text-gray-400 italic">Super admin only.</p>
+                <p className="text-sm text-admin-muted italic">Super admin only.</p>
               ) : (
                 <div className="space-y-2">
                   {!isArchived ? (
@@ -808,14 +767,14 @@ export default function OrganizationDetailPage() {
                       <button
                         type="button"
                         onClick={() => openDangerModal('suspend')}
-                        className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                        className="w-full rounded-admin-sm border border-admin-danger/20 px-4 py-2 text-left text-sm text-red-700 hover:bg-admin-danger-soft"
                       >
                         Suspend organization
                       </button>
                       <button
                         type="button"
                         onClick={() => openDangerModal('archive')}
-                        className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 rounded-lg border border-red-100"
+                        className="w-full rounded-admin-sm border border-admin-danger/20 px-4 py-2 text-left text-sm text-red-700 hover:bg-admin-danger-soft"
                       >
                         Archive (soft-delete)
                       </button>
@@ -824,7 +783,7 @@ export default function OrganizationDetailPage() {
                     <button
                       type="button"
                       onClick={() => openDangerModal('reactivate')}
-                      className="w-full text-left px-4 py-2 text-sm text-green-800 hover:bg-green-50 rounded-lg border border-green-200"
+                      className="w-full rounded-admin-sm border border-admin-ok/25 px-4 py-2 text-left text-sm text-green-800 hover:bg-admin-ok-soft"
                     >
                       Reactivate organization
                     </button>
@@ -832,48 +791,49 @@ export default function OrganizationDetailPage() {
                   <button
                     type="button"
                     onClick={() => openDangerModal('permanent')}
-                    className="w-full text-left px-4 py-2 text-sm font-medium text-white bg-red-700 hover:bg-red-800 rounded-lg"
+                    className="w-full rounded-admin-sm bg-red-700 px-4 py-2 text-left text-sm font-medium text-white hover:bg-red-800"
                   >
                     Delete permanently…
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </section>
           </div>
         </div>
       </div>
 
       {dangerModal !== 'none' && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
           role="dialog"
           aria-modal="true"
           onClick={(e) => e.target === e.currentTarget && closeDangerModal()}
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
+          <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-admin border border-admin-border bg-white p-6 shadow-2xl">
             {dangerModal === 'suspend' && (
               <>
-                <h3 className="text-lg font-semibold text-gray-900">Suspend organization</h3>
-                <p className="text-sm text-gray-600 mt-2">
+                <h3 className="text-lg font-semibold text-admin-ink">Suspend organization</h3>
+                <p className="text-sm text-admin-secondary mt-2">
                   Cancels subscription, deactivates all users, and records an audit entry. The org remains visible unless you archive it.
                 </p>
-                <label className="block text-sm font-medium text-gray-700 mt-4">Reason (required)</label>
+                <label className="block text-sm font-medium text-admin-secondary mt-4">Reason (required)</label>
                 <textarea
                   value={dangerReason}
                   onChange={(e) => setDangerReason(e.target.value)}
                   rows={3}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={`${inputClass} mt-1`}
                   placeholder="e.g. Chargeback / ToS violation / customer request"
                 />
                 <div className="flex justify-end gap-2 mt-6">
-                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <button type="button" onClick={closeDangerModal} className={buttonClass.secondary}>
                     Cancel
                   </button>
                   <button
                     type="button"
                     disabled={!dangerReason.trim() || suspendMutation.isPending}
                     onClick={() => suspendMutation.mutate({ organizationId: orgId, reason: dangerReason.trim() })}
-                    className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    className={buttonClass.danger}
                   >
                     {suspendMutation.isPending ? 'Suspending…' : 'Suspend'}
                   </button>
@@ -882,27 +842,27 @@ export default function OrganizationDetailPage() {
             )}
             {dangerModal === 'archive' && (
               <>
-                <h3 className="text-lg font-semibold text-gray-900">Archive organization</h3>
-                <p className="text-sm text-gray-600 mt-2">
+                <h3 className="text-lg font-semibold text-admin-ink">Archive organization</h3>
+                <p className="text-sm text-admin-secondary mt-2">
                   Hides the org from the default directory, cancels subscription, and deactivates users. You can reactivate later.
                 </p>
-                <label className="block text-sm font-medium text-gray-700 mt-4">Reason (required)</label>
+                <label className="block text-sm font-medium text-admin-secondary mt-4">Reason (required)</label>
                 <textarea
                   value={dangerReason}
                   onChange={(e) => setDangerReason(e.target.value)}
                   rows={3}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={`${inputClass} mt-1`}
                   placeholder="e.g. Churned — keep data for 90 days"
                 />
                 <div className="flex justify-end gap-2 mt-6">
-                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <button type="button" onClick={closeDangerModal} className={buttonClass.secondary}>
                     Cancel
                   </button>
                   <button
                     type="button"
                     disabled={!dangerReason.trim() || archiveMutation.isPending}
                     onClick={() => archiveMutation.mutate({ organizationId: orgId, reason: dangerReason.trim() })}
-                    className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                    className={buttonClass.danger}
                   >
                     {archiveMutation.isPending ? 'Archiving…' : 'Archive'}
                   </button>
@@ -911,21 +871,21 @@ export default function OrganizationDetailPage() {
             )}
             {dangerModal === 'reactivate' && (
               <>
-                <h3 className="text-lg font-semibold text-gray-900">Reactivate organization</h3>
-                <p className="text-sm text-gray-600 mt-2">
+                <h3 className="text-lg font-semibold text-admin-ink">Reactivate organization</h3>
+                <p className="text-sm text-admin-secondary mt-2">
                   Clears archive status, sets subscription status, and reactivates users.
                 </p>
-                <label className="block text-sm font-medium text-gray-700 mt-4">Subscription status after reactivate</label>
+                <label className="block text-sm font-medium text-admin-secondary mt-4">Subscription status after reactivate</label>
                 <select
                   value={reactivateAs}
                   onChange={(e) => setReactivateAs(e.target.value as 'ACTIVE' | 'TRIAL')}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={`${inputClass} mt-1`}
                 >
                   <option value="ACTIVE">ACTIVE</option>
                   <option value="TRIAL">TRIAL</option>
                 </select>
                 <div className="flex justify-end gap-2 mt-6">
-                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <button type="button" onClick={closeDangerModal} className={buttonClass.secondary}>
                     Cancel
                   </button>
                   <button
@@ -934,7 +894,7 @@ export default function OrganizationDetailPage() {
                     onClick={() =>
                       reactivateMutation.mutate({ organizationId: orgId, subscriptionStatus: reactivateAs })
                     }
-                    className="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    className={buttonClass.primary}
                   >
                     {reactivateMutation.isPending ? 'Reactivating…' : 'Reactivate'}
                   </button>
@@ -943,23 +903,23 @@ export default function OrganizationDetailPage() {
             )}
             {dangerModal === 'permanent' && (
               <>
-                <h3 className="text-lg font-semibold text-gray-900">Delete organization permanently</h3>
-                <p className="text-sm text-gray-600 mt-2">
+                <h3 className="text-lg font-semibold text-admin-ink">Delete organization permanently</h3>
+                <p className="text-sm text-admin-secondary mt-2">
                   This removes the organization record from the database. This may fail if related data still exists (foreign keys). Type the exact{' '}
                   <strong>organization name</strong>, or if the name is empty, the <strong>domain</strong>, to confirm.
                 </p>
-                <p className="text-xs font-mono bg-gray-100 rounded px-2 py-1 mt-3 break-all">{permanentDeleteConfirmHint}</p>
-                <label className="block text-sm font-medium text-gray-700 mt-4">Confirmation</label>
+                <p className="text-xs font-mono bg-slate-100 rounded px-2 py-1 mt-3 break-all">{permanentDeleteConfirmHint}</p>
+                <label className="block text-sm font-medium text-admin-secondary mt-4">Confirmation</label>
                 <input
                   type="text"
                   value={permanentConfirmName}
                   onChange={(e) => setPermanentConfirmName(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={`${inputClass} mt-1`}
                   placeholder={permanentDeleteConfirmHint}
                   autoComplete="off"
                 />
                 <div className="flex justify-end gap-2 mt-6">
-                  <button type="button" onClick={closeDangerModal} className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <button type="button" onClick={closeDangerModal} className={buttonClass.secondary}>
                     Cancel
                   </button>
                   <button
@@ -971,7 +931,7 @@ export default function OrganizationDetailPage() {
                         confirmationName: permanentConfirmName.trim(),
                       })
                     }
-                    className="px-4 py-2 text-sm bg-red-800 text-white rounded-lg hover:bg-red-900 disabled:opacity-50"
+                    className={`${buttonClass.danger} bg-red-800 hover:bg-red-900`}
                   >
                     {permanentDeleteMutation.isPending ? 'Deleting…' : 'Delete permanently'}
                   </button>
@@ -981,7 +941,7 @@ export default function OrganizationDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminPage>
   );
 }
 
@@ -1016,22 +976,24 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-600 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-admin-accent border-t-transparent" />
       </div>
     );
   }
 
   if (!data?.positions?.length) {
     return (
-      <div className="p-8 text-center text-gray-500">
-        <DocumentChartBarIcon className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-        <p>No positions with hiring flow tracking yet</p>
-      </div>
+      <EmptyState
+        compact
+        className="border-0 shadow-none"
+        icon={<FileBarChart />}
+        title="No positions with hiring flow tracking yet"
+      />
     );
   }
 
   return (
-    <div className="divide-y divide-gray-100">
+    <div className="divide-y divide-admin-border">
       {data.positions.map((pos) => {
         const isExpanded = expandedPositions.has(pos.positionId);
         const candidateCount = pos.candidates?.length ?? 0;
@@ -1040,61 +1002,61 @@ function PositionCandidatesTrackingSection({ orgId }: { orgId: string }) {
         const reportCompleteCount = pos.candidates?.filter(c => c.reportComplete).length ?? 0;
 
         return (
-          <div key={pos.positionId} className="bg-white">
+          <div key={pos.positionId}>
             <button
               onClick={() => togglePosition(pos.positionId)}
-              className="w-full px-6 py-4 flex items-center gap-3 hover:bg-gray-50/80 transition-colors text-left"
+              className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-admin-bg/70"
             >
               {isExpanded ? (
-                <ChevronDownIcon className="h-5 w-5 text-gray-500 shrink-0" />
+                <ChevronDownIcon className="h-5 w-5 text-admin-muted shrink-0" />
               ) : (
-                <ChevronRightIcon className="h-5 w-5 text-gray-500 shrink-0" />
+                <ChevronRightIcon className="h-5 w-5 text-admin-muted shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-gray-900 truncate">{pos.positionTitle}</h3>
-                <p className="text-sm text-gray-500">{pos.journeyName}</p>
+                <h3 className="font-semibold text-admin-ink truncate">{pos.positionTitle}</h3>
+                <p className="text-sm text-admin-muted">{pos.journeyName}</p>
               </div>
               <div className="flex items-center gap-6 shrink-0">
-                <span className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-900">{candidateCount}</span> candidates
+                <span className="text-sm text-admin-secondary">
+                  <span className="font-medium text-admin-ink">{candidateCount}</span> candidates
                 </span>
-                <span className="text-sm text-gray-600">
-                  <span className="font-medium text-gray-900">{jobResumeCount}</span> resumes
+                <span className="text-sm text-admin-secondary">
+                  <span className="font-medium text-admin-ink">{jobResumeCount}</span> resumes
                 </span>
                 <span className="text-sm text-emerald-600">
                   <span className="font-medium">{visitedCount}</span> visited
                 </span>
-                <span className="text-sm text-indigo-600">
+                <span className="text-sm text-admin-accent-ink">
                   <span className="font-medium">{reportCompleteCount}</span> reports
                 </span>
               </div>
             </button>
 
             {isExpanded && (
-              <div className="border-t border-gray-100 bg-gray-50/50">
+              <div className="border-t border-admin-border bg-admin-bg/50">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200 bg-gray-100/80">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Candidate</th>
-                        <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Email sent">
+                      <tr className="border-b border-admin-border bg-admin-bg">
+                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Candidate</th>
+                        <th className="px-3 py-2.5 text-center text-admin-muted" title="Email sent">
                           <EnvelopeIcon className="h-4 w-4 inline-block" />
                         </th>
-                        <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Resume attached to this job (amber = resume on candidate profile only)">
+                        <th className="px-3 py-2.5 text-center text-admin-muted" title="Resume attached to this job (amber = resume on candidate profile only)">
                           <PaperClipIcon className="h-4 w-4 inline-block" />
                         </th>
-                        <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Visited">
+                        <th className="px-3 py-2.5 text-center text-admin-muted" title="Visited">
                           <EyeIcon className="h-4 w-4 inline-block" />
                         </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">Step</th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">AI Scored</th>
-                        <th className="px-3 py-3 text-center font-semibold text-gray-600" title="Report complete">
+                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">Step</th>
+                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">AI Scored</th>
+                        <th className="px-3 py-2.5 text-center text-admin-muted" title="Report complete">
                           <DocumentChartBarIcon className="h-4 w-4 inline-block" />
                         </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                        <th className="whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted">
                           <span className="inline-flex items-center gap-1">
                             Status
-                            <span title="Report Complete = all done, report ready · In Interview = recording videos · Stuck in Scoring = AI scoring pending/failed · Invited = email sent, waiting for visit · Not invited = not sent yet" className="text-gray-400 cursor-help">
+                            <span title="Report Complete = all done, report ready · In Interview = recording videos · Stuck in Scoring = AI scoring pending/failed · Invited = email sent, waiting for visit · Not invited = not sent yet" className="text-admin-muted cursor-help">
                               <QuestionMarkCircleIcon className="h-4 w-4" />
                             </span>
                           </span>
@@ -1167,13 +1129,13 @@ function CandidateRow({
 
   return (
     <>
-      <tr className="border-b border-gray-100 hover:bg-white/80 transition-colors">
+      <tr className="border-b border-admin-border transition-colors hover:bg-white/80">
         <td className="px-4 py-3">
           <div className="flex items-center gap-2">
             {canExpand ? (
               <button
                 onClick={onToggle}
-                className="p-0.5 rounded hover:bg-gray-200 text-gray-500"
+                className="p-0.5 rounded hover:bg-slate-200 text-admin-muted"
               >
                 {expanded ? (
                   <ChevronDownIcon className="h-4 w-4" />
@@ -1186,20 +1148,20 @@ function CandidateRow({
             )}
             <Link
               href={`/candidate/${candidate.candidateId}`}
-              className="font-medium text-indigo-600 hover:text-indigo-700 hover:underline"
+              className="font-medium text-admin-ink hover:text-admin-accent-ink hover:underline"
             >
               {candidate.candidateName || candidate.candidateEmail || 'Unknown'}
             </Link>
           </div>
           {candidate.candidateEmail && (
-            <p className="text-xs text-gray-500 ml-7 truncate max-w-[200px]">{candidate.candidateEmail}</p>
+            <p className="text-xs text-admin-muted ml-7 truncate max-w-[200px]">{candidate.candidateEmail}</p>
           )}
         </td>
         <td className="px-3 py-3 text-center">
           {candidate.emailSent ? (
             <CheckCircleIcon className="h-5 w-5 text-emerald-500 mx-auto" />
           ) : (
-            <XCircleIcon className="h-5 w-5 text-gray-300 mx-auto" />
+            <XCircleIcon className="h-5 w-5 text-admin-border-strong mx-auto" />
           )}
         </td>
         <td className="px-3 py-3 text-center">
@@ -1213,7 +1175,7 @@ function CandidateRow({
             </span>
           ) : (
             <span title="No resume">
-              <XCircleIcon className="h-5 w-5 text-gray-300 mx-auto" />
+              <XCircleIcon className="h-5 w-5 text-admin-border-strong mx-auto" />
             </span>
           )}
         </td>
@@ -1221,22 +1183,22 @@ function CandidateRow({
           {candidate.visited ? (
             <CheckCircleIcon className="h-5 w-5 text-emerald-500 mx-auto" />
           ) : (
-            <XCircleIcon className="h-5 w-5 text-gray-300 mx-auto" />
+            <XCircleIcon className="h-5 w-5 text-admin-border-strong mx-auto" />
           )}
         </td>
         <td className="px-4 py-3">
           <div className="space-y-0.5">
             {(candidate.videosTotal ?? 0) > 0 ? (
-              <p className="text-gray-700">
+              <p className="text-admin-secondary">
                 {candidate.videosRecorded ?? 0} of {candidate.videosTotal} videos recorded
               </p>
             ) : (
-              <p className="text-gray-700">
+              <p className="text-admin-secondary">
                 {candidate.nodesDone}/{candidate.nodesTotal} steps
               </p>
             )}
             {candidate.currentStepLabel && candidate.currentStepIndex != null && (
-              <p className="text-xs text-gray-500 truncate max-w-[180px]" title={candidate.currentStepLabel}>
+              <p className="text-xs text-admin-muted truncate max-w-[180px]" title={candidate.currentStepLabel}>
                 On step {candidate.currentStepIndex}: {candidate.currentStepLabel}
               </p>
             )}
@@ -1246,7 +1208,7 @@ function CandidateRow({
           </div>
         </td>
         <td className="px-4 py-3">
-          <span className="font-mono text-gray-700">
+          <span className="font-mono text-admin-secondary">
             {candidate.aiScoredCount}/{candidate.aiScoredTotal}
           </span>
         </td>
@@ -1254,27 +1216,27 @@ function CandidateRow({
           {candidate.reportComplete ? (
             <CheckCircleIcon className="h-5 w-5 text-emerald-500 mx-auto" />
           ) : (
-            <XCircleIcon className="h-5 w-5 text-gray-300 mx-auto" />
+            <XCircleIcon className="h-5 w-5 text-admin-border-strong mx-auto" />
           )}
         </td>
         <td className="px-4 py-3 whitespace-nowrap">
-          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${getDerivedStatusBadge(resolveStatus(candidate))}`}>
+          <StatusPill tone={getDerivedStatusTone(resolveStatus(candidate))}>
             {getDerivedStatusLabel(resolveStatus(candidate))}
-          </span>
+          </StatusPill>
           {candidate.overallScore != null && (
-            <div className="text-xs text-gray-500 mt-0.5">{Math.round(candidate.overallScore)}%</div>
+            <div className="text-xs text-admin-muted mt-0.5">{Math.round(candidate.overallScore)}%</div>
           )}
         </td>
         <td className="w-8" />
       </tr>
       {expanded && candidate.sessionId && (
-        <tr className="bg-indigo-50/30 border-b border-gray-100">
+        <tr className="border-b border-admin-border bg-admin-accent-soft/30">
           <td colSpan={9} className="px-4 py-4">
-            <div className="ml-7 pl-4 border-l-2 border-indigo-200">
-              <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Step-level progress</h4>
+            <div className="ml-7 border-l-2 border-admin-accent-border pl-4">
+              <h4 className="text-xs font-semibold text-admin-secondary uppercase tracking-wider mb-2">Step-level progress</h4>
               {loadingNodes ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-500 border-t-transparent" />
+                <div className="flex items-center gap-2 text-sm text-admin-muted">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-admin-accent border-t-transparent" />
                   Loading…
                 </div>
               ) : nodeData?.nodes?.length ? (
@@ -1282,16 +1244,16 @@ function CandidateRow({
                   {nodeData.nodes.map((n) => (
                     <div
                       key={n.nodeId}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-sm"
+                      className="inline-flex items-center gap-2 rounded-admin-sm border border-admin-border bg-white px-3 py-1.5 text-sm"
                     >
-                      <span className="font-medium text-gray-700 truncate max-w-[140px]">{n.label || n.nodeType}</span>
-                      <span className="text-gray-400">•</span>
+                      <span className="font-medium text-admin-secondary truncate max-w-[140px]">{n.label || n.nodeType}</span>
+                      <span className="text-admin-muted">•</span>
                       {n.submitted ? (
                         <CheckCircleIcon className="h-4 w-4 text-emerald-500 shrink-0" />
                       ) : (
-                        <XCircleIcon className="h-4 w-4 text-gray-300 shrink-0" />
+                        <XCircleIcon className="h-4 w-4 text-admin-border-strong shrink-0" />
                       )}
-                      <span className="text-xs text-gray-500">Uploaded</span>
+                      <span className="text-xs text-admin-muted">Uploaded</span>
                       {n.status === 'COMPLETED' || n.status === 'COMPLETE' ? (
                         <>
                           <CheckCircleIcon className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -1304,7 +1266,7 @@ function CandidateRow({
                           <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />
                           <span className="text-xs text-amber-700">Failed</span>
                           {n.processingError && (
-                            <span className="text-xs text-gray-500 truncate max-w-[120px]" title={n.processingError}>
+                            <span className="text-xs text-admin-muted truncate max-w-[120px]" title={n.processingError}>
                               {n.processingError}
                             </span>
                           )}
@@ -1312,13 +1274,13 @@ function CandidateRow({
                       ) : n.status === 'PROCESSING' ? (
                         <span className="text-xs text-amber-600">Processing…</span>
                       ) : (
-                        <span className="text-xs text-gray-400">Pending</span>
+                        <span className="text-xs text-admin-muted">Pending</span>
                       )}
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500">No node data</p>
+                <p className="text-sm text-admin-muted">No node data</p>
               )}
             </div>
           </td>
@@ -1347,7 +1309,7 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
 
   if (stuckCount === 0) {
     return (
-      <div className="p-6 flex items-center gap-3 text-emerald-600 bg-emerald-50/50 rounded-lg mx-4 mb-4">
+      <div className="m-4 flex items-center gap-3 rounded-admin-sm border border-admin-ok/20 bg-admin-ok-soft p-4 text-emerald-700">
         <CheckCircleIcon className="h-6 w-6 shrink-0" />
         <p className="font-medium">All scoring pipelines healthy</p>
       </div>
@@ -1357,30 +1319,28 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
   return (
     <div className="p-4">
       <div className="flex items-center gap-2 mb-4">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
-          <ExclamationTriangleIcon className="h-4 w-4" />
+        <StatusPill tone="warn">
           {stuckCount} pipeline item{stuckCount !== 1 ? 's' : ''} need attention
-        </span>
+        </StatusPill>
       </div>
       <div className="space-y-2 max-h-64 overflow-y-auto">
         {items.map((item) => (
           <div
             key={item.responseId}
-            className="flex items-start gap-3 p-3 rounded-lg border border-amber-200/60 bg-amber-50/30 hover:bg-amber-50/50 transition-colors"
+            className="flex items-start gap-3 rounded-admin-sm border border-admin-warn/20 bg-admin-warn-soft/40 p-3 transition-colors hover:bg-admin-warn-soft"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-gray-900">{item.candidateName || item.candidateEmail || 'Unknown'}</span>
-                <span className="text-xs text-gray-500">•</span>
-                <span className="text-xs text-gray-600">{item.journeyName || 'Hiring flow'}</span>
-                <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
-                  item.status === 'FAILED' ? 'bg-red-100 text-red-800' :
-                  item.status === 'PROCESSING' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-700'
-                }`}>
+                <span className="font-medium text-admin-ink">{item.candidateName || item.candidateEmail || 'Unknown'}</span>
+                <span className="text-xs text-admin-muted">•</span>
+                <span className="text-xs text-admin-secondary">{item.journeyName || 'Hiring flow'}</span>
+                <StatusPill
+                  tone={item.status === 'FAILED' ? 'danger' : item.status === 'PROCESSING' ? 'warn' : 'neutral'}
+                >
                   {item.status}
-                </span>
+                </StatusPill>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-admin-muted mt-1">
                 Node: {item.nodeType} {item.nodeId ? `(${item.nodeId.slice(0, 8)}…)` : ''}
               </p>
               {item.processingError && (
@@ -1392,7 +1352,7 @@ function ScoringHealthSection({ orgId }: { orgId: string }) {
             {item.candidateId && (
               <Link
                 href={`/candidate/${item.candidateId}`}
-                className="shrink-0 text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                className="shrink-0 text-xs font-medium text-admin-accent-ink hover:underline"
               >
                 View →
               </Link>
@@ -1439,32 +1399,32 @@ function getDerivedStatusLabel(status: string): string {
   }
 }
 
-function getDerivedStatusBadge(status: string) {
+function getDerivedStatusTone(status: string): StatusTone {
   switch ((status || '').toUpperCase()) {
     case 'REPORT_COMPLETE':
     case 'SCORED':
-    case 'COMPLETED': return 'bg-emerald-100 text-emerald-800';
-    case 'STUCK_IN_SCORING': return 'bg-amber-100 text-amber-800';
+    case 'COMPLETED': return 'success';
+    case 'STUCK_IN_SCORING': return 'warn';
     case 'IN_INTERVIEW':
     case 'IN_PROGRESS':
-    case 'IN_PROG': return 'bg-blue-100 text-blue-800';
+    case 'IN_PROG': return 'info';
     case 'NOT_STARTED':
-    case 'INVITED': return 'bg-gray-100 text-gray-700';
-    case 'NEW': return 'bg-slate-100 text-slate-600';
-    case 'REJECTED': return 'bg-red-100 text-red-800';
-    case 'HIRED': return 'bg-purple-100 text-purple-800';
-    default: return 'bg-gray-100 text-gray-700';
+    case 'INVITED': return 'neutral';
+    case 'NEW': return 'neutral';
+    case 'REJECTED': return 'danger';
+    case 'HIRED': return 'brand';
+    default: return 'neutral';
   }
 }
 
-function getStatusColor(status: string) {
+function getStatusTone(status: string): StatusTone {
   switch (status) {
-    case 'ACTIVE': return 'bg-green-100 text-green-800';
-    case 'TRIAL': return 'bg-yellow-100 text-yellow-800';
-    case 'PAST_DUE': return 'bg-orange-100 text-orange-800';
+    case 'ACTIVE': return 'success';
+    case 'TRIAL': return 'warn';
+    case 'PAST_DUE': return 'warn';
     case 'CANCELED':
-    case 'EXPIRED': return 'bg-gray-100 text-gray-800';
-    default: return 'bg-gray-100 text-gray-800';
+    case 'EXPIRED': return 'neutral';
+    default: return 'neutral';
   }
 }
 
@@ -1529,39 +1489,37 @@ function OrgDetailsSection({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Details</h2>
-        {!editing && !isArchived && (
-          <button
-            type="button"
-            onClick={startEdit}
-            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-          >
+    <SectionCard
+      icon={<Info />}
+      title="Details"
+      actions={
+        !editing && !isArchived && (
+          <button type="button" onClick={startEdit} className={buttonClass.small}>
             Edit
           </button>
-        )}
-      </div>
+        )
+      }
+    >
 
       {editing ? (
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label className="block text-sm font-medium text-admin-secondary mb-1">Name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Domain</label>
+            <label className="block text-sm font-medium text-admin-secondary mb-1">Domain</label>
             <input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               placeholder="acme.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className={inputClass}
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-admin-muted mt-1">
               Customer tenant identity (unique among tenants). The platform shell does not count.
               Does not change the public careers slug.
             </p>
@@ -1570,11 +1528,11 @@ function OrgDetailsSection({
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <label className="block text-sm font-medium text-admin-secondary mb-1">Industry</label>
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+              className={`${selectClass} w-full`}
             >
               {INDUSTRY_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>{opt.replace(/_/g, ' ')}</option>
@@ -1582,11 +1540,11 @@ function OrgDetailsSection({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Company size</label>
+            <label className="block text-sm font-medium text-admin-secondary mb-1">Company size</label>
             <select
               value={size}
               onChange={(e) => setSize(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+              className={`${selectClass} w-full`}
             >
               {SIZE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -1594,14 +1552,14 @@ function OrgDetailsSection({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+            <label className="block text-sm font-medium text-admin-secondary mb-1">Website</label>
             <input
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://acme.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className={inputClass}
             />
-            <p className="text-xs text-gray-500 mt-1">Public marketing URL. Not unique; not the tenant domain.</p>
+            <p className="text-xs text-admin-muted mt-1">Public marketing URL. Not unique; not the tenant domain.</p>
           </div>
           {error && !error.toLowerCase().includes('domain') && (
             <p className="text-sm text-red-600">{error}</p>
@@ -1624,7 +1582,7 @@ function OrgDetailsSection({
                 });
               }}
               disabled={updateOrganization.isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+              className={buttonClass.primary}
             >
               {updateOrganization.isLoading ? 'Saving…' : 'Save'}
             </button>
@@ -1634,47 +1592,33 @@ function OrgDetailsSection({
                 setEditing(false);
                 setError(null);
               }}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+              className={buttonClass.secondary}
             >
               Cancel
             </button>
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-gray-600">Name</p>
-            <p className="text-sm font-medium text-gray-900">{organization.name || '—'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Domain</p>
-            <p className="text-sm font-medium text-gray-900">{organization.domain || '—'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Industry</p>
-            <p className="text-sm font-medium text-gray-900">{organization.industry}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Company Size</p>
-            <p className="text-sm font-medium text-gray-900">{organization.size}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Website</p>
-            <p className="text-sm font-medium text-gray-900">{organization.website || '—'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Created</p>
-            <p className="text-sm font-medium text-gray-900">
-              {new Date(organization.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600">Organization ID</p>
-            <p className="text-xs font-mono text-gray-500">{organization.id}</p>
-          </div>
-        </div>
+        <DetailList
+          cols={2}
+          items={[
+            { label: 'Name', value: <span className="font-medium">{organization.name || '—'}</span> },
+            { label: 'Domain', value: <span className="font-medium">{organization.domain || '—'}</span> },
+            { label: 'Industry', value: <span className="font-medium">{organization.industry}</span> },
+            { label: 'Company Size', value: <span className="font-medium">{organization.size}</span> },
+            { label: 'Website', value: <span className="font-medium break-all">{organization.website || '—'}</span> },
+            {
+              label: 'Created',
+              value: <span className="font-medium">{new Date(organization.createdAt).toLocaleDateString()}</span>,
+            },
+            {
+              label: 'Organization ID',
+              value: <span className="admin-mono break-all text-xs text-admin-muted">{organization.id}</span>,
+            },
+          ]}
+        />
       )}
-    </div>
+    </SectionCard>
   );
 }
 
@@ -1705,12 +1649,12 @@ function OrgAuthoringSettingsSection({
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">Authoring settings</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Same toggles that the org admin sees in their settings, exposed here for support.
-      </p>
-      <label className="flex items-start gap-3 cursor-pointer rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+    <SectionCard
+      icon={<PenSquare />}
+      title="Authoring settings"
+      description="Same toggles that the org admin sees in their settings, exposed here for support."
+    >
+      <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
         <input
           type="checkbox"
           checked={enabled}
@@ -1719,20 +1663,20 @@ function OrgAuthoringSettingsSection({
             organizationId,
             autoGenerateQuestionVideos: e.target.checked,
           })}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className={`${checkboxClass} mt-1`}
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900">Auto-generate avatar videos on question save</span>
-            {setAuthoringSettings.isLoading && <span className="text-xs text-gray-500">Saving…</span>}
+            <span className="text-sm font-semibold text-admin-ink">Auto-generate avatar videos on question save</span>
+            {setAuthoringSettings.isLoading && <span className="text-xs text-admin-muted">Saving…</span>}
           </div>
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-xs text-admin-secondary mt-1">
             When on, saving a video question kicks off AI avatar video rendering automatically.
             Turn off if this org is hitting quota or persona issues.
           </p>
         </div>
       </label>
-    </div>
+    </SectionCard>
   );
 }
 
@@ -1756,12 +1700,12 @@ function OrgDashboardSettingsSection({
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">Dashboard settings</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Tenant-specific controls for the recruiter dashboard.
-      </p>
-      <label className="flex items-start gap-3 cursor-pointer rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+    <SectionCard
+      icon={<LayoutDashboard />}
+      title="Dashboard settings"
+      description="Tenant-specific controls for the recruiter dashboard."
+    >
+      <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
         <input
           type="checkbox"
           checked={enabled}
@@ -1772,14 +1716,14 @@ function OrgDashboardSettingsSection({
             organizationId,
             supportChatEnabled: e.target.checked,
           })}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          className={`${checkboxClass} mt-1`}
         />
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900">Support chatbot</span>
-            {setDashboardSettings.isLoading && <span className="text-xs text-gray-500">Saving…</span>}
+            <span className="text-sm font-semibold text-admin-ink">Support chatbot</span>
+            {setDashboardSettings.isLoading && <span className="text-xs text-admin-muted">Saving…</span>}
           </div>
-          <p id="support-chatbot-help" className="text-xs text-gray-600 mt-1">
+          <p id="support-chatbot-help" className="text-xs text-admin-secondary mt-1">
             Show the support chatbot in this tenant&apos;s recruiter dashboard. Its launcher uses the tenant&apos;s primary brand color.
           </p>
           {setDashboardSettings.error && (
@@ -1789,7 +1733,7 @@ function OrgDashboardSettingsSection({
           )}
         </div>
       </label>
-    </div>
+    </SectionCard>
   );
 }
 
@@ -1863,53 +1807,51 @@ function OrgI18nSettingsSection({
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Language settings</h2>
-        <p className="text-sm text-gray-500">Loading…</p>
-      </div>
+      <SectionCard icon={<Languages />} title="Language settings">
+        <p className="text-sm text-admin-muted">Loading…</p>
+      </SectionCard>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-1">Language settings</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Candidate-facing locales for this org. Only platform-enabled languages can be selected.
-      </p>
-
+    <SectionCard
+      icon={<Languages />}
+      title="Language settings"
+      description="Candidate-facing locales for this org. Only platform-enabled languages can be selected."
+    >
       {!platformData?.config.candidateExperienceEnabled && (
-        <p className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+        <p className="mb-4 rounded-admin-sm border border-admin-warn/25 bg-admin-warn-soft px-3 py-2 text-sm text-amber-800">
           Platform candidate translations are currently disabled — UI will stay English.
         </p>
       )}
 
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-medium text-gray-900 mb-2">Enabled languages</p>
+          <p className="text-sm font-medium text-admin-ink mb-2">Enabled languages</p>
           <div className="space-y-2">
             {platformLocales.map((code) => (
               <label
                 key={code}
-                className="flex items-center gap-3 rounded-md border border-gray-200 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                className="flex cursor-pointer items-center gap-3 rounded-admin-sm border border-admin-border px-3 py-2 hover:bg-admin-bg/70"
               >
                 <input
                   type="checkbox"
                   checked={enabledLocales.includes(code)}
                   onChange={() => toggleLocale(code)}
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className={checkboxClass}
                 />
-                <span className="text-sm text-gray-900">{LOCALE_LABELS[code] ?? code}</span>
+                <span className="text-sm text-admin-ink">{LOCALE_LABELS[code] ?? code}</span>
               </label>
             ))}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-900 mb-1">Default for candidates</label>
+          <label className="block text-sm font-medium text-admin-ink mb-1">Default for candidates</label>
           <select
             value={enabledLocales.includes(defaultLocale) ? defaultLocale : enabledLocales[0]}
             onChange={(e) => setDefaultLocale(e.target.value)}
-            className="block w-full max-w-xs rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className={`${selectClass} w-full max-w-xs`}
           >
             {enabledLocales.map((code) => (
               <option key={code} value={code}>
@@ -1924,11 +1866,11 @@ function OrgI18nSettingsSection({
             type="checkbox"
             checked={languagePicker}
             onChange={(e) => setLanguagePicker(e.target.checked)}
-            className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className={`${checkboxClass} mt-1`}
           />
           <div>
-            <span className="text-sm font-medium text-gray-900">Show language picker on candidate pages</span>
-            <p className="text-xs text-gray-600 mt-0.5">When off, candidates see the default locale only.</p>
+            <span className="text-sm font-medium text-admin-ink">Show language picker on candidate pages</span>
+            <p className="text-xs text-admin-secondary mt-0.5">When off, candidates see the default locale only.</p>
           </div>
         </label>
 
@@ -1936,12 +1878,12 @@ function OrgI18nSettingsSection({
           type="button"
           onClick={handleSave}
           disabled={setOrgSettings.isLoading}
-          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          className={buttonClass.primary}
         >
           {setOrgSettings.isLoading ? 'Saving…' : 'Save language settings'}
         </button>
       </div>
-    </div>
+    </SectionCard>
   );
 }
 
@@ -1960,61 +1902,55 @@ function OrgPositionsReadinessSection({ organizationId }: { organizationId: stri
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Positions readiness</h2>
-        <p className="text-sm text-gray-500">Loading…</p>
-      </div>
+      <SectionCard icon={<ListChecks />} title="Positions readiness">
+        <p className="text-sm text-admin-muted">Loading…</p>
+      </SectionCard>
     );
   }
 
   if (!data || data.positions.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Positions readiness</h2>
-        <p className="text-sm text-gray-500">No open or draft positions to evaluate.</p>
-      </div>
+      <SectionCard icon={<ListChecks />} title="Positions readiness">
+        <EmptyState
+          compact
+          className="border-dashed shadow-none"
+          icon={<ListChecks />}
+          title="No open or draft positions to evaluate."
+        />
+      </SectionCard>
     );
   }
 
   const { positions, summary } = data;
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Positions readiness</h2>
-          <p className="text-sm text-gray-500">
-            Why each open position can or cannot accept candidates.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="px-2 py-1 rounded-full bg-green-100 text-green-800">
-            {summary.ready} ready
-          </span>
-          <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-            {summary.preparing} preparing
-          </span>
-          <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-900">
-            {summary.needsSetup} needs setup
-          </span>
-        </div>
-      </div>
-
-      <ul className="divide-y divide-gray-100 border border-gray-200 rounded-md">
+    <SectionCard
+      icon={<ListChecks />}
+      title="Positions readiness"
+      description="Why each open position can or cannot accept candidates."
+      actions={
+        <>
+          <StatusPill tone="success">{summary.ready} ready</StatusPill>
+          <StatusPill tone="info">{summary.preparing} preparing</StatusPill>
+          <StatusPill tone="warn">{summary.needsSetup} needs setup</StatusPill>
+        </>
+      }
+    >
+      <ul className="divide-y divide-admin-border rounded-admin-sm border border-admin-border">
         {positions.map((p: { id: string; title: string; status: string; readiness: { state: string; blockers: Array<{ type: string; label: string }>; preparingCount: number } }) => {
           const stateClass =
             p.readiness.state === 'READY'
               ? 'bg-green-50 text-green-800 ring-green-200'
               : p.readiness.state === 'PREPARING'
-                ? 'bg-blue-50 text-blue-800 ring-blue-200'
+                ? 'bg-admin-info-soft text-sky-800 ring-sky-200'
                 : 'bg-amber-50 text-amber-900 ring-amber-200';
           return (
             <li key={p.id} className="px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
-                    <span className="text-xs text-gray-500">{p.status}</span>
+                    <p className="text-sm font-medium text-admin-ink truncate">{p.title}</p>
+                    <span className="text-xs text-admin-muted">{p.status}</span>
                     <span
                       className={
                         'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ' + stateClass
@@ -2034,7 +1970,7 @@ function OrgPositionsReadinessSection({ organizationId }: { organizationId: stri
                         </li>
                       ))}
                       {p.readiness.blockers.length > 4 && (
-                        <li className="text-gray-500">…and {p.readiness.blockers.length - 4} more</li>
+                        <li className="text-admin-muted">…and {p.readiness.blockers.length - 4} more</li>
                       )}
                     </ul>
                   )}
@@ -2044,6 +1980,6 @@ function OrgPositionsReadinessSection({ organizationId }: { organizationId: stri
           );
         })}
       </ul>
-    </div>
+    </SectionCard>
   );
 }

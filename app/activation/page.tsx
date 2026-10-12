@@ -5,10 +5,17 @@ export const dynamic = 'force-dynamic';
  * Activation funnel for orgs created in the last 90 days. Tenant health only
  * catches usage *drops*; this catches orgs that never got going at all.
  */
+import { AlertTriangle, Building2, Rocket, Sprout } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import Link from 'next/link';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
 
 const STALL_LABELS: Record<string, string> = {
   STALLED_NO_POSITION: 'No position',
@@ -16,11 +23,11 @@ const STALL_LABELS: Record<string, string> = {
 };
 
 function Milestone({ at }: { at: string | null }) {
-  if (!at) return <span className="text-gray-300">—</span>;
+  if (!at) return <span className="text-slate-300">—</span>;
   const days = Math.max(0, Math.floor((Date.now() - new Date(at).getTime()) / 86400000));
   return (
-    <span className="text-green-700">
-      ✓ <span className="text-xs text-gray-500">{days === 0 ? 'today' : `${days}d`}</span>
+    <span className="text-admin-ok">
+      ✓ <span className="text-xs text-admin-muted">{days === 0 ? 'today' : `${days}d`}</span>
     </span>
   );
 }
@@ -36,73 +43,84 @@ export default function ActivationPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Activation</h1>
-          <p className="text-sm text-gray-500">
+      <AdminPageChrome
+        icon={<Rocket />}
+        breadcrumbs={[{ label: 'Tenants', href: '/organizations' }, { label: 'Activation' }]}
+        title="Activation"
+        description={
+          <>
             Orgs created in the last 90 days: first position, first candidate, first scoring run,
             first teammate invited. Stalled orgs also show in the alert inbox.
-          </p>
-        </div>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <StatGrid cols={2} className="max-w-xl">
+            <StatTile label="Orgs (last 90d)" icon={Building2} tone="brand" loading={funnel.isLoading} value={rows.length} />
+            <StatTile
+              label="Stalled"
+              icon={AlertTriangle}
+              tone={stalled.length > 0 ? 'warn' : 'muted'}
+              loading={funnel.isLoading}
+              value={stalled.length}
+            />
+          </StatGrid>
 
-        {!funnel.isLoading && (
-          <div className="flex gap-4">
-            <div className="bg-white rounded-lg shadow px-4 py-3">
-              <p className="text-2xl font-bold text-gray-900">{rows.length}</p>
-              <p className="text-xs text-gray-500">Orgs (last 90d)</p>
-            </div>
-            <div className="bg-white rounded-lg shadow px-4 py-3">
-              <p className="text-2xl font-bold text-amber-700">{stalled.length}</p>
-              <p className="text-xs text-gray-500">Stalled</p>
-            </div>
-          </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Org</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Age</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Scoring run</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Teammate</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Stalls</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {funnel.isLoading ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-sm text-gray-400">Loading…</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-6 text-sm text-gray-400">No orgs created in the last 90 days.</td></tr>
-              ) : (
-                rows.map((org) => (
-                  <tr key={org.organizationId} className={org.stalls.length > 0 ? 'bg-amber-50/40' : ''}>
-                    <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                      <Link href={`/organizations/${org.organizationId}`} className="hover:text-purple-700">
-                        {org.organizationName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 text-sm text-gray-600">{org.ageDays}d</td>
-                    <td className="px-4 py-2 text-sm"><Milestone at={org.firstPositionAt} /></td>
-                    <td className="px-4 py-2 text-sm"><Milestone at={org.firstCandidateAt} /></td>
-                    <td className="px-4 py-2 text-sm"><Milestone at={org.firstScoringRunAt} /></td>
-                    <td className="px-4 py-2 text-sm"><Milestone at={org.firstTeammateAt} /></td>
-                    <td className="px-4 py-2 text-sm space-x-1">
-                      {org.stalls.map((s: string) => (
-                        <span key={s} className="px-1.5 py-0.5 text-xs rounded bg-amber-100 text-amber-800">
-                          {STALL_LABELS[s] ?? s}
-                        </span>
-                      ))}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <SectionCard
+            icon={<Sprout />}
+            title="New orgs"
+            description="Days since each milestone was first reached"
+            padded={false}
+          >
+            {funnel.isLoading ? (
+              <p className="px-5 py-6 text-sm text-admin-muted">Loading…</p>
+            ) : rows.length === 0 ? (
+              <EmptyState compact className="border-0 shadow-none" icon={<Building2 />} title="No orgs created in the last 90 days." />
+            ) : (
+              <div className="overflow-x-auto">
+                <DataTableEl>
+                  <thead>
+                    <tr>
+                      <Th>Org</Th>
+                      <Th>Age</Th>
+                      <Th>Position</Th>
+                      <Th>Candidate</Th>
+                      <Th>Scoring run</Th>
+                      <Th>Teammate</Th>
+                      <Th>Stalls</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((org) => (
+                      <tr key={org.organizationId} className={org.stalls.length > 0 ? 'bg-admin-warn-soft/40' : ''}>
+                        <Td className="font-medium text-admin-ink">
+                          <Link href={`/organizations/${org.organizationId}`} className="hover:text-admin-accent-ink">
+                            {org.organizationName}
+                          </Link>
+                        </Td>
+                        <Td className="tabular-nums">{org.ageDays}d</Td>
+                        <Td><Milestone at={org.firstPositionAt} /></Td>
+                        <Td><Milestone at={org.firstCandidateAt} /></Td>
+                        <Td><Milestone at={org.firstScoringRunAt} /></Td>
+                        <Td><Milestone at={org.firstTeammateAt} /></Td>
+                        <Td>
+                          <span className="flex flex-wrap gap-1">
+                            {org.stalls.map((s: string) => (
+                              <StatusPill key={s} tone="warn">
+                                {STALL_LABELS[s] ?? s}
+                              </StatusPill>
+                            ))}
+                          </span>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTableEl>
+              </div>
+            )}
+          </SectionCard>
         </div>
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }
