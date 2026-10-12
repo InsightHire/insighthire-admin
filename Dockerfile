@@ -26,6 +26,9 @@ ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 ENV NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
 ENV NEXT_PUBLIC_TRPC_URL=${NEXT_PUBLIC_TRPC_URL}
 
+# Unit tests gate the deploy
+RUN npm test
+
 # Build Next.js with environment variables
 RUN npm run build
 
