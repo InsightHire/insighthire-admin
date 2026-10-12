@@ -11,7 +11,7 @@ export function Card({ children, className, onClick }: CardProps) {
   return (
     <div
       className={clsx(
-        'rounded-lg border border-gray-200 bg-white shadow-sm',
+        'rounded-admin border border-admin-border bg-white shadow-panel',
         onClick && 'cursor-pointer',
         className
       )}

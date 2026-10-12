@@ -24,7 +24,7 @@ export function SeverityBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-admin-sm border px-2 py-0.5 text-xs font-semibold tracking-wide',
+        'inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-semibold',
         severityStyles[severity],
         pulse && severity === 'critical' && 'severity-pulse',
         className,

@@ -25,6 +25,8 @@ type ResultItem = {
   href: string;
 };
 
+export const OPEN_GLOBAL_SEARCH_EVENT = 'admin:open-global-search';
+
 export function GlobalSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,8 +44,13 @@ export function GlobalSearch() {
         setOpen(false);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener(OPEN_GLOBAL_SEARCH_EVENT, onOpen);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener(OPEN_GLOBAL_SEARCH_EVENT, onOpen);
+    };
   }, []);
 
   useEffect(() => {
@@ -125,11 +132,11 @@ export function GlobalSearch() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-gray-900/40 pt-[12vh] px-4"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/30 pt-[12vh] px-4 backdrop-blur-[2px]"
       onClick={() => setOpen(false)}
     >
       <div
-        className="w-full max-w-xl rounded-xl bg-white shadow-2xl overflow-hidden"
+        className="w-full max-w-xl overflow-hidden rounded-2xl border border-admin-border bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-gray-200 px-4">
@@ -168,10 +175,10 @@ export function GlobalSearch() {
                     onClick={() => go(item)}
                     onMouseEnter={() => setHighlight(i)}
                     className={`flex w-full items-center gap-3 px-4 py-2 text-left ${
-                      i === highlight ? 'bg-blue-50' : ''
+                      i === highlight ? 'bg-admin-accent-soft' : ''
                     }`}
                   >
-                    <Icon className="h-5 w-5 shrink-0 text-gray-400" />
+                    <Icon className={`h-5 w-5 shrink-0 ${i === highlight ? 'text-admin-accent' : 'text-gray-400'}`} />
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium text-gray-900">{item.label}</span>
                       {item.sublabel && (

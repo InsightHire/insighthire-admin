@@ -3,37 +3,62 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
+import { PageHeader, type Breadcrumb } from './page-header';
 
-/** Lightweight section chrome for pages that still use legacy gray cards. */
+const WIDTH = {
+  narrow: 'max-w-4xl',
+  default: 'max-w-7xl',
+  wide: 'max-w-[96rem]',
+} as const;
+
+/** Page container: consistent width and padding for every admin screen. */
+export function AdminPage({
+  children,
+  width = 'default',
+  className,
+}: {
+  children: React.ReactNode;
+  width?: keyof typeof WIDTH;
+  className?: string;
+}) {
+  return <div className={cn('mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8', WIDTH[width], className)}>{children}</div>;
+}
+
+/** Page container plus the standard header. */
 export function AdminPageChrome({
   eyebrow,
   title,
   description,
   children,
   actions,
+  breadcrumbs,
+  icon,
+  meta,
+  width,
 }: {
   eyebrow?: string;
-  title: string;
-  description?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  breadcrumbs?: Breadcrumb[];
+  icon?: React.ReactNode;
+  meta?: React.ReactNode;
+  width?: keyof typeof WIDTH;
 }) {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          {eyebrow ? (
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-admin-muted">
-              {eyebrow}
-            </p>
-          ) : null}
-          <h1 className="text-2xl font-bold tracking-tight text-admin-ink">{title}</h1>
-          {description ? <p className="mt-1 max-w-2xl text-sm text-admin-muted">{description}</p> : null}
-        </div>
-        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
-      </div>
+    <AdminPage width={width}>
+      <PageHeader
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
+        actions={actions}
+        breadcrumbs={breadcrumbs}
+        icon={icon}
+        meta={meta}
+      />
       {children}
-    </div>
+    </AdminPage>
   );
 }
 
@@ -44,7 +69,7 @@ export function AdminSectionTabs({
 }) {
   const pathname = usePathname();
   return (
-    <div className="mb-4 flex gap-1 border-b border-admin-border">
+    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-admin-border">
       {tabs.map((t) => {
         const prefixes = t.match ?? [t.href];
         const active = prefixes.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
@@ -52,9 +77,10 @@ export function AdminSectionTabs({
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? 'page' : undefined}
             className={cn(
-              'relative px-3 py-2 text-sm font-medium transition-colors',
-              active ? 'text-admin-ink' : 'text-admin-muted hover:text-admin-secondary',
+              'relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+              active ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
             )}
           >
             {t.label}

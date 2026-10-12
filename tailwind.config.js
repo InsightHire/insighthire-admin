@@ -20,6 +20,8 @@ module.exports = {
           border: 'var(--border)',
           accent: 'var(--accent)',
           'accent-soft': 'var(--accent-soft)',
+          'accent-border': 'var(--accent-border)',
+          'border-strong': 'var(--border-strong)',
           'accent-ink': 'var(--accent-ink)',
           danger: 'var(--danger)',
           'danger-soft': 'var(--danger-soft)',

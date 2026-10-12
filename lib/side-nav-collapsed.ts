@@ -12,6 +12,28 @@ export function readSideNavCollapsed(): boolean {
   }
 }
 
+const SIDE_NAV_SECTIONS_KEY = 'ih.admin.sideNav.sections';
+
+/** Sections the user opened or closed by hand; anything missing follows the active route. */
+export function readSideNavSections(): Record<string, boolean> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SIDE_NAV_SECTIONS_KEY) ?? '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writeSideNavSections(sections: Record<string, boolean>): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SIDE_NAV_SECTIONS_KEY, JSON.stringify(sections));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export function writeSideNavCollapsed(collapsed: boolean): void {
   if (typeof window === 'undefined') return;
   try {

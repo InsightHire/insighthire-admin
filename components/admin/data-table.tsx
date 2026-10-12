@@ -22,7 +22,12 @@ export function DataTableEl({
   children: React.ReactNode;
 }) {
   return (
-    <table className={cn('min-w-full divide-y divide-admin-border text-left text-sm', className)}>
+    <table
+      className={cn(
+        'min-w-full divide-y divide-admin-border text-left text-sm [&_tbody>tr:hover]:bg-admin-bg/70 [&_tbody>tr]:transition-colors [&_tbody]:divide-y [&_tbody]:divide-admin-border',
+        className,
+      )}
+    >
       {children}
     </table>
   );
@@ -32,7 +37,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
   return (
     <th
       className={cn(
-        'bg-slate-50/80 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-muted',
+        'whitespace-nowrap bg-admin-bg/70 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-admin-muted',
         className,
       )}
     >
@@ -43,7 +48,7 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
 
 export function Td({ children, className, mono }: { children?: React.ReactNode; className?: string; mono?: boolean }) {
   return (
-    <td className={cn('px-3 py-2.5 text-admin-secondary', mono && 'admin-mono text-xs', className)}>
+    <td className={cn('px-4 py-3 text-admin-secondary', mono && 'admin-mono text-xs', className)}>
       {children}
     </td>
   );

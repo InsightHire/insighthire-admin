@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Menu, PanelLeft, PanelLeftClose, Search, User, X } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, PanelLeft, PanelLeftClose, Search, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import {
   ADMIN_NAV_GROUPS,
@@ -19,10 +19,29 @@ import {
 } from '@/lib/admin-nav';
 import { cn } from '@/lib/cn';
 import { AlertBanner } from '@/components/layout/alert-banner';
-import { readSideNavCollapsed, writeSideNavCollapsed } from '@/lib/side-nav-collapsed';
+import { OPEN_GLOBAL_SEARCH_EVENT } from '@/components/platform-admin/global-search';
+import {
+  readSideNavCollapsed,
+  readSideNavSections,
+  writeSideNavCollapsed,
+  writeSideNavSections,
+} from '@/lib/side-nav-collapsed';
 
 function badgeToneClass(tone: AdminNavBadge['tone']) {
-  return tone === 'danger' ? 'bg-admin-danger' : 'bg-admin-warn';
+  return tone === 'danger' ? 'bg-admin-danger text-white' : 'bg-amber-100 text-amber-800';
+}
+
+function NavBadge({ badge }: { badge: AdminNavBadge }) {
+  return (
+    <span
+      className={cn(
+        'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums',
+        badgeToneClass(badge.tone),
+      )}
+    >
+      {badge.count > 99 ? '99+' : badge.count}
+    </span>
+  );
 }
 
 function NavItemLink({
@@ -32,7 +51,6 @@ function NavItemLink({
   anomalyCount,
   onNavigate,
   mini,
-  nested,
 }: {
   item: AdminNavItem;
   pathname: string | null;
@@ -40,7 +58,6 @@ function NavItemLink({
   anomalyCount: number;
   onNavigate?: () => void;
   mini?: boolean;
-  nested?: boolean;
 }) {
   const Icon = item.icon;
   const active = isNavItemActive(pathname, item);
@@ -51,205 +68,141 @@ function NavItemLink({
       href={item.href}
       onClick={onNavigate}
       title={mini ? item.name : undefined}
+      aria-current={active ? 'page' : undefined}
       className={cn(
-        'group relative flex items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm transition-colors',
-        mini && 'justify-center px-0',
-        nested && !mini && 'py-1.5 pl-9',
+        'group relative flex items-center gap-2.5 rounded-admin-sm px-2.5 py-1.5 text-[13px] transition-colors',
+        mini && 'h-10 justify-center px-0',
         active
-          ? 'bg-admin-rail-active text-white'
-          : 'text-admin-rail-ink hover:bg-admin-rail-hover hover:text-white',
+          ? 'bg-admin-rail-active font-semibold text-admin-accent-ink'
+          : 'font-medium text-admin-rail-ink hover:bg-admin-rail-hover hover:text-admin-ink',
       )}
     >
-      {active ? (
-        <span
-          className={cn(
-            'nav-indicator absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300',
-            mini ? '-left-0.5' : 'left-0',
-          )}
-        />
+      {active && !mini ? (
+        <span className="nav-indicator absolute -left-2 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-admin-accent" />
       ) : null}
       <span className="relative shrink-0">
-        <Icon className={cn('h-4 w-4', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
+        <Icon
+          className={cn(
+            'h-4 w-4',
+            active ? 'text-admin-accent' : 'text-admin-rail-muted group-hover:text-admin-secondary',
+          )}
+        />
         {mini && badge ? (
-          <span className={cn('absolute -right-1 -top-1 h-2 w-2 rounded-full', badgeToneClass(badge.tone))} />
+          <span
+            className={cn(
+              'absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white',
+              badge.tone === 'danger' ? 'bg-admin-danger' : 'bg-admin-warn',
+            )}
+          />
         ) : null}
       </span>
       {!mini ? (
         <>
-          <span className="flex-1 truncate font-medium">{item.name}</span>
-          {badge ? (
-            <span
-              className={cn(
-                'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                badgeToneClass(badge.tone),
-              )}
-            >
-              {badge.count > 99 ? '99+' : badge.count}
-            </span>
-          ) : null}
+          <span className="flex-1 truncate">{item.name}</span>
+          {badge ? <NavBadge badge={badge} /> : null}
         </>
       ) : null}
     </Link>
   );
 }
 
-function NavGroups({
+function groupAsItem(group: AdminNavGroup): AdminNavItem {
+  return {
+    name: group.name,
+    href: group.href!,
+    icon: group.icon,
+    match: group.match,
+    exclude: group.exclude,
+    badgeKey: group.badgeKey === 'alerts' ? undefined : group.badgeKey,
+  };
+}
+
+/** Full-width rail: leaves render as links, groups as collapsible small-caps sections. */
+function NavSections({
   groups,
   pathname,
   attentionCount,
   anomalyCount,
   onNavigate,
-  mini,
 }: {
   groups: AdminNavGroup[];
   pathname: string | null;
   attentionCount: number;
   anomalyCount: number;
   onNavigate?: () => void;
-  mini?: boolean;
 }) {
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [manual, setManual] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setOpenGroup(null);
-  }, [pathname, mini]);
+    setManual(readSideNavSections());
+  }, []);
 
-  useEffect(() => {
-    if (!mini) return;
-    const onDocClick = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('[data-admin-nav-group]')) {
-        setOpenGroup((prev) => (prev ? '' : prev));
-      }
-    };
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, [mini]);
+  const toggle = (id: string, currentlyOpen: boolean) => {
+    setManual((prev) => {
+      const next = { ...prev, [id]: !currentlyOpen };
+      writeSideNavSections(next);
+      return next;
+    });
+  };
 
   return (
     <div className="flex flex-col gap-0.5">
       {groups.map((group) => {
-        const Icon = group.icon;
         const children = group.items ?? [];
-        const isLeaf = children.length === 0 && !!group.href;
-        const active = isNavGroupActive(pathname, group);
-        const badge = navGroupBadge(group, attentionCount, anomalyCount);
-        const groupOpen = mini
-          ? openGroup === group.id
-          : openGroup === group.id || (openGroup === null && active);
-
-        if (isLeaf && group.href) {
+        if (children.length === 0 && group.href) {
           return (
             <NavItemLink
               key={group.id}
-              item={{
-                name: group.name,
-                href: group.href,
-                icon: group.icon,
-                match: group.match,
-                exclude: group.exclude,
-                badgeKey: group.badgeKey === 'alerts' ? undefined : group.badgeKey,
-              }}
+              item={groupAsItem(group)}
               pathname={pathname}
               attentionCount={attentionCount}
               anomalyCount={anomalyCount}
               onNavigate={onNavigate}
-              mini={mini}
             />
           );
         }
 
+        const active = isNavGroupActive(pathname, group);
+        const open = manual[group.id] ?? active;
+        const badge = navGroupBadge(group, attentionCount, anomalyCount);
+
         return (
-          <div key={group.id} data-admin-nav-group className="relative">
+          <div key={group.id} className="mt-3 first:mt-0">
             <button
               type="button"
-              title={mini ? group.name : undefined}
-              aria-expanded={groupOpen}
-              onClick={() => setOpenGroup((prev) => (prev === group.id ? '' : group.id))}
-              className={cn(
-                'group relative flex w-full items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm transition-colors',
-                mini && 'justify-center px-0',
-                active
-                  ? 'bg-admin-rail-active text-white'
-                  : 'text-admin-rail-ink hover:bg-admin-rail-hover hover:text-white',
-              )}
+              aria-expanded={open}
+              onClick={() => toggle(group.id, open)}
+              className="group flex w-full items-center gap-2 rounded-admin-sm px-2.5 py-1 text-left"
             >
-              {active ? (
-                <span
-                  className={cn(
-                    'nav-indicator absolute top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-teal-300',
-                    mini ? '-left-0.5' : 'left-0',
-                  )}
-                />
-              ) : null}
-              <span className="relative shrink-0">
-                <Icon className={cn('h-4 w-4', active ? 'text-teal-200' : 'text-admin-rail-muted')} />
-                {mini && badge ? (
-                  <span className={cn('absolute -right-1 -top-1 h-2 w-2 rounded-full', badgeToneClass(badge.tone))} />
-                ) : null}
+              <span
+                className={cn(
+                  'flex-1 truncate text-[10.5px] font-semibold uppercase tracking-[0.14em]',
+                  active ? 'text-admin-accent-ink' : 'text-admin-rail-muted group-hover:text-admin-secondary',
+                )}
+              >
+                {group.name}
               </span>
-              {!mini ? (
-                <>
-                  <span className="flex-1 truncate text-left font-medium">{group.name}</span>
-                  {badge ? (
-                    <span
-                      className={cn(
-                        'flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white',
-                        badgeToneClass(badge.tone),
-                      )}
-                    >
-                      {badge.count > 99 ? '99+' : badge.count}
-                    </span>
-                  ) : null}
-                  <ChevronDown
-                    className={cn(
-                      'h-3.5 w-3.5 shrink-0 text-admin-rail-muted transition-transform',
-                      groupOpen && 'rotate-180',
-                    )}
-                  />
-                </>
-              ) : null}
+              {badge && !open ? <NavBadge badge={badge} /> : null}
+              <ChevronDown
+                className={cn(
+                  'h-3.5 w-3.5 shrink-0 text-admin-rail-muted transition-transform',
+                  !open && '-rotate-90',
+                )}
+              />
             </button>
-            {groupOpen ? (
-              mini ? (
-                <div
-                  className={cn(
-                    'absolute left-[calc(100%+0.4rem)] z-50 w-56 rounded-admin border border-white/10 bg-admin-rail py-1.5 shadow-lg',
-                    group.flyoutAlign === 'end' ? 'bottom-0 top-auto' : 'top-0',
-                  )}
-                >
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-admin-rail-muted">
-                    {group.name}
-                  </p>
-                  {children.map((item) => (
-                    <NavItemLink
-                      key={item.href}
-                      item={item}
-                      pathname={pathname}
-                      attentionCount={attentionCount}
-                      anomalyCount={anomalyCount}
-                      onNavigate={() => {
-                        setOpenGroup(null);
-                        onNavigate?.();
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-0.5 flex flex-col gap-0.5">
-                  {children.map((item) => (
-                    <NavItemLink
-                      key={item.href}
-                      item={item}
-                      pathname={pathname}
-                      attentionCount={attentionCount}
-                      anomalyCount={anomalyCount}
-                      onNavigate={onNavigate}
-                      nested
-                    />
-                  ))}
-                </div>
-              )
+            {open ? (
+              <div className="mt-0.5 flex flex-col gap-0.5">
+                {children.map((item) => (
+                  <NavItemLink
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                    attentionCount={attentionCount}
+                    anomalyCount={anomalyCount}
+                    onNavigate={onNavigate}
+                  />
+                ))}
+              </div>
             ) : null}
           </div>
         );
@@ -258,7 +211,112 @@ function NavGroups({
   );
 }
 
-function GlobalSearch() {
+/** Icon-only rail: groups open a flyout with their links. */
+function MiniNav({
+  groups,
+  pathname,
+  attentionCount,
+  anomalyCount,
+}: {
+  groups: AdminNavGroup[];
+  pathname: string | null;
+  attentionCount: number;
+  anomalyCount: number;
+}) {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOpenGroup(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onDocClick = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('[data-admin-nav-group]')) setOpenGroup(null);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-1">
+      {groups.map((group) => {
+        const Icon = group.icon;
+        const children = group.items ?? [];
+        if (children.length === 0 && group.href) {
+          return (
+            <NavItemLink
+              key={group.id}
+              item={groupAsItem(group)}
+              pathname={pathname}
+              attentionCount={attentionCount}
+              anomalyCount={anomalyCount}
+              mini
+            />
+          );
+        }
+        const active = isNavGroupActive(pathname, group);
+        const badge = navGroupBadge(group, attentionCount, anomalyCount);
+        const open = openGroup === group.id;
+        return (
+          <div key={group.id} data-admin-nav-group className="relative">
+            <button
+              type="button"
+              title={group.name}
+              aria-expanded={open}
+              onClick={() => setOpenGroup((prev) => (prev === group.id ? null : group.id))}
+              className={cn(
+                'group relative flex h-10 w-full items-center justify-center rounded-admin-sm transition-colors',
+                active || open ? 'bg-admin-rail-active' : 'hover:bg-admin-rail-hover',
+              )}
+            >
+              <span className="relative">
+                <Icon
+                  className={cn(
+                    'h-4 w-4',
+                    active ? 'text-admin-accent' : 'text-admin-rail-muted group-hover:text-admin-secondary',
+                  )}
+                />
+                {badge ? (
+                  <span
+                    className={cn(
+                      'absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full ring-2 ring-white',
+                      badge.tone === 'danger' ? 'bg-admin-danger' : 'bg-admin-warn',
+                    )}
+                  />
+                ) : null}
+              </span>
+            </button>
+            {open ? (
+              <div
+                className={cn(
+                  'absolute left-[calc(100%+0.6rem)] z-50 w-60 rounded-admin border border-admin-border bg-white p-1.5 shadow-xl',
+                  group.flyoutAlign === 'end' ? 'bottom-0 top-auto' : 'top-0',
+                )}
+              >
+                <p className="px-2.5 pb-1.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-admin-rail-muted">
+                  {group.name}
+                </p>
+                {children.map((item) => (
+                  <NavItemLink
+                    key={item.href}
+                    item={item}
+                    pathname={pathname}
+                    attentionCount={attentionCount}
+                    anomalyCount={anomalyCount}
+                    onNavigate={() => setOpenGroup(null)}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TopSearch() {
   const router = useRouter();
   const [q, setQ] = useState('');
 
@@ -278,15 +336,77 @@ function GlobalSearch() {
   };
 
   return (
-    <form onSubmit={submit} className="relative hidden min-w-0 flex-1 md:block md:max-w-md">
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-admin-muted" />
+    <form onSubmit={submit} className="relative hidden min-w-0 flex-1 md:block md:max-w-lg">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-admin-muted" />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Search org, email, candidate id…"
-        className="admin-mono w-full rounded-admin-sm border border-admin-border bg-white py-1.5 pl-8 pr-3 text-xs text-admin-ink shadow-sm placeholder:font-sans placeholder:text-admin-muted focus:border-admin-accent focus:outline-none focus:ring-1 focus:ring-admin-accent"
+        className="w-full rounded-full border border-admin-border bg-admin-bg py-2 pl-9 pr-16 text-sm text-admin-ink placeholder:text-admin-muted focus:border-admin-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-admin-accent/15"
       />
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event(OPEN_GLOBAL_SEARCH_EVENT))}
+        title="Search everything (⌘K)"
+        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-admin-border bg-white px-1.5 py-0.5 text-[11px] font-medium text-admin-muted shadow-sm hover:text-admin-ink"
+      >
+        ⌘K
+      </button>
     </form>
+  );
+}
+
+function initials(name: string) {
+  const parts = name.replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '·';
+}
+
+function UserMenu({ name, email }: { name: string; email?: string | null }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 text-sm text-admin-secondary transition-colors hover:bg-admin-rail-hover"
+      >
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-admin-accent text-[11px] font-semibold text-white">
+          {name ? initials(name) : ''}
+        </span>
+        <span className="hidden max-w-[140px] truncate font-medium sm:inline">{name || '…'}</span>
+        <ChevronDown className="hidden h-3.5 w-3.5 text-admin-muted sm:block" />
+      </button>
+      {open ? (
+        <div className="absolute right-0 mt-2 w-60 overflow-hidden rounded-admin border border-admin-border bg-white shadow-xl">
+          <div className="border-b border-admin-border bg-admin-bg/60 px-3.5 py-3">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-admin-muted">Signed in</p>
+            <p className="mt-0.5 truncate text-sm font-semibold text-admin-ink">{name || '…'}</p>
+            {email && email !== name ? <p className="truncate text-xs text-admin-muted">{email}</p> : null}
+          </div>
+          <div className="p-1">
+            <a
+              href="/api/auth/sign-out"
+              className="flex items-center rounded-admin-sm px-2.5 py-2 text-sm font-medium text-admin-danger hover:bg-admin-danger-soft"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
+            </a>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -294,7 +414,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   // Empty until the role query resolves — showing "Admin" and then swapping
   // to the real name reads as a glitch.
   const [adminDisplayName, setAdminDisplayName] = useState('');
@@ -370,24 +489,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // through session refresh in a loop.
   const navGroups = whoLoading ? [] : isPublisher ? PUBLISHER_NAV_GROUPS : ADMIN_NAV_GROUPS;
   const publisherOffLimits = isPublisher && !!pathname && !pathname.startsWith('/blog');
+  const adminEmail = (isPublisher ? who?.email : me?.email) ?? null;
 
   const rail = useMemo(
-    () => (
-      <NavGroups
-        groups={navGroups}
-        pathname={pathname}
-        attentionCount={attentionCount}
-        anomalyCount={anomalyCount}
-        onNavigate={() => setDrawerOpen(false)}
-        mini={railCollapsed}
-      />
-    ),
+    () =>
+      railCollapsed ? (
+        <MiniNav
+          groups={navGroups}
+          pathname={pathname}
+          attentionCount={attentionCount}
+          anomalyCount={anomalyCount}
+        />
+      ) : (
+        <NavSections
+          groups={navGroups}
+          pathname={pathname}
+          attentionCount={attentionCount}
+          anomalyCount={anomalyCount}
+        />
+      ),
     [navGroups, pathname, attentionCount, anomalyCount, railCollapsed],
   );
 
   const mobileRail = useMemo(
     () => (
-      <NavGroups
+      <NavSections
         groups={navGroups}
         pathname={pathname}
         attentionCount={attentionCount}
@@ -399,22 +525,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <div className="min-h-screen bg-white">
-      <AlertBanner />
-      <div className="flex min-h-[calc(100vh-0px)]">
+    <div className="min-h-screen bg-admin-bg">
+      <div className="flex min-h-screen">
         {/* Desktop rail */}
         <aside
           className={cn(
-            'sticky top-0 hidden h-screen shrink-0 flex-col bg-admin-rail text-admin-rail-ink transition-[width] duration-150 lg:flex',
-            railCollapsed ? 'z-30 w-16 overflow-visible' : 'w-60',
+            'sticky top-0 hidden h-screen shrink-0 flex-col border-r border-admin-border bg-admin-rail transition-[width] duration-150 lg:flex',
+            railCollapsed ? 'z-30 w-[68px] overflow-visible' : 'w-64',
           )}
         >
-          <div
-            className={cn(
-              'flex h-14 items-center gap-2 border-b border-white/10',
-              railCollapsed ? 'justify-center px-0' : 'px-4',
-            )}
-          >
+          <div className={cn('flex h-16 items-center gap-2', railCollapsed ? 'justify-center px-0' : 'px-5')}>
             <Link href="/" className="flex min-w-0 items-center gap-2" title="InsightHire">
               {railCollapsed ? (
                 <Image
@@ -428,14 +548,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               ) : (
                 <>
                   <Image
-                    src="/brand/insighthire-logo-dark.png"
+                    src="/brand/insighthire-logo-light.png"
                     alt="InsightHire"
                     width={1834}
                     height={360}
                     className="h-6 w-auto object-contain object-left"
                     priority
                   />
-                  <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-200">
+                  <span className="rounded-full border border-admin-accent-border bg-admin-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-admin-accent-ink">
                     Admin
                   </span>
                 </>
@@ -443,37 +563,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
           <nav
+            aria-label="Admin"
             className={cn(
-              'min-h-0 flex-1 px-2 py-4',
-              railCollapsed ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden',
+              'min-h-0 flex-1 py-3',
+              railCollapsed ? 'overflow-visible px-2.5' : 'overflow-y-auto overflow-x-hidden px-3',
             )}
           >
             {rail}
           </nav>
-          <div className="border-t border-white/10 p-2">
+          <div className="border-t border-admin-border p-2.5">
             <button
               type="button"
               onClick={toggleRailCollapsed}
               title={railCollapsed ? 'Expand navigation' : 'Collapse navigation'}
               aria-label={railCollapsed ? 'Expand navigation' : 'Collapse navigation'}
               className={cn(
-                'flex w-full items-center gap-2.5 rounded-admin-sm px-3 py-2 text-sm font-medium text-admin-rail-ink transition-colors hover:bg-admin-rail-hover hover:text-white',
+                'flex w-full items-center gap-2.5 rounded-admin-sm px-2.5 py-2 text-[13px] font-medium text-admin-muted transition-colors hover:bg-admin-rail-hover hover:text-admin-ink',
                 railCollapsed && 'justify-center px-0',
               )}
             >
               {railCollapsed ? (
-                <PanelLeft className="h-4 w-4 shrink-0 text-admin-rail-muted" />
+                <PanelLeft className="h-4 w-4 shrink-0" />
               ) : (
-                <PanelLeftClose className="h-4 w-4 shrink-0 text-admin-rail-muted" />
+                <PanelLeftClose className="h-4 w-4 shrink-0" />
               )}
               {!railCollapsed ? <span>Collapse</span> : null}
             </button>
           </div>
-          {!railCollapsed ? (
-            <div className="border-t border-white/10 p-3 text-[10px] text-admin-rail-muted">
-              Ops console · sessions not candidates
-            </div>
-          ) : null}
         </aside>
 
         {/* Mobile drawer */}
@@ -481,31 +597,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="fixed inset-0 z-50 lg:hidden">
             <button
               type="button"
-              className="absolute inset-0 bg-slate-900/40"
+              className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]"
               aria-label="Close menu"
               onClick={() => setDrawerOpen(false)}
             />
-            <aside className="absolute inset-y-0 left-0 flex w-72 flex-col bg-admin-rail shadow-xl">
-              <div className="flex h-14 items-center justify-between border-b border-white/10 px-4">
-                <span className="text-sm font-semibold text-white">Menu</span>
+            <aside className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-admin-border bg-white shadow-xl">
+              <div className="flex h-16 items-center justify-between border-b border-admin-border px-4">
+                <Image
+                  src="/brand/insighthire-logo-light.png"
+                  alt="InsightHire"
+                  width={1834}
+                  height={360}
+                  className="h-5 w-auto object-contain"
+                />
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(false)}
-                  className="rounded p-1 text-admin-rail-muted hover:bg-admin-rail-hover hover:text-white"
+                  aria-label="Close menu"
+                  className="rounded-admin-sm p-1.5 text-admin-muted hover:bg-admin-rail-hover hover:text-admin-ink"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <nav className="flex-1 overflow-y-auto px-2 py-4">{mobileRail}</nav>
+              <nav aria-label="Admin" className="flex-1 overflow-y-auto px-3 py-4">
+                {mobileRail}
+              </nav>
             </aside>
           </div>
         ) : null}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-admin-border bg-white/90 px-3 backdrop-blur sm:px-6">
+          <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-admin-border bg-white/85 px-3 backdrop-blur-md sm:px-6">
             <button
               type="button"
-              className="rounded-admin-sm p-2 text-admin-secondary hover:bg-slate-100 lg:hidden"
+              className="rounded-admin-sm p-2 text-admin-secondary hover:bg-admin-rail-hover lg:hidden"
               onClick={() => setDrawerOpen(true)}
               aria-label="Open menu"
             >
@@ -520,46 +645,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 className="h-5 w-auto object-contain"
                 priority
               />
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-admin-muted">
-                Admin
-              </span>
             </Link>
-            <GlobalSearch />
+            <TopSearch />
             <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event(OPEN_GLOBAL_SEARCH_EVENT))}
+                aria-label="Search"
+                className="rounded-admin-sm p-2 text-admin-secondary hover:bg-admin-rail-hover md:hidden"
+              >
+                <Search className="h-5 w-5" />
+              </button>
               {attentionCount > 0 ? (
                 <Link
                   href="/attention"
-                  className="hidden items-center gap-1.5 rounded-admin-sm bg-admin-danger-soft px-2 py-1 text-xs font-semibold text-admin-danger sm:inline-flex"
+                  className="hidden items-center gap-2 rounded-full border border-admin-danger/20 bg-admin-danger-soft px-3 py-1.5 text-xs font-semibold text-admin-danger transition-colors hover:border-admin-danger/40 sm:inline-flex"
                 >
-                  <span className="severity-pulse inline-block h-1.5 w-1.5 rounded-full bg-admin-danger" />
+                  <span className="severity-pulse inline-block h-2 w-2 rounded-full bg-admin-danger" />
                   {attentionCount} need action
                 </Link>
               ) : null}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setUserMenuOpen((v) => !v)}
-                  className="flex items-center gap-1.5 rounded-admin-sm px-2 py-1.5 text-sm text-admin-secondary hover:bg-slate-100"
-                >
-                  <User className="h-4 w-4" />
-                  <span className="hidden max-w-[140px] truncate sm:inline">{adminDisplayName || '…'}</span>
-                </button>
-                {userMenuOpen ? (
-                  <div className="absolute right-0 mt-1 w-52 rounded-admin border border-admin-border bg-white py-1 shadow-lg">
-                    <div className="border-b border-admin-border px-3 py-2">
-                      <p className="text-[10px] uppercase tracking-wide text-admin-muted">Signed in</p>
-                      <p className="truncate text-sm text-admin-ink">{adminDisplayName || '…'}</p>
-                    </div>
-                    <a
-                      href="/api/auth/sign-out"
-                      className="flex items-center px-3 py-2 text-sm text-admin-danger hover:bg-admin-danger-soft"
-                    >
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Logout
-                    </a>
-                  </div>
-                ) : null}
-              </div>
+              <span className="mx-1 hidden h-6 w-px bg-admin-border sm:block" />
+              <UserMenu name={adminDisplayName} email={adminEmail} />
             </div>
           </header>
           <main className="flex-1">
@@ -568,7 +675,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Loading…
               </div>
             ) : (
-              children
+              <>
+                {isPublisher ? null : <AlertBanner />}
+                {children}
+              </>
             )}
           </main>
         </div>

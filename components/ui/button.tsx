@@ -31,13 +31,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       
       // Variants
       {
-        'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500': variant === 'primary',
+        'bg-admin-accent text-white hover:bg-admin-accent-ink focus:ring-admin-accent': variant === 'primary',
         'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:bg-gray-600': variant === 'secondary',
         'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500': variant === 'success',
         'bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500': variant === 'warning',
         'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500': variant === 'error',
         'bg-transparent text-gray-900 hover:bg-gray-100 focus:ring-gray-500': variant === 'ghost',
-        'bg-transparent text-blue-600 hover:text-blue-700 underline-offset-4 hover:underline focus:ring-blue-500': variant === 'link',
+        'bg-transparent text-admin-accent hover:text-admin-accent-ink underline-offset-4 hover:underline focus:ring-admin-accent': variant === 'link',
         'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 focus:ring-gray-500': variant === 'outline',
       },
       
