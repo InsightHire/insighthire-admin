@@ -1,0 +1,23 @@
+name: Dependency audit
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 9 * * 1'
+  pull_request:
+    branches: [main]
+    paths: ['package.json', 'package-lock.json', 'audit-allowlist.json']
+  push:
+    branches: [main]
+    paths: ['package.json', 'package-lock.json', 'audit-allowlist.json']
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: High/critical production advisories (allowlist in audit-allowlist.json)
+        run: node scripts/audit-deps.mjs

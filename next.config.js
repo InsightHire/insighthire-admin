@@ -16,6 +16,8 @@ const nextConfig = {
   skipTrailingSlashRedirect: true,
   skipMiddlewareUrlNormalize: true,
   images: {
+    // The image optimizer is off: GHSA-2xp9-vwfh-vxw4 (AVIF RCE) is fixed only in a newer major.
+    unoptimized: true,
     domains: [
       'localhost',
       'talentscreen.ai',
