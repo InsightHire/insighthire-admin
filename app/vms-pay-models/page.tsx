@@ -7,6 +7,9 @@ export const dynamic = 'force-dynamic';
  * client can't change it, plus platform-wide 1099 totals for workers paid
  * directly. Direct worker pay for a real customer also needs the
  * vms.direct_worker_pay legal review approved and the org enabled.
+ * Also: which payment account each program's money runs on (InsightHire
+ * payments or the client's own account), never the key, with a staff lock on
+ * bringing an own account.
  */
 import Link from 'next/link';
 import { useState } from 'react';
@@ -174,6 +177,148 @@ function ClientPayModel({ org }: { org: Org }) {
   );
 }
 
+type AccountScope = {
+  partnershipId: string | null;
+  mode: 'PLATFORM' | 'OWN';
+  simulated: boolean;
+  accountId: string | null;
+  accountName: string | null;
+  livemode: boolean | null;
+  keyHint: string | null;
+  webhook: { status: string; lastEventAt: string | null; error: string | null } | null;
+  crew?: string | null;
+};
+type AccountView = {
+  demo: boolean;
+  legalCleared: boolean;
+  locked: boolean;
+  lockedReason: string | null;
+  program: AccountScope;
+  overrides: AccountScope[];
+  features: Array<{ feature: string; own: boolean; label: string }>;
+  insighthireFee: { bps: number; perWorkerCents: number };
+  accruedFees: { cents: number; runs: number };
+};
+
+function AccountRow({ label, s, onUsePlatform, busy }: { label: string; s: AccountScope; onUsePlatform: () => void; busy: boolean }) {
+  return (
+    <tr>
+      <td className="py-2">{label}</td>
+      <td className="py-2">
+        {s.mode === 'OWN' ? 'Own account' : 'InsightHire payments'}
+        {s.simulated && <span className="ml-2 rounded bg-amber-100 px-1.5 text-xs text-amber-800">simulated</span>}
+        {s.livemode === true && <span className="ml-2 rounded bg-green-100 px-1.5 text-xs text-green-800">live</span>}
+        {s.livemode === false && <span className="ml-2 rounded bg-gray-100 px-1.5 text-xs text-gray-700">test</span>}
+      </td>
+      <td className="py-2 font-mono text-xs">{s.accountId ?? '—'}{s.accountName ? <span className="ml-1 font-sans text-gray-500">{s.accountName}</span> : null}</td>
+      <td className="py-2 font-mono text-xs">{s.keyHint ?? '—'}</td>
+      <td className="py-2 text-xs">
+        {s.webhook ? s.webhook.status.toLowerCase().replace(/_/g, ' ') : '—'}
+        {s.webhook?.lastEventAt && <span className="ml-1 text-gray-400">last event {new Date(s.webhook.lastEventAt).toLocaleString('en-US')}</span>}
+        {s.webhook?.error && <span className="block text-red-600">{s.webhook.error}</span>}
+      </td>
+      <td className="py-2 text-right">
+        {s.mode === 'OWN' && (
+          <button onClick={onUsePlatform} disabled={busy} className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40">
+            Move to InsightHire payments
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function ClientPaymentAccount({ org }: { org: Org }) {
+  const q = (trpc as any).platformAdmin.vmsPaymentAccount.useQuery({ clientOrgId: org.id }, { refetchOnWindowFocus: false });
+  const policy = (trpc as any).platformAdmin.vmsSavePaymentAccountPolicy.useMutation({ onSuccess: () => q.refetch(), onError: errorAlert });
+  const usePlatform = (trpc as any).platformAdmin.vmsUsePlatformPaymentAccount.useMutation({
+    onSuccess: () => q.refetch(),
+    onError: (e: { message: string }, vars: { clientOrgId: string; partnershipId: string | null; force: boolean }) => {
+      if (!vars.force && /direct deposit set up/.test(e.message) && confirm(`${e.message}\n\nMove anyway? Those workers will need to set up direct deposit again.`)) {
+        usePlatform.mutate({ ...vars, force: true });
+        return;
+      }
+      alert(e.message);
+    },
+  });
+  const [reason, setReason] = useState('');
+  if (q.isLoading) return <p className="text-sm text-gray-500">Loading…</p>;
+  if (q.error) return <p className="text-sm text-red-600">{q.error.message}</p>;
+  const v: AccountView = q.data;
+  const toPlatform = (partnershipId: string | null) => () => {
+    if (confirm('Move this program’s money back to InsightHire payments?')) usePlatform.mutate({ clientOrgId: org.id, partnershipId, force: false });
+  };
+  const fee = v.insighthireFee;
+
+  return (
+    <section className="space-y-4 rounded-lg bg-white p-5 shadow">
+      <div>
+        <h2 className="font-semibold text-gray-900">Payment account</h2>
+        <p className="text-xs text-gray-500">
+          Which account direct worker pay runs on. With an own account, worker accounts, charges, payouts and 1099 filing live on the client&apos;s account,
+          and InsightHire&apos;s fee is accrued per pay run and billed from the VMS account. Keys are never shown here.
+        </p>
+      </div>
+      {v.demo && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Demo tenant: own accounts here are simulated and no money moves.</p>}
+      {!v.demo && !v.legalCleared && (
+        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          Not cleared. Approve <span className="font-mono">vms.byok_payment_account</span> and enable the org in{' '}
+          <Link href="/legal-review/vms.byok_payment_account" className="underline">Legal review</Link> before the client can bring an own account.
+        </p>
+      )}
+      <table className="min-w-full text-sm">
+        <thead className="text-xs uppercase text-gray-500">
+          <tr>
+            <th className="py-2 text-left">Scope</th>
+            <th className="py-2 text-left">Account</th>
+            <th className="py-2 text-left">Account id</th>
+            <th className="py-2 text-left">Key</th>
+            <th className="py-2 text-left">Webhook</th>
+            <th className="py-2" />
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          <AccountRow label="Program default" s={v.program} onUsePlatform={toPlatform(null)} busy={usePlatform.isLoading} />
+          {v.overrides.map((o) => (
+            <AccountRow key={o.partnershipId} label={o.crew ?? o.partnershipId ?? ''} s={o} onUsePlatform={toPlatform(o.partnershipId)} busy={usePlatform.isLoading} />
+          ))}
+        </tbody>
+      </table>
+      <dl className="grid gap-x-6 gap-y-1 text-xs text-gray-600 sm:grid-cols-3">
+        <div>InsightHire fee on own account: {(fee.bps / 100).toFixed(2)}% + {dollars(fee.perWorkerCents)} per worker per run</div>
+        <div>Accrued, not yet billed: {dollars(v.accruedFees.cents)} ({v.accruedFees.runs} runs)</div>
+        <div>Own account supports: {v.features.filter((f) => f.own).map((f) => f.label).join(', ') || 'nothing'}; the rest stay on InsightHire payments</div>
+      </dl>
+      <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
+        {v.locked ? (
+          <>
+            <span className="text-sm text-gray-700">Own account locked by staff{v.lockedReason ? `: ${v.lockedReason}` : ''}</span>
+            <button
+              onClick={() => policy.mutate({ clientOrgId: org.id, byokLocked: false, lockedReason: null })}
+              disabled={policy.isLoading}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-40"
+            >
+              Unlock
+            </button>
+          </>
+        ) : (
+          <>
+            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason shown to the client (optional)" className="w-72 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+            <button
+              onClick={() => policy.mutate({ clientOrgId: org.id, byokLocked: true, lockedReason: reason.trim() || null })}
+              disabled={policy.isLoading}
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+            >
+              Lock own account
+            </button>
+          </>
+        )}
+      </div>
+      <p className="text-xs text-gray-500">Locking stops the client from connecting or changing an own account; it doesn&apos;t move money. Super admin only, audit-logged.</p>
+    </section>
+  );
+}
+
 function Platform1099() {
   const [year, setYear] = useState(new Date().getFullYear());
   const q = (trpc as any).platformAdmin.vmsDirectPay1099.useQuery({ year }, { refetchOnWindowFocus: false });
@@ -244,6 +389,7 @@ export default function VmsPayModelsPage() {
         </div>
         <OrgPicker onPick={setOrg} />
         {org && <ClientPayModel key={org.id} org={org} />}
+        {org && <ClientPaymentAccount key={`acct-${org.id}`} org={org} />}
         <Platform1099 />
       </div>
     </AuthenticatedLayout>
