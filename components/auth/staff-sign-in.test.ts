@@ -18,6 +18,42 @@ describe('StaffSignIn', () => {
     expect(html).not.toContain('role="alert"');
   });
 
+  it('puts the logo directly above the heading', () => {
+    const html = render({ signInHref: '/x', errorMessage: null });
+    const logo = html.indexOf('alt="InsightHire"');
+    const heading = html.indexOf('<h1');
+    expect(logo).toBeGreaterThan(-1);
+    expect(heading).toBeGreaterThan(logo);
+    expect(html.slice(logo, heading)).not.toMatch(/<p[ >]/);
+    expect(html).toContain('Staff sign in');
+  });
+
+  it('keeps the screen clean: no eyebrow, subtext, access note or sample cards', () => {
+    const html = render({ signInHref: '/x', errorMessage: null });
+    for (const text of [
+      'InsightHire Admin',
+      'Microsoft account',
+      'Restricted to',
+      'Run InsightHire',
+      'Lakeshore',
+      'Deploy healthy',
+      'Legal review',
+      'Early pay',
+      'Onboarding',
+    ]) {
+      expect(html).not.toContain(text);
+    }
+  });
+
+  it('renders a text-free, hidden geometric brand panel', () => {
+    const html = render({ signInHref: '/x', errorMessage: null });
+    const start = html.indexOf('data-testid="auth-brand-panel"');
+    const panel = html.slice(start, html.indexOf('<style', start));
+    expect(html.slice(html.lastIndexOf('<div', start), start)).toContain('aria-hidden');
+    expect(panel).toContain('data-testid="auth-geometry"');
+    expect(panel).not.toMatch(/<(p|h\d|span|text|img)[ >]/);
+  });
+
   it('uses no photos, only the logo image', () => {
     const imgs = render({ signInHref: '/x', errorMessage: null }).match(/<img [^>]*>/g) ?? [];
     expect(imgs).toHaveLength(1);
