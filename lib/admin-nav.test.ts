@@ -49,6 +49,7 @@ const PREVIOUS_HREFS = [
   '/settings/compliance',
   '/legal',
   '/legal-review',
+  '/vms-pay-models',
   '/pricing',
   '/gdpr',
   '/devops/skills',

@@ -157,6 +157,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         match: ['/legal-review'],
       },
       {
+        name: 'VMS pay models',
+        href: '/vms-pay-models',
+        icon: Coins,
+        match: ['/vms-pay-models'],
+      },
+      {
         name: 'Admins',
         href: '/settings/admins',
         icon: Users,
