@@ -13,9 +13,18 @@ export const dynamic = 'force-dynamic';
  */
 import Link from 'next/link';
 import { useState } from 'react';
+import { AlertTriangle, Building2, Coins, FileText, Search, UserCheck, Users, Wallet, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard, DetailList } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, checkboxClass, inputClass, selectClass } from '@/components/admin/controls';
 
 type Org = { id: string; name: string; demoTenant: boolean };
 type PayModel = 'AGENCY_PAY' | 'DIRECT_WORKER_PAY' | 'MIXED';
@@ -53,20 +62,32 @@ function feeText(c: Config) {
   return f.formula ?? 'Formula';
 }
 
+function Notice({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2.5 rounded-admin-sm border border-admin-warn/25 bg-admin-warn-soft p-3 text-sm text-amber-900">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-admin-warn" />
+      <p>{children}</p>
+    </div>
+  );
+}
+
 function OrgPicker({ onPick }: { onPick: (o: Org) => void }) {
   const [q, setQ] = useState('');
   const search = (trpc as any).platformAdmin.legalReviewOrgSearch.useQuery({ q: q.trim() }, { enabled: q.trim().length >= 2, refetchOnWindowFocus: false });
   const rows: Org[] = search.data ?? [];
   return (
-    <div className="space-y-2">
-      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search client orgs by name or id" className="w-full max-w-md rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+    <div className="relative max-w-xl">
+      <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-admin-muted" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search client orgs by name or id" className={`${inputClass} pl-9`} />
       {rows.length > 0 && (
-        <ul className="max-w-md divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white text-sm">
+        <ul className="absolute z-20 mt-1.5 w-full divide-y divide-admin-border overflow-hidden rounded-admin border border-admin-border bg-white text-sm shadow-xl">
           {rows.map((o) => (
             <li key={o.id}>
-              <button onClick={() => { onPick(o); setQ(''); }} className="w-full px-3 py-2 text-left hover:bg-gray-50">
-                {o.name} {o.demoTenant && <span className="ml-1 rounded bg-amber-100 px-1.5 text-xs text-amber-800">demo</span>}
-                <span className="ml-2 font-mono text-xs text-gray-400">{o.id}</span>
+              <button onClick={() => { onPick(o); setQ(''); }} className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-admin-accent-soft">
+                <Building2 className="h-4 w-4 shrink-0 text-admin-muted" />
+                <span className="font-medium text-admin-ink">{o.name}</span>
+                {o.demoTenant && <StatusPill tone="warn" dot={false}>demo</StatusPill>}
+                <span className="ml-auto truncate font-mono text-xs text-admin-muted">{o.id}</span>
               </button>
             </li>
           ))}
@@ -82,19 +103,15 @@ function ModelControls({ config, locked, saving, onSave }: { config: Config; loc
   const dirty = model !== config.payModel || lock !== locked;
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <select value={model} onChange={(e) => setModel(e.target.value as PayModel)} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+      <select value={model} onChange={(e) => setModel(e.target.value as PayModel)} className={selectClass}>
         {(Object.keys(MODEL_LABEL) as PayModel[]).map((m) => (
           <option key={m} value={m}>{MODEL_LABEL[m]}</option>
         ))}
       </select>
-      <label className="flex items-center gap-1.5 text-sm text-gray-700">
-        <input type="checkbox" checked={lock} onChange={(e) => setLock(e.target.checked)} /> Locked by staff
+      <label className="flex items-center gap-2 text-sm text-admin-secondary">
+        <input type="checkbox" checked={lock} onChange={(e) => setLock(e.target.checked)} className={checkboxClass} /> Locked by staff
       </label>
-      <button
-        onClick={() => onSave(model, lock)}
-        disabled={!dirty || saving}
-        className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
-      >
+      <button onClick={() => onSave(model, lock)} disabled={!dirty || saving} className={buttonClass.primary}>
         {saving ? 'Saving…' : 'Save'}
       </button>
     </div>
@@ -104,76 +121,90 @@ function ModelControls({ config, locked, saving, onSave }: { config: Config; loc
 function ClientPayModel({ org }: { org: Org }) {
   const q = (trpc as any).platformAdmin.vmsPayModel.useQuery({ clientOrgId: org.id }, { refetchOnWindowFocus: false });
   const save = (trpc as any).platformAdmin.vmsSavePayModel.useMutation({ onSuccess: () => q.refetch(), onError: errorAlert });
-  if (q.isLoading) return <p className="text-sm text-gray-500">Loading…</p>;
-  if (q.error) return <p className="text-sm text-red-600">{q.error.message}</p>;
+  if (q.isLoading) return <SectionCard icon={<Coins />} title="Pay model"><p className="text-sm text-admin-muted">Loading…</p></SectionCard>;
+  if (q.error) return <SectionCard icon={<Coins />} title="Pay model"><p className="text-sm text-admin-danger">{q.error.message}</p></SectionCard>;
   const v: View = q.data;
   const p = v.program;
   const overrideFor = (id: string) => v.overrides.find((o) => o.partnershipId === id);
   const submit = (partnershipId: string | null) => (payModel: PayModel, staffLocked: boolean) => save.mutate({ clientOrgId: org.id, partnershipId, patch: { payModel }, staffLocked });
 
   return (
-    <section className="space-y-5 rounded-lg bg-white p-5 shadow">
-      <div>
-        <h2 className="font-semibold text-gray-900">{org.name}</h2>
-        <p className="font-mono text-xs text-gray-400">{org.id}</p>
-      </div>
-      {!v.directPayAllowed && (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          Direct worker pay is not cleared for this org. Approve <span className="font-mono">vms.direct_worker_pay</span> and enable the org in{' '}
-          <Link href="/legal-review/vms.direct_worker_pay" className="underline">Legal review</Link> first; until then only agency pay can be saved.
-        </p>
-      )}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">Program default</h3>
-        <ModelControls key={`${p.payModel}-${v.staffLocked}`} config={p} locked={v.staffLocked} saving={save.isLoading} onSave={submit(null)} />
-        <dl className="grid gap-x-6 gap-y-1 text-xs text-gray-600 sm:grid-cols-3">
-          <div>Platform fee: {feeText(p)}</div>
-          <div>Processing fees paid by: {p.processingFeesPaidBy.toLowerCase()}</div>
-          <div>Pay runs: {p.payRun.cadence.toLowerCase()}, {p.payRun.mode.toLowerCase()}, {p.payRun.approval === 'MAKER_CHECKER' ? 'two approvers' : 'one approver'}</div>
-          <div>Worker sign-off: {p.workerSignoffRequired ? 'required' : 'off'}</div>
-          <div>Crew grid: {p.crewGridEntry ? 'on' : 'off'}</div>
-          <div>Worker types: {CLASS_LABEL[p.classificationAllowed] ?? p.classificationAllowed}</div>
-        </dl>
-        {v.updatedAt && <p className="text-xs text-gray-400">Updated {new Date(v.updatedAt).toLocaleString('en-US')}</p>}
-      </div>
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-gray-900">By agency or crew</h3>
-        {v.partnerships.length === 0 ? (
-          <p className="text-sm text-gray-500">No active contract workers.</p>
-        ) : (
-          <table className="min-w-full text-sm">
-            <thead className="text-xs uppercase text-gray-500">
-              <tr>
-                <th className="py-2 text-left">Agency or crew</th>
-                <th className="py-2 text-right">Workers</th>
-                <th className="py-2 text-right">Paid directly</th>
-                <th className="py-2 pl-6 text-left">Pay model</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {v.partnerships.map((ps) => {
-                const o = overrideFor(ps.partnershipId);
-                const cfg = o?.config ?? p;
-                return (
-                  <tr key={ps.partnershipId}>
-                    <td className="py-2">
-                      {ps.agencyName}
-                      {!o && <span className="ml-2 text-xs text-gray-400">program default</span>}
-                    </td>
-                    <td className="py-2 text-right">{ps.assignments}</td>
-                    <td className="py-2 text-right">{ps.direct}</td>
-                    <td className="py-2 pl-6">
-                      <ModelControls key={`${cfg.payModel}-${o?.staffLocked}`} config={cfg} locked={o?.staffLocked ?? false} saving={save.isLoading} onSave={submit(ps.partnershipId)} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+    <SectionCard
+      icon={<Coins />}
+      title="Pay model"
+      description="Program default, plus overrides per agency or crew"
+      actions={
+        <>
+          <StatusPill tone="brand">{MODEL_LABEL[p.payModel]}</StatusPill>
+          {v.staffLocked ? <StatusPill tone="neutral">Locked by staff</StatusPill> : null}
+        </>
+      }
+      footer="Saving needs a super admin. Changes are audit-logged in the VMS with your staff id."
+    >
+      <div className="space-y-6">
+        {!v.directPayAllowed && (
+          <Notice>
+            Direct worker pay is not cleared for this org. Approve <span className="font-mono">vms.direct_worker_pay</span> and enable the org in{' '}
+            <Link href="/legal-review/vms.direct_worker_pay" className="font-medium underline">Legal review</Link> first; until then only agency pay can be saved.
+          </Notice>
         )}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-admin-ink">Program default</h3>
+          <ModelControls key={`${p.payModel}-${v.staffLocked}`} config={p} locked={v.staffLocked} saving={save.isLoading} onSave={submit(null)} />
+          <div className="rounded-admin-sm border border-admin-border bg-admin-bg/50 p-4">
+            <DetailList
+              items={[
+                { label: 'Platform fee', value: feeText(p) },
+                { label: 'Processing fees paid by', value: p.processingFeesPaidBy.toLowerCase() },
+                { label: 'Pay runs', value: `${p.payRun.cadence.toLowerCase()}, ${p.payRun.mode.toLowerCase()}, ${p.payRun.approval === 'MAKER_CHECKER' ? 'two approvers' : 'one approver'}` },
+                { label: 'Worker sign-off', value: p.workerSignoffRequired ? 'required' : 'off' },
+                { label: 'Crew grid', value: p.crewGridEntry ? 'on' : 'off' },
+                { label: 'Worker types', value: CLASS_LABEL[p.classificationAllowed] ?? p.classificationAllowed },
+              ]}
+            />
+          </div>
+          {v.updatedAt && <p className="text-xs text-admin-muted">Updated {new Date(v.updatedAt).toLocaleString('en-US')}</p>}
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-admin-ink">By agency or crew</h3>
+          {v.partnerships.length === 0 ? (
+            <EmptyState compact className="border-dashed shadow-none" icon={<Users />} title="No active contract workers" description="Agencies and crews show up here once workers are assigned." />
+          ) : (
+            <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+              <DataTableEl>
+                <thead>
+                  <tr>
+                    <Th>Agency or crew</Th>
+                    <Th className="text-right">Workers</Th>
+                    <Th className="text-right">Paid directly</Th>
+                    <Th>Pay model</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {v.partnerships.map((ps) => {
+                    const o = overrideFor(ps.partnershipId);
+                    const cfg = o?.config ?? p;
+                    return (
+                      <tr key={ps.partnershipId}>
+                        <Td className="font-medium text-admin-ink">
+                          {ps.agencyName}
+                          {!o && <span className="ml-2 text-xs font-normal text-admin-muted">program default</span>}
+                        </Td>
+                        <Td className="text-right tabular-nums">{ps.assignments}</Td>
+                        <Td className="text-right tabular-nums">{ps.direct}</Td>
+                        <Td>
+                          <ModelControls key={`${cfg.payModel}-${o?.staffLocked}`} config={cfg} locked={o?.staffLocked ?? false} saving={save.isLoading} onSave={submit(ps.partnershipId)} />
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </DataTableEl>
+            </div>
+          )}
+        </div>
       </div>
-      <p className="text-xs text-gray-500">Saving needs a super admin. Changes are audit-logged in the VMS with your staff id.</p>
-    </section>
+    </SectionCard>
   );
 }
 
@@ -203,27 +234,29 @@ type AccountView = {
 function AccountRow({ label, s, onUsePlatform, busy }: { label: string; s: AccountScope; onUsePlatform: () => void; busy: boolean }) {
   return (
     <tr>
-      <td className="py-2">{label}</td>
-      <td className="py-2">
-        {s.mode === 'OWN' ? 'Own account' : 'InsightHire payments'}
-        {s.simulated && <span className="ml-2 rounded bg-amber-100 px-1.5 text-xs text-amber-800">simulated</span>}
-        {s.livemode === true && <span className="ml-2 rounded bg-green-100 px-1.5 text-xs text-green-800">live</span>}
-        {s.livemode === false && <span className="ml-2 rounded bg-gray-100 px-1.5 text-xs text-gray-700">test</span>}
-      </td>
-      <td className="py-2 font-mono text-xs">{s.accountId ?? '—'}{s.accountName ? <span className="ml-1 font-sans text-gray-500">{s.accountName}</span> : null}</td>
-      <td className="py-2 font-mono text-xs">{s.keyHint ?? '—'}</td>
-      <td className="py-2 text-xs">
+      <Td className="font-medium text-admin-ink">{label}</Td>
+      <Td>
+        <span className="flex flex-wrap items-center gap-1.5">
+          {s.mode === 'OWN' ? 'Own account' : 'InsightHire payments'}
+          {s.simulated && <StatusPill tone="warn" dot={false}>simulated</StatusPill>}
+          {s.livemode === true && <StatusPill tone="success" dot={false}>live</StatusPill>}
+          {s.livemode === false && <StatusPill tone="neutral" dot={false}>test</StatusPill>}
+        </span>
+      </Td>
+      <Td mono>{s.accountId ?? '—'}{s.accountName ? <span className="ml-1 font-sans text-admin-muted">{s.accountName}</span> : null}</Td>
+      <Td mono>{s.keyHint ?? '—'}</Td>
+      <Td className="text-xs">
         {s.webhook ? s.webhook.status.toLowerCase().replace(/_/g, ' ') : '—'}
-        {s.webhook?.lastEventAt && <span className="ml-1 text-gray-400">last event {new Date(s.webhook.lastEventAt).toLocaleString('en-US')}</span>}
-        {s.webhook?.error && <span className="block text-red-600">{s.webhook.error}</span>}
-      </td>
-      <td className="py-2 text-right">
+        {s.webhook?.lastEventAt && <span className="ml-1 text-admin-muted">last event {new Date(s.webhook.lastEventAt).toLocaleString('en-US')}</span>}
+        {s.webhook?.error && <span className="block text-admin-danger">{s.webhook.error}</span>}
+      </Td>
+      <Td className="text-right">
         {s.mode === 'OWN' && (
-          <button onClick={onUsePlatform} disabled={busy} className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40">
+          <button onClick={onUsePlatform} disabled={busy} className={buttonClass.small}>
             Move to InsightHire payments
           </button>
         )}
-      </td>
+      </Td>
     </tr>
   );
 }
@@ -242,8 +275,8 @@ function ClientPaymentAccount({ org }: { org: Org }) {
     },
   });
   const [reason, setReason] = useState('');
-  if (q.isLoading) return <p className="text-sm text-gray-500">Loading…</p>;
-  if (q.error) return <p className="text-sm text-red-600">{q.error.message}</p>;
+  if (q.isLoading) return <SectionCard icon={<Wallet />} title="Payment account"><p className="text-sm text-admin-muted">Loading…</p></SectionCard>;
+  if (q.error) return <SectionCard icon={<Wallet />} title="Payment account"><p className="text-sm text-admin-danger">{q.error.message}</p></SectionCard>;
   const v: AccountView = q.data;
   const toPlatform = (partnershipId: string | null) => () => {
     if (confirm('Move this program’s money back to InsightHire payments?')) usePlatform.mutate({ clientOrgId: org.id, partnershipId, force: false });
@@ -251,71 +284,81 @@ function ClientPaymentAccount({ org }: { org: Org }) {
   const fee = v.insighthireFee;
 
   return (
-    <section className="space-y-4 rounded-lg bg-white p-5 shadow">
-      <div>
-        <h2 className="font-semibold text-gray-900">Payment account</h2>
-        <p className="text-xs text-gray-500">
-          Which account direct worker pay runs on. With an own account, worker accounts, charges, payouts and 1099 filing live on the client&apos;s account,
-          and InsightHire&apos;s fee is recorded as a receivable per paid run (nothing is taken on their account). Keys are never shown here.
+    <SectionCard
+      icon={<Wallet />}
+      title="Payment account"
+      description="Which account direct worker pay runs on. Keys are never shown here."
+      actions={v.locked ? <StatusPill tone="neutral">Own account locked</StatusPill> : null}
+      footer="Locking stops the client from connecting or changing an own account; it doesn't move money. Super admin only, audit-logged."
+    >
+      <div className="space-y-5">
+        <p className="text-sm text-admin-secondary">
+          With an own account, worker accounts, charges, payouts and 1099 filing live on the client&apos;s account,
+          and InsightHire&apos;s fee is recorded as a receivable per paid run (nothing is taken on their account).
         </p>
-      </div>
-      {v.demo && <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Demo tenant: own accounts here are simulated and no money moves.</p>}
-      {!v.demo && !v.legalCleared && (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          Not cleared. Approve <span className="font-mono">vms.byok_payment_account</span> and enable the org in{' '}
-          <Link href="/legal-review/vms.byok_payment_account" className="underline">Legal review</Link> before the client can bring an own account.
-        </p>
-      )}
-      <table className="min-w-full text-sm">
-        <thead className="text-xs uppercase text-gray-500">
-          <tr>
-            <th className="py-2 text-left">Scope</th>
-            <th className="py-2 text-left">Account</th>
-            <th className="py-2 text-left">Account id</th>
-            <th className="py-2 text-left">Key</th>
-            <th className="py-2 text-left">Webhook</th>
-            <th className="py-2" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          <AccountRow label="Program default" s={v.program} onUsePlatform={toPlatform(null)} busy={usePlatform.isLoading} />
-          {v.overrides.map((o) => (
-            <AccountRow key={o.partnershipId} label={o.crew ?? o.partnershipId ?? ''} s={o} onUsePlatform={toPlatform(o.partnershipId)} busy={usePlatform.isLoading} />
-          ))}
-        </tbody>
-      </table>
-      <dl className="grid gap-x-6 gap-y-1 text-xs text-gray-600 sm:grid-cols-3">
-        <div>InsightHire fee on own account: {((fee.bps ?? 0) / 100).toFixed(2)}% + {dollars(fee.perWorkerCents ?? 0)} per worker per run</div>
-        <div>Receivable, not yet invoiced: {dollars(v.accruedFees.cents)} ({v.accruedFees.runs} runs)</div>
-        <div>Own account supports: {v.features.filter((f) => f.own).map((f) => f.label).join(', ') || 'nothing'}; the rest stay on InsightHire payments</div>
-      </dl>
-      <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
-        {v.locked ? (
-          <>
-            <span className="text-sm text-gray-700">Own account locked by staff{v.lockedReason ? `: ${v.lockedReason}` : ''}</span>
-            <button
-              onClick={() => policy.mutate({ clientOrgId: org.id, byokLocked: false, lockedReason: null })}
-              disabled={policy.isLoading}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-40"
-            >
-              Unlock
-            </button>
-          </>
-        ) : (
-          <>
-            <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason shown to the client (optional)" className="w-72 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
-            <button
-              onClick={() => policy.mutate({ clientOrgId: org.id, byokLocked: true, lockedReason: reason.trim() || null })}
-              disabled={policy.isLoading}
-              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
-            >
-              Lock own account
-            </button>
-          </>
+        {v.demo && <Notice>Demo tenant: own accounts here are simulated and no money moves.</Notice>}
+        {!v.demo && !v.legalCleared && (
+          <Notice>
+            Not cleared. Approve <span className="font-mono">vms.byok_payment_account</span> and enable the org in{' '}
+            <Link href="/legal-review/vms.byok_payment_account" className="font-medium underline">Legal review</Link> before the client can bring an own account.
+          </Notice>
         )}
+        <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+          <DataTableEl>
+            <thead>
+              <tr>
+                <Th>Scope</Th>
+                <Th>Account</Th>
+                <Th>Account id</Th>
+                <Th>Key</Th>
+                <Th>Webhook</Th>
+                <Th />
+              </tr>
+            </thead>
+            <tbody>
+              <AccountRow label="Program default" s={v.program} onUsePlatform={toPlatform(null)} busy={usePlatform.isLoading} />
+              {v.overrides.map((o) => (
+                <AccountRow key={o.partnershipId} label={o.crew ?? o.partnershipId ?? ''} s={o} onUsePlatform={toPlatform(o.partnershipId)} busy={usePlatform.isLoading} />
+              ))}
+            </tbody>
+          </DataTableEl>
+        </div>
+        <div className="rounded-admin-sm border border-admin-border bg-admin-bg/50 p-4">
+          <DetailList
+            items={[
+              { label: 'InsightHire fee on own account', value: `${((fee.bps ?? 0) / 100).toFixed(2)}% + ${dollars(fee.perWorkerCents ?? 0)} per worker per run` },
+              { label: 'Receivable, not yet invoiced', value: `${dollars(v.accruedFees.cents)} (${v.accruedFees.runs} runs)` },
+              { label: 'Own account supports', value: `${v.features.filter((f) => f.own).map((f) => f.label).join(', ') || 'nothing'}; the rest stay on InsightHire payments` },
+            ]}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {v.locked ? (
+            <>
+              <span className="text-sm text-admin-secondary">Own account locked by staff{v.lockedReason ? `: ${v.lockedReason}` : ''}</span>
+              <button
+                onClick={() => policy.mutate({ clientOrgId: org.id, byokLocked: false, lockedReason: null })}
+                disabled={policy.isLoading}
+                className={buttonClass.secondary}
+              >
+                Unlock
+              </button>
+            </>
+          ) : (
+            <>
+              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason shown to the client (optional)" className={`${inputClass} w-72 max-w-full`} />
+              <button
+                onClick={() => policy.mutate({ clientOrgId: org.id, byokLocked: true, lockedReason: reason.trim() || null })}
+                disabled={policy.isLoading}
+                className={buttonClass.primary}
+              >
+                Lock own account
+              </button>
+            </>
+          )}
+        </div>
       </div>
-      <p className="text-xs text-gray-500">Locking stops the client from connecting or changing an own account; it doesn&apos;t move money. Super admin only, audit-logged.</p>
-    </section>
+    </SectionCard>
   );
 }
 
@@ -323,54 +366,83 @@ function Platform1099() {
   const [year, setYear] = useState(new Date().getFullYear());
   const q = (trpc as any).platformAdmin.vmsDirectPay1099.useQuery({ year }, { refetchOnWindowFocus: false });
   const d = q.data;
+  const years = [0, 1, 2].map((n) => new Date().getFullYear() - n);
   return (
-    <section className="space-y-3 rounded-lg bg-white p-5 shadow">
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="font-semibold text-gray-900">1099 totals, workers paid directly (all customers)</h2>
-        <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
-          {[0, 1, 2].map((n) => {
-            const y = new Date().getFullYear() - n;
-            return <option key={y} value={y}>{y}</option>;
-          })}
-        </select>
-      </div>
-      <p className="text-xs text-gray-500">From the VMS ledger, net of reversals. Demo tenants are left out.</p>
-      {q.isLoading ? (
-        <p className="text-sm text-gray-500">Loading…</p>
-      ) : q.error ? (
-        <p className="text-sm text-red-600">{q.error.message}</p>
+    <SectionCard
+      icon={<FileText />}
+      title="1099 totals, workers paid directly (all customers)"
+      description="From the VMS ledger, net of reversals. Demo tenants are left out."
+      actions={<Segmented size="sm" ariaLabel="Tax year" options={years.map((y) => ({ value: y, label: String(y) }))} value={year} onChange={setYear} />}
+    >
+      {q.error ? (
+        <p className="text-sm text-admin-danger">{q.error.message}</p>
       ) : (
-        <>
-          <p className="text-sm text-gray-700">
-            {d.summary.workers} paid · {d.summary.requires1099} need a 1099 (≥ {dollars(d.thresholdCents)}) · {d.summary.notReady} missing details
-          </p>
-          {d.workers.length > 0 && (
-            <table className="min-w-full text-sm">
-              <thead className="text-xs uppercase text-gray-500">
-                <tr>
-                  <th className="py-2 text-left">Worker</th>
-                  <th className="py-2 text-left">Legal name</th>
-                  <th className="py-2 text-left">W-9</th>
-                  <th className="py-2 text-right">Net paid</th>
-                  <th className="py-2 pl-4 text-left">1099</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {d.workers.map((w: any) => (
-                  <tr key={w.workerUserId}>
-                    <td className="py-2">{w.workerName}</td>
-                    <td className="py-2">{w.legalName ?? '—'}</td>
-                    <td className="py-2">{w.w9Status}</td>
-                    <td className="py-2 text-right">{dollars(w.netCents)}</td>
-                    <td className="py-2 pl-4">{!w.requires1099 ? 'Under threshold' : w.ready ? 'Ready' : w.issue ?? 'Needs details'}</td>
+        <div className="space-y-5">
+          <StatGrid cols={3}>
+            <StatTile label="Workers paid" icon={Users} tone="brand" loading={q.isLoading} value={d?.summary.workers ?? 0} hint={`Tax year ${year}`} />
+            <StatTile
+              label="Need a 1099"
+              icon={UserCheck}
+              tone={(d?.summary.requires1099 ?? 0) > 0 ? 'info' : 'muted'}
+              loading={q.isLoading}
+              value={d?.summary.requires1099 ?? 0}
+              hint={d ? `Paid ≥ ${dollars(d.thresholdCents)}` : undefined}
+            />
+            <StatTile
+              label="Missing details"
+              icon={AlertTriangle}
+              tone={(d?.summary.notReady ?? 0) > 0 ? 'warn' : 'muted'}
+              loading={q.isLoading}
+              value={d?.summary.notReady ?? 0}
+              hint="Legal name or W-9"
+            />
+          </StatGrid>
+          {!q.isLoading && d.workers.length === 0 ? (
+            <EmptyState
+              compact
+              className="border-dashed shadow-none"
+              icon={<FileText />}
+              title={`No direct-pay workers in ${year}`}
+              description="Workers paid directly by the platform show up here with their net pay and 1099 status."
+            />
+          ) : null}
+          {!q.isLoading && d.workers.length > 0 && (
+            <div className="overflow-x-auto rounded-admin-sm border border-admin-border">
+              <DataTableEl>
+                <thead>
+                  <tr>
+                    <Th>Worker</Th>
+                    <Th>Legal name</Th>
+                    <Th>W-9</Th>
+                    <Th className="text-right">Net paid</Th>
+                    <Th>1099</Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {d.workers.map((w: any) => (
+                    <tr key={w.workerUserId}>
+                      <Td className="font-medium text-admin-ink">{w.workerName}</Td>
+                      <Td>{w.legalName ?? '—'}</Td>
+                      <Td>{w.w9Status}</Td>
+                      <Td className="text-right tabular-nums">{dollars(w.netCents)}</Td>
+                      <Td>
+                        {!w.requires1099 ? (
+                          <StatusPill tone="neutral">Under threshold</StatusPill>
+                        ) : w.ready ? (
+                          <StatusPill tone="success">Ready</StatusPill>
+                        ) : (
+                          <StatusPill tone="warn">{w.issue ?? 'Needs details'}</StatusPill>
+                        )}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTableEl>
+            </div>
           )}
-        </>
+        </div>
       )}
-    </section>
+    </SectionCard>
   );
 }
 
@@ -379,19 +451,58 @@ export default function VmsPayModelsPage() {
   const [org, setOrg] = useState<Org | null>(null);
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">VMS pay models</h1>
-          <p className="max-w-3xl text-sm text-gray-500">
+      <AdminPageChrome
+        icon={<Coins />}
+        breadcrumbs={[{ label: 'Tenants', href: '/organizations' }, { label: 'VMS pay models' }]}
+        title="VMS pay models"
+        description={
+          <>
             How each client program pays contract workers: through their agency, directly to each worker (GlazierHire-style), or both. Lock a
             pay model so the client can&apos;t change it from Contractors → Direct pay.
-          </p>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <SectionCard
+            icon={<Building2 />}
+            title="Client program"
+            description="Pick a client org to see and change its pay model and payment account"
+            actions={
+              org ? (
+                <span className="flex items-center gap-2">
+                  <StatusPill tone="brand">{org.name}</StatusPill>
+                  {org.demoTenant && <StatusPill tone="warn" dot={false}>demo</StatusPill>}
+                  <button onClick={() => setOrg(null)} className={buttonClass.ghost} aria-label="Clear selected org">
+                    <X className="h-4 w-4" />
+                  </button>
+                </span>
+              ) : null
+            }
+          >
+            <div className="space-y-4">
+              <OrgPicker onPick={setOrg} />
+              {org ? (
+                <p className="font-mono text-xs text-admin-muted">{org.id}</p>
+              ) : (
+                <EmptyState
+                  compact
+                  className="border-dashed shadow-none"
+                  icon={<Search />}
+                  title="No client selected"
+                  description="Search by name or id. The pay model, agency overrides and payment account load here."
+                />
+              )}
+            </div>
+          </SectionCard>
+          {org && (
+            <div className="space-y-6">
+              <ClientPayModel key={org.id} org={org} />
+              <ClientPaymentAccount key={`acct-${org.id}`} org={org} />
+            </div>
+          )}
+          <Platform1099 />
         </div>
-        <OrgPicker onPick={setOrg} />
-        {org && <ClientPayModel key={org.id} org={org} />}
-        {org && <ClientPaymentAccount key={`acct-${org.id}`} org={org} />}
-        <Platform1099 />
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }
