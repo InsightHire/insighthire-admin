@@ -8,14 +8,15 @@ import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { PipelineSubnav } from '@/components/admin/pipeline-subnav';
 import { ScoringDriftSection } from '@/components/platform-admin/scoring-drift';
 import { OutcomeCalibrationEvidence } from '@/components/platform-admin/outcome-calibration-evidence';
-import {
-  ArrowPathIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  BoltIcon,
-} from '@heroicons/react/24/outline';
+import { AlertTriangle, BarChart3, CheckCircle2, RefreshCw, Scale, SlidersHorizontal, Zap } from 'lucide-react';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, selectClass } from '@/components/admin/controls';
 
 type Leniency = 'HARSH' | 'BALANCED' | 'GENEROUS';
 
@@ -75,72 +76,63 @@ export default function ScoringObservabilityPage() {
 
   return (
     <AuthenticatedLayout>
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <PipelineSubnav />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <ChartBarIcon className="h-7 w-7 text-purple-600" />
-            AI Scoring Observability
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Track scoring events, rescores, drift detection, and tenant calibration</p>
-        </div>
+    <AdminPageChrome
+      icon={<BarChart3 />}
+      breadcrumbs={[{ label: 'Operations' }, { label: 'Pipeline', href: '/pipeline' }, { label: 'AI scoring' }]}
+      title="AI scoring observability"
+      description="Track scoring events, rescores, drift detection, and tenant calibration"
+      actions={
         <select
           value={selectedOrgId}
           onChange={(e) => {
             setSelectedOrgId(e.target.value);
             setCalibrationDirty(false);
           }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900"
+          className={selectClass}
         >
           <option value="">All Organizations</option>
           {(Array.isArray(orgList) ? orgList : []).filter((org: any) => org?.id && org?.name).map((org: any) => (
             <option key={org.id} value={org.id}>{org.name}</option>
           ))}
         </select>
-      </div>
+      }
+    >
+    <div className="space-y-6">
+      <PipelineSubnav />
 
       <ScoringDriftSection />
 
       {selectedOrgId && (
-        <div className="bg-white rounded-lg border border-gray-200 p-5 space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">AI Bias / Leniency Control</h2>
-            <p className="text-sm text-gray-500 mt-1">
+        <SectionCard
+          icon={<SlidersHorizontal />}
+          title="AI bias / leniency control"
+          description={
+            <>
               Adjust how harshly AI scores this tenant. Applies to new scores and rescored responses.
               {scoringCalibration?.organizationName
                 ? ` Current tenant: ${scoringCalibration.organizationName}.`
                 : ''}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </>
+          }
+        >
+          <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Prompt leniency</label>
-              <div className="flex flex-wrap gap-2">
-                {([
-                  ['HARSH', 'Harsh'],
-                  ['BALANCED', 'Balanced'],
-                  ['GENEROUS', 'Generous'],
-                ] as const).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      setLeniencyDraft(value);
-                      setCalibrationDirty(true);
-                    }}
-                    className={`px-3 py-1.5 text-sm rounded-lg border ${
-                      leniencyDraft === value
-                        ? 'bg-purple-600 text-white border-purple-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <label className="mb-2 block text-sm font-medium text-admin-ink">Prompt leniency</label>
+              <Segmented<Leniency>
+                ariaLabel="Prompt leniency"
+                options={[
+                  { value: 'HARSH', label: 'Harsh' },
+                  { value: 'BALANCED', label: 'Balanced' },
+                  { value: 'GENEROUS', label: 'Generous' },
+                ]}
+                value={leniencyDraft}
+                onChange={(value) => {
+                  setLeniencyDraft(value);
+                  setCalibrationDirty(true);
+                }}
+              />
+              <p className="mt-2 text-xs text-admin-muted">
                 {leniencyDraft === 'HARSH' && 'Strict bar — prefers the low side of a score band when evidence is incomplete.'}
                 {leniencyDraft === 'BALANCED' && 'Default calibrated recruiter bar (no extra prompt bias).'}
                 {leniencyDraft === 'GENEROUS' && 'Lenient bar — prefers the high side when substance is clear (good for harsh-AI complaints).'}
@@ -148,7 +140,7 @@ export default function ScoringObservabilityPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-medium text-admin-ink">
                 Score offset: {offsetDraft > 0 ? '+' : ''}{offsetDraft} pts
               </label>
               <input
@@ -161,20 +153,20 @@ export default function ScoringObservabilityPage() {
                   setOffsetDraft(Number(e.target.value));
                   setCalibrationDirty(true);
                 }}
-                className="w-full"
+                className="w-full accent-admin-accent"
               />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <div className="mt-1 flex justify-between text-xs text-admin-muted">
                 <span>−15 (harsher)</span>
                 <span>0</span>
                 <span>+15 (more lenient)</span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="mt-2 text-xs text-admin-muted">
                 Applied after the model scores, before the score gate. Clamped to 0–100.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 border-t border-admin-border pt-4">
             <button
               type="button"
               disabled={!calibrationDirty || setCalibrationMutation.isPending}
@@ -189,14 +181,14 @@ export default function ScoringObservabilityPage() {
                   alert(err.message || 'Failed to save calibration');
                 }
               }}
-              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              className={buttonClass.primary}
             >
               {setCalibrationMutation.isPending ? 'Saving...' : 'Save bias settings'}
             </button>
             {calibrationDirty && (
               <button
                 type="button"
-                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
+                className={buttonClass.ghost}
                 onClick={() => {
                   setLeniencyDraft(scoringCalibration?.calibration.leniency ?? 'BALANCED');
                   setOffsetDraft(scoringCalibration?.calibration.scoreOffset ?? 0);
@@ -207,68 +199,39 @@ export default function ScoringObservabilityPage() {
               </button>
             )}
             {setCalibrationMutation.isSuccess && !calibrationDirty && (
-              <span className="text-sm text-green-700">Saved. Rescore candidates to apply to existing scores.</span>
+              <span className="text-sm text-admin-ok">Saved. Rescore candidates to apply to existing scores.</span>
             )}
           </div>
-        </div>
+          </div>
+        </SectionCard>
       )}
 
       {selectedOrgId && <OutcomeCalibrationEvidence organizationId={selectedOrgId} />}
 
       {queryErrors.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="font-semibold text-red-800 mb-1">Data loading errors</h3>
+        <div className="rounded-admin border border-admin-danger/20 bg-admin-danger-soft p-4">
+          <h3 className="mb-1 font-semibold text-red-800">Data loading errors</h3>
           {queryErrors.map((err: any, i) => (
             <p key={i} className="text-sm text-red-700">{err?.message || 'Unknown query error'}</p>
           ))}
         </div>
       )}
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Total Scoring Events</span>
-            <BoltIcon className="h-5 w-5 text-blue-500" />
-          </div>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{overview?.totalEvents ?? 0}</p>
-          <p className="text-xs text-gray-400 mt-1">Last 30 days</p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Initial Scores</span>
-            <CheckCircleIcon className="h-5 w-5 text-green-500" />
-          </div>
-          <p className="text-3xl font-bold text-green-600 mt-2">{overview?.initialScores ?? 0}</p>
-          <p className="text-xs text-gray-400 mt-1">New evaluations</p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Rescores</span>
-            <ArrowPathIcon className="h-5 w-5 text-purple-500" />
-          </div>
-          <p className="text-3xl font-bold text-purple-600 mt-2">{overview?.rescoreEvents ?? 0}</p>
-          <p className="text-xs text-gray-400 mt-1">Re-evaluations triggered</p>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Calibration Snapshots</span>
-            <ChartBarIcon className="h-5 w-5 text-amber-500" />
-          </div>
-          <p className="text-3xl font-bold text-amber-600 mt-2">{overview?.calibrations?.length ?? 0}</p>
-          <p className="text-xs text-gray-400 mt-1">AI vs Human comparisons</p>
-        </div>
-      </div>
+      <StatGrid cols={4}>
+        <StatTile label="Total scoring events" icon={Zap} tone="brand" value={overview?.totalEvents ?? 0} hint="Last 30 days" />
+        <StatTile label="Initial scores" icon={CheckCircle2} tone="ok" value={overview?.initialScores ?? 0} hint="New evaluations" />
+        <StatTile label="Rescores" icon={RefreshCw} tone="info" value={overview?.rescoreEvents ?? 0} hint="Re-evaluations triggered" />
+        <StatTile label="Calibration snapshots" icon={BarChart3} tone="warn" value={overview?.calibrations?.length ?? 0} hint="AI vs Human comparisons" />
+      </StatGrid>
 
-      {/* Drift Alerts */}
       {overview?.calibrations?.some((c: any) => c.driftDetected) && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+        <div className="rounded-admin border border-admin-danger/20 bg-admin-danger-soft p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-admin-danger" />
             <h3 className="font-semibold text-red-800">Drift Detected</h3>
           </div>
           {overview.calibrations.filter((c: any) => c.driftDetected).map((c: any) => (
-            <div key={c.id} className="text-sm text-red-700 mt-1">
+            <div key={c.id} className="mt-1 text-sm text-red-700">
               Org {c.organizationId.slice(0, 8)}... — {c.driftDirection === 'AI_TOO_HIGH' ? 'AI scoring too high' : c.driftDirection === 'AI_TOO_LOW' ? 'AI scoring too low' : c.driftDirection}
               {' '}(MAE: {Number(c.meanAbsoluteError).toFixed(1)}, Delta: {Number(c.meanDelta) > 0 ? '+' : ''}{Number(c.meanDelta).toFixed(1)})
             </div>
@@ -276,11 +239,13 @@ export default function ScoringObservabilityPage() {
         </div>
       )}
 
-      {/* Calibration Snapshots */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Tenant Calibration</h2>
-          {selectedOrgId && (
+      <SectionCard
+        icon={<Scale />}
+        title="Tenant calibration"
+        description="AI scores compared with human overrides, per snapshot"
+        padded={false}
+        actions={
+          selectedOrgId ? (
             <button
               disabled={!!calibratingOrg}
               onClick={async () => {
@@ -292,168 +257,180 @@ export default function ScoringObservabilityPage() {
                 }
                 setCalibratingOrg(null);
               }}
-              className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              className={buttonClass.primary}
             >
               {calibratingOrg ? 'Generating...' : 'Generate Snapshot'}
             </button>
-          )}
-        </div>
+          ) : null
+        }
+      >
+        {(!calibrations || calibrations.length === 0) ? (
+          <EmptyState
+            compact
+            className="border-0 shadow-none"
+            icon={<Scale />}
+            title="No calibration snapshots yet"
+            description='Select an org and click "Generate Snapshot".'
+          />
+        ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+          <DataTableEl>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Org</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Sample</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Avg AI</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Avg Human</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Correlation</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">MAE</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Drift</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recommendations</th>
+                <Th>Date</Th>
+                <Th>Org</Th>
+                <Th className="text-center">Sample</Th>
+                <Th className="text-center">Avg AI</Th>
+                <Th className="text-center">Avg Human</Th>
+                <Th className="text-center">Correlation</Th>
+                <Th className="text-center">MAE</Th>
+                <Th className="text-center">Drift</Th>
+                <Th>Recommendations</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {(calibrations || []).map((c: any) => (
-                <tr key={c.id} className={c.driftDetected ? 'bg-red-50' : ''}>
-                  <td className="px-4 py-3 text-gray-600">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.organizationId.slice(0, 12)}...</td>
-                  <td className="px-4 py-3 text-center">{c.sampleSize}</td>
-                  <td className="px-4 py-3 text-center font-medium">{Number(c.avgAiScore).toFixed(0)}</td>
-                  <td className="px-4 py-3 text-center font-medium">{Number(c.avgHumanScore).toFixed(0)}</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`font-bold ${Number(c.pearsonCorrelation) >= 0.7 ? 'text-green-600' : Number(c.pearsonCorrelation) >= 0.4 ? 'text-yellow-600' : 'text-red-600'}`}>
+                <tr key={c.id} className={c.driftDetected ? 'bg-admin-danger-soft/50' : ''}>
+                  <Td>{new Date(c.createdAt).toLocaleDateString()}</Td>
+                  <Td mono>{c.organizationId.slice(0, 12)}...</Td>
+                  <Td className="text-center tabular-nums">{c.sampleSize}</Td>
+                  <Td className="text-center font-medium tabular-nums text-admin-ink">{Number(c.avgAiScore).toFixed(0)}</Td>
+                  <Td className="text-center font-medium tabular-nums text-admin-ink">{Number(c.avgHumanScore).toFixed(0)}</Td>
+                  <Td className="text-center">
+                    <span className={`font-bold tabular-nums ${Number(c.pearsonCorrelation) >= 0.7 ? 'text-green-600' : Number(c.pearsonCorrelation) >= 0.4 ? 'text-yellow-600' : 'text-red-600'}`}>
                       {Number(c.pearsonCorrelation).toFixed(3)}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">{Number(c.meanAbsoluteError).toFixed(1)}</td>
-                  <td className="px-4 py-3 text-center">
+                  </Td>
+                  <Td className="text-center tabular-nums">{Number(c.meanAbsoluteError).toFixed(1)}</Td>
+                  <Td className="text-center">
                     {c.driftDetected ? (
-                      <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
+                      <StatusPill tone="danger">
                         {c.driftDirection === 'AI_TOO_HIGH' ? '↑ High' : c.driftDirection === 'AI_TOO_LOW' ? '↓ Low' : c.driftDirection}
-                      </span>
+                      </StatusPill>
                     ) : (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Aligned</span>
+                      <StatusPill tone="success">Aligned</StatusPill>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-600 max-w-xs">
+                  </Td>
+                  <Td className="max-w-xs text-xs">
                     {Array.isArray(c.recommendations) ? c.recommendations.join(' ') : '-'}
-                  </td>
+                  </Td>
                 </tr>
               ))}
-              {(!calibrations || calibrations.length === 0) && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No calibration snapshots yet. Select an org and click "Generate Snapshot".</td></tr>
-              )}
             </tbody>
-          </table>
+          </DataTableEl>
         </div>
-      </div>
+        )}
+      </SectionCard>
 
-      {/* Rescore History */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Rescore History</h2>
-        </div>
+      <SectionCard icon={<RefreshCw />} title="Rescore history" description="Most recent 30 rescore jobs" padded={false}>
+        {(!rescores || rescores.length === 0) ? (
+          <EmptyState compact className="border-0 shadow-none" icon={<RefreshCw />} title="No rescores yet." />
+        ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+          <DataTableEl>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Responses</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Avg Before</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Avg After</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Delta</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
+                <Th>Time</Th>
+                <Th>Type</Th>
+                <Th className="text-center">Responses</Th>
+                <Th className="text-center">Avg Before</Th>
+                <Th className="text-center">Avg After</Th>
+                <Th className="text-center">Delta</Th>
+                <Th className="text-center">Status</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {(rescores || []).map((r: any) => (
                 <tr key={r.id}>
-                  <td className="px-4 py-3 text-gray-600">{new Date(r.createdAt).toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      r.rescoreType === 'BULK_POSITION' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'
-                    }`}>
+                  <Td className="whitespace-nowrap">{new Date(r.createdAt).toLocaleString()}</Td>
+                  <Td>
+                    <StatusPill tone={r.rescoreType === 'BULK_POSITION' ? 'info' : 'brand'} dot={false}>
                       {r.rescoreType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">{r.responsesQueued}</td>
-                  <td className="px-4 py-3 text-center">{r.avgScoreBefore ? Number(r.avgScoreBefore).toFixed(0) : '-'}</td>
-                  <td className="px-4 py-3 text-center">{r.avgScoreAfter ? Number(r.avgScoreAfter).toFixed(0) : '-'}</td>
-                  <td className="px-4 py-3 text-center font-medium">
+                    </StatusPill>
+                  </Td>
+                  <Td className="text-center tabular-nums">{r.responsesQueued}</Td>
+                  <Td className="text-center tabular-nums">{r.avgScoreBefore ? Number(r.avgScoreBefore).toFixed(0) : '-'}</Td>
+                  <Td className="text-center tabular-nums">{r.avgScoreAfter ? Number(r.avgScoreAfter).toFixed(0) : '-'}</Td>
+                  <Td className="text-center font-medium tabular-nums">
                     {r.scoreDelta ? (
                       <span className={Number(r.scoreDelta) > 0 ? 'text-green-600' : 'text-red-600'}>
                         {Number(r.scoreDelta) > 0 ? '+' : ''}{Number(r.scoreDelta).toFixed(1)}
                       </span>
                     ) : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      r.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                      r.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-700' :
-                      r.status === 'FAILED' ? 'bg-red-100 text-red-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
+                  </Td>
+                  <Td className="text-center">
+                    <StatusPill
+                      tone={
+                        r.status === 'COMPLETED' ? 'success' :
+                        r.status === 'PROCESSING' ? 'warn' :
+                        r.status === 'FAILED' ? 'danger' :
+                        'neutral'
+                      }
+                    >
                       {r.status}
-                    </span>
-                  </td>
+                    </StatusPill>
+                  </Td>
                 </tr>
               ))}
-              {(!rescores || rescores.length === 0) && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No rescores yet.</td></tr>
-              )}
             </tbody>
-          </table>
+          </DataTableEl>
         </div>
-      </div>
+        )}
+      </SectionCard>
 
-      {/* Recent Scoring Events */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Scoring Events</h2>
-        </div>
+      <SectionCard icon={<Zap />} title="Recent scoring events" description="Latest 50 initial scores and rescores" padded={false}>
+        {(!events || events.length === 0) ? (
+          <EmptyState
+            compact
+            className="border-0 shadow-none"
+            icon={<Zap />}
+            title="No scoring events yet"
+            description="They will appear as candidates are scored."
+          />
+        ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
+          <DataTableEl>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Response</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Before</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">After</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Position</th>
+                <Th>Time</Th>
+                <Th>Type</Th>
+                <Th>Response</Th>
+                <Th className="text-center">Before</Th>
+                <Th className="text-center">After</Th>
+                <Th>Model</Th>
+                <Th>Position</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {(events || []).map((e: any) => (
                 <tr key={e.id}>
-                  <td className="px-4 py-3 text-gray-600 text-xs">{new Date(e.createdAt).toLocaleString()}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      e.eventType === 'INITIAL_SCORE' ? 'bg-green-100 text-green-700' :
-                      e.eventType === 'RESCORE' ? 'bg-purple-100 text-purple-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
+                  <Td className="whitespace-nowrap text-xs">{new Date(e.createdAt).toLocaleString()}</Td>
+                  <Td>
+                    <StatusPill
+                      dot={false}
+                      tone={
+                        e.eventType === 'INITIAL_SCORE' ? 'success' :
+                        e.eventType === 'RESCORE' ? 'brand' :
+                        'neutral'
+                      }
+                    >
                       {e.eventType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-500">{e.responseId?.slice(0, 12)}...</td>
-                  <td className="px-4 py-3 text-center">{e.scoreBefore ? Number(e.scoreBefore).toFixed(0) : '-'}</td>
-                  <td className="px-4 py-3 text-center font-medium">{e.scoreAfter ? Number(e.scoreAfter).toFixed(0) : '-'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{e.modelVersion || '-'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-600">{e.positionTitle || '-'}</td>
+                    </StatusPill>
+                  </Td>
+                  <Td mono>{e.responseId?.slice(0, 12)}...</Td>
+                  <Td className="text-center tabular-nums">{e.scoreBefore ? Number(e.scoreBefore).toFixed(0) : '-'}</Td>
+                  <Td className="text-center font-medium tabular-nums text-admin-ink">{e.scoreAfter ? Number(e.scoreAfter).toFixed(0) : '-'}</Td>
+                  <Td className="text-xs text-admin-muted">{e.modelVersion || '-'}</Td>
+                  <Td className="text-xs">{e.positionTitle || '-'}</Td>
                 </tr>
               ))}
-              {(!events || events.length === 0) && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No scoring events yet. They will appear as candidates are scored.</td></tr>
-              )}
             </tbody>
-          </table>
+          </DataTableEl>
         </div>
-      </div>
+        )}
+      </SectionCard>
     </div>
+    </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

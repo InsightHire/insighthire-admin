@@ -13,9 +13,16 @@ export const dynamic = 'force-dynamic';
  * expected cadence — not the error count.
  */
 import { useState } from 'react';
+import { AlarmClock, CheckCircle2, Hourglass, Timer, XCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass } from '@/components/admin/controls';
 
 /** Jobs an admin can trigger by hand, matching the API's allowlist. */
 const RUNNABLE = new Set(['faa_airmen_import', 'sourcing_topics', 'coach_rerank', 'semantic_index']);
@@ -66,30 +73,22 @@ function JobRuns({ jobType }: { jobType: string }) {
     { refetchOnWindowFocus: false },
   );
   const runs: any[] = list.data?.runs ?? [];
-  if (list.isLoading) return <p className="px-4 py-3 text-xs text-gray-400">Loading runs…</p>;
-  if (!runs.length) return <p className="px-4 py-3 text-xs text-gray-500">This job has never run.</p>;
+  if (list.isLoading) return <p className="px-5 py-3 text-xs text-admin-muted">Loading runs…</p>;
+  if (!runs.length) return <p className="px-5 py-3 text-xs text-admin-muted">This job has never run.</p>;
 
   return (
-    <div className="space-y-1 bg-gray-50 px-4 py-3">
+    <div className="space-y-1.5 bg-admin-bg/70 px-5 py-3">
       {runs.map((r) => (
-        <div key={r.id} className="flex flex-wrap items-baseline gap-x-3 text-xs">
-          <span
-            className={`rounded px-1.5 py-0.5 font-medium ${
-              r.status === 'SUCCEEDED'
-                ? 'bg-green-50 text-green-700'
-                : r.status === 'FAILED'
-                  ? 'bg-red-50 text-red-700'
-                  : 'bg-blue-50 text-blue-700'
-            }`}
-          >
+        <div key={r.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+          <StatusPill tone={r.status === 'SUCCEEDED' ? 'success' : r.status === 'FAILED' ? 'danger' : 'info'}>
             {r.status.toLowerCase()}
-          </span>
-          <span className="text-gray-600">{new Date(r.startedAt).toLocaleString()}</span>
-          <span className="font-mono text-gray-400">{duration(r.durationMs)}</span>
-          {r.trigger === 'manual' ? <span className="text-purple-600">manual</span> : null}
-          {r.error ? <span className="w-full font-mono text-[11px] text-red-600">{r.error}</span> : null}
+          </StatusPill>
+          <span className="text-admin-secondary">{new Date(r.startedAt).toLocaleString()}</span>
+          <span className="admin-mono text-admin-muted">{duration(r.durationMs)}</span>
+          {r.trigger === 'manual' ? <span className="text-admin-accent-ink">manual</span> : null}
+          {r.error ? <span className="admin-mono w-full text-[11px] text-red-600">{r.error}</span> : null}
           {r.result ? (
-            <span className="w-full truncate font-mono text-[11px] text-gray-500">{JSON.stringify(r.result)}</span>
+            <span className="admin-mono w-full truncate text-[11px] text-admin-muted">{JSON.stringify(r.result)}</span>
           ) : null}
         </div>
       ))}
@@ -118,96 +117,86 @@ export default function ScheduledJobsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Scheduled jobs</h1>
-          <p className="text-sm text-gray-500">
+      <AdminPageChrome
+        icon={<Timer />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'Scheduled jobs' }]}
+        title="Scheduled jobs"
+        description={
+          <>
             Every recurring job, when it last ran, and whether it is overdue. A job that stops firing raises no error —
             overdue is how you find out.
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-4">
-          {[
-            { label: 'Overdue', value: summary.overdue, tone: summary.overdue > 0 ? 'text-red-600' : 'text-gray-900' },
-            { label: 'Failing', value: summary.failing, tone: summary.failing > 0 ? 'text-amber-700' : 'text-gray-900' },
-            { label: 'Healthy', value: summary.healthy, tone: 'text-green-700' },
-            { label: 'Awaiting first run', value: summary.awaitingFirstRun ?? 0, tone: 'text-gray-500' },
-          ].map((tile) => (
-            <div key={tile.label} className="rounded-lg border border-gray-200 bg-white p-3">
-              <p className="text-xs uppercase tracking-wide text-gray-500">{tile.label}</p>
-              <p className={`mt-1 text-2xl font-bold ${tile.tone}`}>{tile.value}</p>
-            </div>
-          ))}
-        </div>
+          </>
+        }
+      >
+      <div className="space-y-6">
+        <StatGrid cols={4}>
+          <StatTile label="Overdue" icon={AlarmClock} tone={summary.overdue > 0 ? 'critical' : 'muted'} value={summary.overdue} loading={health.isLoading} />
+          <StatTile label="Failing" icon={XCircle} tone={summary.failing > 0 ? 'warn' : 'muted'} value={summary.failing} loading={health.isLoading} />
+          <StatTile label="Healthy" icon={CheckCircle2} tone="ok" value={summary.healthy} loading={health.isLoading} />
+          <StatTile label="Awaiting first run" icon={Hourglass} tone="muted" value={summary.awaitingFirstRun ?? 0} loading={health.isLoading} />
+        </StatGrid>
 
         {started ? (
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+          <div className="rounded-admin border border-admin-info/20 bg-admin-info-soft px-4 py-2.5 text-sm text-sky-800">
             Started <span className="font-mono">{started}</span>. Long imports keep running after this page reloads —
             open the job to watch its run.
           </div>
         ) : null}
 
+        <SectionCard icon={<Timer />} title="Jobs" description="Click a job to see its last 20 runs" padded={false}>
         {health.isLoading ? (
-          <p className="text-sm text-gray-500">Loading…</p>
+          <p className="px-5 py-6 text-sm text-admin-muted">Loading…</p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+          <div className="overflow-x-auto">
+            <DataTableEl>
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium">Job</th>
-                  <th className="px-4 py-2 text-left font-medium">Cadence</th>
-                  <th className="px-4 py-2 text-left font-medium">Last run</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  <th className="px-4 py-2 text-right font-medium">24h</th>
-                  <th className="px-4 py-2 text-right font-medium">Took</th>
-                  <th className="px-4 py-2 text-right font-medium" />
+                  <Th>Job</Th>
+                  <Th>Cadence</Th>
+                  <Th>Last run</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">24h</Th>
+                  <Th className="text-right">Took</Th>
+                  <Th className="text-right" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {jobs.map((job) => (
                   <tr
                     key={job.jobType}
-                    className={`cursor-pointer hover:bg-gray-50 ${job.overdue ? 'bg-red-50/40' : ''}`}
+                    className={`cursor-pointer ${job.overdue ? 'bg-admin-danger-soft/40' : ''}`}
                     onClick={() => setOpen(open === job.jobType ? null : job.jobType)}
                   >
-                    <td className="px-4 py-2">
-                      <span className="font-medium text-gray-900">{job.label}</span>
-                      <span className="ml-2 font-mono text-[11px] text-gray-400">{job.jobType}</span>
+                    <Td>
+                      <span className="font-medium text-admin-ink">{job.label}</span>
+                      <span className="admin-mono ml-2 text-[11px] text-admin-muted">{job.jobType}</span>
                       {job.lastError && job.consecutiveFailures > 0 ? (
-                        <span className="block max-w-lg truncate font-mono text-[11px] text-red-600">
+                        <span className="admin-mono block max-w-lg truncate text-[11px] text-red-600">
                           {job.lastError}
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-2 text-gray-500">{cadence(job.everyMinutes)}</td>
-                    <td className="px-4 py-2 text-gray-600">{ago(job.minutesSinceLastRun)}</td>
-                    <td className="px-4 py-2">
+                    </Td>
+                    <Td className="text-admin-muted">{cadence(job.everyMinutes)}</Td>
+                    <Td>{ago(job.minutesSinceLastRun)}</Td>
+                    <Td>
                       {job.overdue ? (
-                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
-                          {job.lastRunAt ? 'overdue' : 'never run'}
-                        </span>
+                        <StatusPill tone="danger">{job.lastRunAt ? 'overdue' : 'never run'}</StatusPill>
                       ) : job.awaitingFirstRun ? (
-                        <span
-                          title="Registered, but its first window has not come round yet"
-                          className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500"
-                        >
+                        <StatusPill tone="neutral" title="Registered, but its first window has not come round yet">
                           awaiting first run
-                        </span>
+                        </StatusPill>
                       ) : job.consecutiveFailures > 0 ? (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-                          failing ×{job.consecutiveFailures}
-                        </span>
+                        <StatusPill tone="warn">failing ×{job.consecutiveFailures}</StatusPill>
                       ) : (
-                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700">ok</span>
+                        <StatusPill tone="success">ok</StatusPill>
                       )}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-gray-600">
+                    </Td>
+                    <Td mono className="text-right">
                       {job.runs24h}
                       {job.failures24h > 0 ? <span className="text-red-600"> / {job.failures24h}✗</span> : null}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-gray-500">{duration(job.lastDurationMs)}</td>
-                    <td className="px-4 py-2 text-right">
+                    </Td>
+                    <Td mono className="text-right text-admin-muted">{duration(job.lastDurationMs)}</Td>
+                    <Td className="text-right">
                       {RUNNABLE.has(job.jobType) ? (
                         <button
                           type="button"
@@ -216,12 +205,12 @@ export default function ScheduledJobsPage() {
                             runJob.mutate({ jobType: job.jobType });
                           }}
                           disabled={runJob.isPending}
-                          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                          className={buttonClass.small}
                         >
                           Run now
                         </button>
                       ) : null}
-                    </td>
+                    </Td>
                   </tr>
                 ))}
                 {open ? (
@@ -232,10 +221,12 @@ export default function ScheduledJobsPage() {
                   </tr>
                 ) : null}
               </tbody>
-            </table>
+            </DataTableEl>
           </div>
         )}
+        </SectionCard>
       </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

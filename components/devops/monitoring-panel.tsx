@@ -48,16 +48,16 @@ function ServiceRow({
   detail: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 py-2 border-b border-gray-100 last:border-0">
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-admin-border last:border-0">
       <div className="flex items-center gap-2 min-w-0">
         {ok ? (
           <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
         ) : (
           <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
         )}
-        <span className="text-sm font-medium text-gray-900 truncate">{name}</span>
+        <span className="text-sm font-medium text-admin-ink truncate">{name}</span>
       </div>
-      <span className={`text-xs shrink-0 ${ok ? 'text-gray-500' : 'text-red-700'}`}>{detail}</span>
+      <span className={`text-xs shrink-0 ${ok ? 'text-admin-muted' : 'text-red-700'}`}>{detail}</span>
     </div>
   );
 }
@@ -82,15 +82,17 @@ export function DevopsMonitoringPanel({
       : 60;
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden mb-8">
-      <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Server className="h-5 w-5 text-gray-500" />
-          <h2 className="text-lg font-semibold text-gray-900">Production monitoring</h2>
+    <div className="admin-panel overflow-hidden mb-6">
+      <div className="px-5 py-4 border-b border-admin-border flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-admin-accent-border bg-admin-accent-soft text-admin-accent">
+            <Server className="h-4 w-4" />
+          </div>
+          <h2 className="text-[15px] font-semibold text-admin-ink">Production monitoring</h2>
         </div>
-        <div className="flex flex-wrap gap-2 text-xs text-gray-500">
+        <div className="flex flex-wrap gap-2 text-xs text-admin-muted">
           {info?.auto_spawn === true && (
-            <span className="rounded-full bg-indigo-100 text-indigo-800 px-2 py-0.5 font-medium">
+            <span className="rounded-full bg-admin-accent-soft text-admin-accent-ink ring-1 ring-inset ring-admin-accent/20 px-2 py-0.5 font-medium">
               Cursor auto-fix on
             </span>
           )}
@@ -103,11 +105,11 @@ export function DevopsMonitoringPanel({
         </div>
       </div>
 
-      <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">HTTP uptime ({uptime?.targets ?? 0} services)</h3>
+          <h3 className="text-sm font-semibold text-admin-ink mb-3">HTTP uptime ({uptime?.targets ?? 0} services)</h3>
           {!uptime?.results?.length ? (
-            <p className="text-sm text-gray-500">No probe data yet.</p>
+            <p className="text-sm text-admin-muted">No probe data yet.</p>
           ) : (
             <div>
               {uptime.results.map((r) => (
@@ -127,14 +129,14 @@ export function DevopsMonitoringPanel({
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Railway deployment status</h3>
+          <h3 className="text-sm font-semibold text-admin-ink mb-3">Railway deployment status</h3>
           {railway?.configured === false ? (
-            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md p-3">
+            <p className="text-sm text-amber-900 bg-admin-warn-soft border border-admin-warn/25 rounded-admin-sm p-3">
               Railway API token not set on the devops worker — set <code className="text-xs">RAILWAY_API_TOKEN</code>{' '}
               to monitor Postgres, Redis, locomotive, and crash states.
             </p>
           ) : !railway?.results?.length ? (
-            <p className="text-sm text-gray-500">{railway?.error ?? 'No Railway scan data yet.'}</p>
+            <p className="text-sm text-admin-muted">{railway?.error ?? 'No Railway scan data yet.'}</p>
           ) : (
             <div>
               {railway.results.map((r) => (
@@ -152,7 +154,7 @@ export function DevopsMonitoringPanel({
             </div>
           )}
           {railwayConfig?.api_configured === true && (
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="text-xs text-admin-muted mt-3">
               Scanning {railway?.services ?? 0} Railway services every{' '}
               {typeof railwayConfig.interval_ms === 'number'
                 ? Math.round(railwayConfig.interval_ms / 1000)
@@ -163,9 +165,9 @@ export function DevopsMonitoringPanel({
         </div>
       </div>
 
-      <div className="px-6 py-3 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
+      <div className="px-5 py-3 bg-admin-bg/50 border-t border-admin-border text-xs text-admin-muted">
         This dashboard is served from{' '}
-        <span className="font-medium text-gray-700">admin.insighthire.com/devops</span> via the API — the devops
+        <span className="font-medium text-admin-secondary">admin.insighthire.com/devops</span> via the API — the devops
         worker runs as an internal Railway service, not an operator-facing app.
       </div>
     </div>

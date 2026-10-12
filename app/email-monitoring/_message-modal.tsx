@@ -88,18 +88,18 @@ export function EmailMessageModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
-        className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+        className="bg-white rounded-admin border border-admin-border shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 truncate pr-4">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-admin-border">
+          <h3 className="text-[15px] font-semibold text-admin-ink truncate pr-4">
             {type === 'mailgun' && mailgunMeta?.event && (
-              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-800 mr-2">
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/15 mr-2">
                 {mailgunMeta.event}
               </span>
             )}
             {type === 'inbound' && (
-              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 mr-2">
+              <span className="inline-flex px-2 py-0.5 text-xs font-medium rounded-full bg-admin-accent-soft text-admin-accent-ink ring-1 ring-inset ring-admin-accent/20 mr-2">
                 Inbound
               </span>
             )}
@@ -108,7 +108,7 @@ export function EmailMessageModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
+            className="rounded-admin-sm p-1 text-admin-muted hover:bg-admin-bg hover:text-admin-ink"
             aria-label="Close"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +117,7 @@ export function EmailMessageModal({
           </button>
         </div>
         {type === 'mailgun' && mailgunMeta && (
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-700 space-y-1">
+          <div className="px-5 py-3 bg-admin-bg/60 border-b border-admin-border text-sm text-admin-secondary space-y-1">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
               {mailgunMeta.from && <span><strong>From:</strong> {mailgunMeta.from}</span>}
               {mailgunMeta.to && <span><strong>To:</strong> {mailgunMeta.to}</span>}
@@ -127,7 +127,7 @@ export function EmailMessageModal({
           </div>
         )}
         {type === 'inbound' && inboundBody && (
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 text-sm text-gray-700 space-y-1">
+          <div className="px-5 py-3 bg-admin-bg/60 border-b border-admin-border text-sm text-admin-secondary space-y-1">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
               <span><strong>From:</strong> {inboundBody.fromEmail}</span>
               <span><strong>To:</strong> {inboundBody.toEmail}</span>
@@ -141,19 +141,19 @@ export function EmailMessageModal({
         <div className="flex-1 overflow-auto p-4 min-h-[200px]">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-admin-accent" />
             </div>
           )}
           {type === 'mailgun' && mailgunStorageKey && !isLoading && mailgunError && (
             <div className="space-y-3">
-              <div className="text-sm text-amber-700 bg-amber-50 p-4 rounded-lg">
+              <div className="text-sm text-amber-900 bg-admin-warn-soft border border-admin-warn/25 p-4 rounded-admin-sm">
                 {mailgunError.message}
               </div>
-              <p className="text-sm text-gray-500">Message body isn’t available for this event.</p>
+              <p className="text-sm text-admin-muted">Message body isn’t available for this event.</p>
             </div>
           )}
           {type === 'mailgun' && (noMailgunBody || mailgunBodyFailed) && !isLoading && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-admin-muted">
               Message body isn’t stored by Mailgun for this event.
             </p>
           )}
@@ -163,15 +163,15 @@ export function EmailMessageModal({
                 <iframe
                   title="Email body"
                   srcDoc={bodyHtml}
-                  className="w-full min-h-[360px] border border-gray-200 rounded-lg"
+                  className="w-full min-h-[360px] border border-admin-border rounded-admin-sm"
                   sandbox="allow-same-origin"
                 />
               ) : bodyPlain ? (
-                <pre className="p-4 text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg overflow-auto max-h-[60vh]">
+                <pre className="p-4 text-sm text-admin-secondary whitespace-pre-wrap bg-admin-bg rounded-admin-sm overflow-auto max-h-[60vh]">
                   {bodyPlain}
                 </pre>
               ) : type === 'sent' || type === 'inbound' ? (
-                <p className="text-gray-500">No message body available.</p>
+                <p className="text-admin-muted">No message body available.</p>
               ) : null}
             </>
           )}

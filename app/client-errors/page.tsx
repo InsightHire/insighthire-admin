@@ -7,9 +7,17 @@ export const dynamic = 'force-dynamic';
  * app's /api/errors route, which forwards to the API's /client-errors sink.
  */
 import { useState } from 'react';
+import { Bug, CheckCircle2, ChevronDown, ChevronRight, Layers, RotateCcw } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { SeverityBadge } from '@/components/admin/severity-badge';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { buttonClass } from '@/components/admin/controls';
 
 const DAY_OPTIONS = [1, 7, 30] as const;
 
@@ -19,37 +27,33 @@ function ErrorGroupDetail({ fingerprint }: { fingerprint: string }) {
     { refetchOnWindowFocus: false },
   );
   const events: any[] = detail.data ?? [];
-  if (detail.isLoading) return <p className="text-xs text-gray-400 px-3 py-2">Loading events…</p>;
+  if (detail.isLoading) return <p className="px-3 py-2 text-xs text-admin-muted">Loading events…</p>;
   return (
-    <div className="space-y-2 px-3 py-2 bg-gray-50 rounded-lg">
+    <div className="space-y-2 rounded-admin-sm border border-admin-border bg-admin-bg/60 px-3 py-2">
       {events.map((e) => (
-        <div key={e.id} className="text-xs text-gray-600 border-b border-gray-100 pb-2 last:border-0 last:pb-0">
-          <p className="text-gray-500">
+        <div key={e.id} className="border-b border-admin-border pb-2 text-xs text-admin-secondary last:border-0 last:pb-0">
+          <p className="text-admin-muted">
             {new Date(e.createdAt).toLocaleString()}
-            {e.url ? <span className="ml-2 text-gray-400">{e.url}</span> : null}
-            {e.ip ? <span className="ml-2 font-mono text-gray-400">{e.ip}</span> : null}
+            {e.url ? <span className="ml-2 text-admin-muted">{e.url}</span> : null}
+            {e.ip ? <span className="ml-2 font-mono text-admin-muted">{e.ip}</span> : null}
           </p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
             {e.organizationName ? (
-              <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-medium text-indigo-700">
-                {e.organizationName}
-              </span>
+              <StatusPill tone="brand" dot={false}>{e.organizationName}</StatusPill>
             ) : (
-              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-500">no tenant</span>
+              <StatusPill tone="neutral" dot={false}>no tenant</StatusPill>
             )}
-            {e.userEmail ? <span className="text-gray-700">{e.userEmail}</span> : null}
-            {e.userRole ? <span className="text-gray-400">{e.userRole}</span> : null}
-            {e.impersonating ? (
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-800">impersonating</span>
-            ) : null}
+            {e.userEmail ? <span className="text-admin-ink">{e.userEmail}</span> : null}
+            {e.userRole ? <span className="text-admin-muted">{e.userRole}</span> : null}
+            {e.impersonating ? <StatusPill tone="warn" dot={false}>impersonating</StatusPill> : null}
             {e.journeySessionId ? (
-              <span className="font-mono text-gray-400">session {e.journeySessionId}</span>
+              <span className="font-mono text-admin-muted">session {e.journeySessionId}</span>
             ) : null}
-            {e.viewport ? <span className="font-mono text-gray-400">{e.viewport}</span> : null}
-            {e.releaseSha ? <span className="font-mono text-gray-400">build {e.releaseSha.slice(0, 8)}</span> : null}
+            {e.viewport ? <span className="font-mono text-admin-muted">{e.viewport}</span> : null}
+            {e.releaseSha ? <span className="font-mono text-admin-muted">build {e.releaseSha.slice(0, 8)}</span> : null}
           </p>
           {e.stack && (
-            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap font-mono text-[11px] text-gray-500">
+            <pre className="mt-1.5 max-h-40 overflow-auto whitespace-pre-wrap rounded-admin-sm border border-admin-border bg-white p-2 font-mono text-[11px] text-admin-secondary">
               {e.stack}
             </pre>
           )}
@@ -86,116 +90,121 @@ export default function ClientErrorsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Client errors</h1>
-            <p className="text-sm text-gray-500">
-              Browser crashes reported by the tenant app, grouped by fingerprint.
-            </p>
-          </div>
-          <div className="flex gap-1">
-            {DAY_OPTIONS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={`px-2.5 py-1 text-xs rounded-full font-medium ${
-                  days === d ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                }`}
-              >
-                {d === 1 ? '24h' : `${d}d`}
-              </button>
-            ))}
+      <AdminPageChrome
+        icon={<Bug />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'Client errors' }]}
+        title="Client errors"
+        description="Browser crashes reported by the tenant app, grouped by fingerprint."
+        actions={
+          <>
+            <Segmented
+              size="sm"
+              ariaLabel="Time window"
+              options={DAY_OPTIONS.map((d) => ({ value: d as number, label: d === 1 ? '24h' : `${d}d` }))}
+              value={days}
+              onChange={setDays}
+            />
             <button
               onClick={() => backfill.mutate({})}
               disabled={backfill.isPending}
               title="Re-resolve tenants from the session id in each error's URL"
-              className="ml-2 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 disabled:opacity-50"
+              className={buttonClass.secondary}
             >
+              <RotateCcw className="h-4 w-4" />
               {backfill.isPending ? 'Recovering…' : 'Recover tenants'}
             </button>
-          </div>
-        </div>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {recovered ? (
+            <div className="rounded-admin-sm border border-admin-border bg-admin-bg px-4 py-2 text-xs text-admin-secondary">{recovered}</div>
+          ) : null}
 
-        {recovered ? (
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-700">{recovered}</div>
-        ) : null}
-
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
-          {list.isLoading ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Loading…</p>
-          ) : groups.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-gray-400">
-              No client errors reported in the last {days === 1 ? '24 hours' : `${days} days`}. Good sign.
-            </p>
-          ) : (
-            groups.map((g) => (
-              <div key={g.fingerprint} className="px-4 py-3">
-                <button
-                  onClick={() => setOpen(open === g.fingerprint ? null : g.fingerprint)}
-                  className="w-full text-left flex flex-wrap items-start gap-3"
-                >
-                  <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 font-semibold ${
-                    g.count >= 10 ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    ×{g.count}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {g.sample?.message ?? g.fingerprint}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      <span className="font-mono">{g.sample?.source}</span>
-                      {g.sample?.kind ? <span className="ml-2 font-mono">{g.sample.kind}</span> : null}
-                      {g.sample?.url ? <span className="ml-2">{g.sample.url}</span> : null}
-                    </p>
-                    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                      {/* Blast radius. "Every tenant" and "one customer" are
-                          the same message but completely different problems. */}
-                      {g.organizationCount > 0 ? (
-                        g.organizations.slice(0, 3).map((o: any) => (
-                          <span key={o.id} className="rounded bg-indigo-50 px-1.5 py-0.5 font-medium text-indigo-700">
-                            {o.name}
-                          </span>
-                        ))
+          <SectionCard
+            icon={<Layers />}
+            title="Error groups"
+            description={`Last ${days === 1 ? '24 hours' : `${days} days`}. Click a group to see its events.`}
+            padded={false}
+          >
+            {list.isLoading ? (
+              <p className="px-5 py-6 text-sm text-admin-muted">Loading…</p>
+            ) : groups.length === 0 ? (
+              <EmptyState
+                compact
+                className="border-0 shadow-none"
+                icon={<CheckCircle2 />}
+                title={`No client errors reported in the last ${days === 1 ? '24 hours' : `${days} days`}.`}
+                description="Good sign."
+              />
+            ) : (
+              <div className="divide-y divide-admin-border">
+                {groups.map((g) => (
+                  <div key={g.fingerprint} className="px-5 py-3.5">
+                    <button
+                      onClick={() => setOpen(open === g.fingerprint ? null : g.fingerprint)}
+                      className="flex w-full flex-wrap items-start gap-3 text-left"
+                    >
+                      <SeverityBadge severity={g.count >= 10 ? 'critical' : 'warn'} className="shrink-0 tabular-nums">
+                        ×{g.count}
+                      </SeverityBadge>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-admin-ink">
+                          {g.sample?.message ?? g.fingerprint}
+                        </p>
+                        <p className="mt-0.5 text-xs text-admin-muted">
+                          <span className="font-mono">{g.sample?.source}</span>
+                          {g.sample?.kind ? <span className="ml-2 font-mono">{g.sample.kind}</span> : null}
+                          {g.sample?.url ? <span className="ml-2">{g.sample.url}</span> : null}
+                        </p>
+                        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                          {/* Blast radius. "Every tenant" and "one customer" are
+                              the same message but completely different problems. */}
+                          {g.organizationCount > 0 ? (
+                            g.organizations.slice(0, 3).map((o: any) => (
+                              <StatusPill key={o.id} tone="brand" dot={false}>{o.name}</StatusPill>
+                            ))
+                          ) : (
+                            <StatusPill tone="neutral" dot={false}>no tenant recorded</StatusPill>
+                          )}
+                          {g.organizationCount > 3 ? (
+                            <span className="text-admin-muted">+{g.organizationCount - 3} more tenants</span>
+                          ) : null}
+                          {g.userCount > 0 ? (
+                            <span className="text-admin-muted">
+                              {g.userCount} {g.userCount === 1 ? 'user' : 'users'}
+                            </span>
+                          ) : null}
+                          {g.sample?.userEmail && g.userCount === 1 ? (
+                            <span className="text-admin-secondary">{g.sample.userEmail}</span>
+                          ) : null}
+                          {g.sample?.impersonating ? <StatusPill tone="warn" dot={false}>impersonating</StatusPill> : null}
+                          {g.unattributed > 0 && g.organizationCount > 0 ? (
+                            <span className="text-admin-muted">{g.unattributed} unattributed</span>
+                          ) : null}
+                        </p>
+                        <p className="mt-1 text-xs text-admin-muted">
+                          First {new Date(g.firstSeen).toLocaleString()} · Last {new Date(g.lastSeen).toLocaleString()}
+                        </p>
+                      </div>
+                      {open === g.fingerprint ? (
+                        <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-admin-muted" />
                       ) : (
-                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-500">no tenant recorded</span>
+                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-admin-muted" />
                       )}
-                      {g.organizationCount > 3 ? (
-                        <span className="text-gray-500">+{g.organizationCount - 3} more tenants</span>
-                      ) : null}
-                      {g.userCount > 0 ? (
-                        <span className="text-gray-500">
-                          {g.userCount} {g.userCount === 1 ? 'user' : 'users'}
-                        </span>
-                      ) : null}
-                      {g.sample?.userEmail && g.userCount === 1 ? (
-                        <span className="text-gray-600">{g.sample.userEmail}</span>
-                      ) : null}
-                      {g.sample?.impersonating ? (
-                        <span className="rounded bg-amber-100 px-1.5 py-0.5 font-medium text-amber-800">
-                          impersonating
-                        </span>
-                      ) : null}
-                      {g.unattributed > 0 && g.organizationCount > 0 ? (
-                        <span className="text-gray-400">{g.unattributed} unattributed</span>
-                      ) : null}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      First {new Date(g.firstSeen).toLocaleString()} · Last {new Date(g.lastSeen).toLocaleString()}
-                    </p>
+                    </button>
+                    {open === g.fingerprint && (
+                      <div className="mt-3">
+                        <ErrorGroupDetail fingerprint={g.fingerprint} />
+                      </div>
+                    )}
                   </div>
-                </button>
-                {open === g.fingerprint && (
-                  <div className="mt-2">
-                    <ErrorGroupDetail fingerprint={g.fingerprint} />
-                  </div>
-                )}
+                ))}
               </div>
-            ))
-          )}
+            )}
+          </SectionCard>
         </div>
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

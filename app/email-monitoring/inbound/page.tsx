@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowPathIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { DataTableEl, Th } from '@/components/admin/data-table';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, selectClass } from '@/components/admin/controls';
+import { ArrowPathIcon, FunnelIcon, InboxArrowDownIcon } from '@heroicons/react/24/outline';
 import { formatDate, getStatusBadge } from '../_utils';
 import { EmailMessageModal } from '../_message-modal';
 
@@ -41,23 +44,23 @@ export default function InboundEmailsPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-admin-accent" />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm text-slate-800">
+      <div className="rounded-admin-sm border border-admin-border bg-admin-bg px-4 py-3 text-sm text-admin-secondary">
         <strong className="font-semibold">Durable archive:</strong> inbound bodies are kept in{' '}
         <code className="font-mono text-xs">inbound_email_logs</code> past Mailgun retention.
         Only GDPR candidate erasure removes them — there is no TTL purge.
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-center">
+      <div className="admin-panel p-4 flex flex-wrap gap-4 items-center">
         <div className="flex items-center gap-2">
-          <FunnelIcon className="h-5 w-5 text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">Filters:</span>
+          <FunnelIcon className="h-5 w-5 text-admin-muted" />
+          <span className="text-sm font-medium text-admin-secondary">Filters:</span>
         </div>
         <select
           value={organizationId}
@@ -65,7 +68,7 @@ export default function InboundEmailsPage() {
             setOrganizationId(e.target.value);
             setPage(1);
           }}
-          className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
+          className={`${selectClass} py-1.5`}
         >
           <option value="">All accounts</option>
           {orgsData?.organizations?.map((org: any) => (
@@ -80,7 +83,7 @@ export default function InboundEmailsPage() {
             setStatus(e.target.value as InboundStatus);
             setPage(1);
           }}
-          className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 bg-white"
+          className={`${selectClass} py-1.5`}
         >
           <option value="ALL">All status</option>
           <option value="RECEIVED">Received</option>
@@ -92,94 +95,96 @@ export default function InboundEmailsPage() {
         </select>
         <button
           onClick={() => refetch()}
-          className="ml-auto flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800"
+          className={`${buttonClass.secondary} ml-auto`}
         >
           <ArrowPathIcon className="h-4 w-4" /> Refresh
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="admin-panel overflow-hidden">
         {isLoading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-admin-accent mx-auto" />
           </div>
         ) : !data?.items?.length ? (
-          <div className="text-center text-gray-500 py-12">No inbound emails found</div>
+          <EmptyState compact className="border-0 shadow-none" icon={<InboxArrowDownIcon />} title="No inbound emails found" />
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <div className="overflow-x-auto">
+          <DataTableEl>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">From</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">To</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Org</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Received</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <Th>From</Th>
+                <Th>To</Th>
+                <Th>Subject</Th>
+                <Th>Org</Th>
+                <Th>Received</Th>
+                <Th>Status</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {data.items.map((item: any) => (
                 <tr
                   key={item.id}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => setMessageModalId(item.id)}
                 >
                   <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900 truncate max-w-[180px]" title={item.fromEmail}>
+                    <div className="text-sm text-admin-ink truncate max-w-[180px]" title={item.fromEmail}>
                       {item.fromEmail}
                     </div>
                     {item.candidateName && (
-                      <div className="text-xs text-gray-500">{item.candidateName}</div>
+                      <div className="text-xs text-admin-muted">{item.candidateName}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 font-mono text-xs truncate max-w-[160px]" title={item.toEmail}>
+                  <td className="px-4 py-3 text-sm text-admin-muted font-mono text-xs truncate max-w-[160px]" title={item.toEmail}>
                     {item.toEmail}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900 max-w-[220px] truncate" title={item.subject}>
+                    <div className="text-sm text-admin-ink max-w-[220px] truncate" title={item.subject}>
                       {item.subject || '(no subject)'}
                     </div>
                     {!item.hasBody && (
                       <span className="text-[10px] text-amber-700">Missing body</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-admin-muted">
                     <div>{item.organizationName}</div>
                     {item.positionTitle && (
-                      <div className="text-xs text-gray-400">{item.positionTitle}</div>
+                      <div className="text-xs text-admin-muted">{item.positionTitle}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{formatDate(item.receivedAt)}</td>
+                  <td className="px-4 py-3 text-sm text-admin-muted">{formatDate(item.receivedAt)}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(item.status)}`}>
                       {item.status}
                     </span>
                     {item.source && item.source !== 'UNKNOWN' && (
-                      <div className="text-[10px] text-gray-400 mt-0.5">{item.source}</div>
+                      <div className="text-[10px] text-admin-muted mt-0.5">{item.source}</div>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTableEl>
+          </div>
         )}
         {data && data.totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
+          <div className="px-4 py-3 border-t border-admin-border flex items-center justify-between">
+            <div className="text-sm text-admin-muted">
               Page {data.page} of {data.totalPages} ({data.total} total)
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                className={buttonClass.small}
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
                 disabled={page === data.totalPages}
-                className="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                className={buttonClass.small}
               >
                 Next
               </button>

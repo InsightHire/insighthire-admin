@@ -6,6 +6,14 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { ReliabilitySubnav } from '@/components/admin/reliability-subnav';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, inputClass, selectClass } from '@/components/admin/controls';
 import {
   CheckCircle2,
   XCircle,
@@ -49,28 +57,28 @@ type E2eRunRow = {
 function StatusBadge({ status }: { status: string }) {
   if (status === 'passed') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+      <StatusPill tone="success" dot={false}>
         <CheckCircle2 className="h-3.5 w-3.5" /> Passed
-      </span>
+      </StatusPill>
     );
   }
   if (status === 'failed') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+      <StatusPill tone="danger" dot={false}>
         <XCircle className="h-3.5 w-3.5" /> Failed
-      </span>
+      </StatusPill>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+    <StatusPill tone="neutral" dot={false}>
       <Clock className="h-3.5 w-3.5" /> {status}
-    </span>
+    </StatusPill>
   );
 }
 
 function TestStatusIcon({ status }: { status: TestStatus | string }) {
   if (status === 'passed') return <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />;
-  if (status === 'skipped') return <MinusCircle className="h-4 w-4 text-gray-400 shrink-0" />;
+  if (status === 'skipped') return <MinusCircle className="h-4 w-4 text-admin-muted shrink-0" />;
   if (status === 'flaky') return <Zap className="h-4 w-4 text-amber-600 shrink-0" />;
   return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
 }
@@ -191,17 +199,20 @@ function RunTestList({
 
   if (!complete && sourceTests.length === 0 && expectedTotal === 0) {
     return (
-      <p className="text-sm text-gray-500 py-4">
-        No per-test breakdown for this run. Re-run CI to capture test-level detail, or open the
-        GitHub workflow for the Playwright HTML report.
-      </p>
+      <EmptyState
+        compact
+        className="border-dashed shadow-none"
+        icon={<FlaskConical />}
+        title="No per-test breakdown for this run"
+        description="Re-run CI to capture test-level detail, or open the GitHub workflow for the Playwright HTML report."
+      />
     );
   }
 
   return (
     <div className="space-y-3">
       {!complete && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <div className="rounded-admin-sm border border-admin-warn/25 bg-admin-warn-soft px-3 py-2 text-sm text-amber-900">
           Showing <strong>{sourceTests.length} failed</strong> test
           {sourceTests.length === 1 ? '' : 's'} individually ({counts.passed} passed and{' '}
           {counts.skipped} skipped are in the summary only). Re-run CI after the latest deploy for
@@ -210,45 +221,40 @@ function RunTestList({
       )}
 
       <div className="flex flex-wrap items-center gap-2">
-        {(['all', 'passed', 'failed', 'skipped'] as const).map((key) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setStatusFilter(key)}
-            className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors ${
-              statusFilter === key
-                ? 'bg-indigo-100 text-indigo-800'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {key === 'all'
-              ? `All (${counts.total})`
-              : `${key} (${counts[key as keyof typeof counts]})`}
-          </button>
-        ))}
+        <Segmented<'all' | TestStatus>
+          size="sm"
+          ariaLabel="Filter tests by status"
+          options={(['all', 'passed', 'failed', 'skipped'] as const).map((key) => ({
+            value: key,
+            label: key === 'all' ? 'All' : key.charAt(0).toUpperCase() + key.slice(1),
+            count: key === 'all' ? counts.total : counts[key as keyof typeof counts],
+          }))}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
         <div className="relative flex-1 min-w-[180px] max-w-xs ml-auto">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-admin-muted" />
           <input
             type="search"
             placeholder="Search tests…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 py-1.5 pl-8 pr-2 text-sm"
+            className={`${inputClass} py-1.5 pl-8`}
           />
         </div>
       </div>
 
-      <div className="rounded-lg border border-gray-200 overflow-hidden max-h-[480px] overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 sticky top-0 z-10">
-            <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
-              <th className="px-3 py-2 w-8" />
-              <th className="px-3 py-2">Test</th>
-              <th className="px-3 py-2 hidden md:table-cell">File</th>
-              <th className="px-3 py-2 w-20 text-right">Time</th>
+      <div className="max-h-[480px] overflow-hidden overflow-y-auto rounded-admin-sm border border-admin-border bg-white">
+        <DataTableEl className="w-full">
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <Th className="w-8 bg-admin-bg px-3" />
+              <Th className="bg-admin-bg px-3">Test</Th>
+              <Th className="hidden bg-admin-bg px-3 md:table-cell">File</Th>
+              <Th className="w-20 bg-admin-bg px-3 text-right">Time</Th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {filtered.map((test, i) => {
               const rowKey = `${test.title}-${i}`;
               const isOpen = expanded === rowKey;
@@ -256,34 +262,34 @@ function RunTestList({
               return (
                 <Fragment key={rowKey}>
                   <tr
-                    className={`${hasError ? 'cursor-pointer hover:bg-gray-50' : ''} ${
+                    className={`${hasError ? 'cursor-pointer' : ''} ${
                       test.status !== 'passed' && test.status !== 'skipped' ? 'bg-red-50/30' : ''
                     }`}
                     onClick={() => hasError && setExpanded(isOpen ? null : rowKey)}
                   >
-                    <td className="px-3 py-2">
+                    <Td className="px-3 py-2">
                       <TestStatusIcon status={test.status} />
-                    </td>
-                    <td className="px-3 py-2 min-w-0">
-                      <p className="font-medium text-gray-900 break-words">{test.title}</p>
+                    </Td>
+                    <Td className="min-w-0 px-3 py-2">
+                      <p className="font-medium text-admin-ink break-words">{test.title}</p>
                       <div className="flex flex-wrap gap-2 mt-0.5">
                         {test.project && (
-                          <span className="text-xs text-gray-400">{test.project}</span>
+                          <span className="text-xs text-admin-muted">{test.project}</span>
                         )}
                         {test.retries != null && test.retries > 0 && (
                           <span className="text-xs text-amber-600">{test.retries} retries</span>
                         )}
-                        <span className="text-xs text-gray-400 capitalize md:hidden">
+                        <span className="text-xs text-admin-muted capitalize md:hidden">
                           {basename(test.file)}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-3 py-2 hidden md:table-cell text-xs text-gray-500 font-mono truncate max-w-[200px]">
+                    </Td>
+                    <Td mono className="hidden max-w-[200px] truncate px-3 py-2 text-admin-muted md:table-cell">
                       {basename(test.file) || '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right text-xs text-gray-500 tabular-nums">
+                    </Td>
+                    <Td className="px-3 py-2 text-right text-xs text-admin-muted tabular-nums">
                       {formatDuration(test.durationMs)}
-                    </td>
+                    </Td>
                   </tr>
                   {isOpen && test.error && (
                     <tr>
@@ -298,9 +304,9 @@ function RunTestList({
               );
             })}
           </tbody>
-        </table>
+        </DataTableEl>
         {filtered.length === 0 && (
-          <p className="text-sm text-gray-500 text-center py-6">
+          <p className="text-sm text-admin-muted text-center py-6">
             {!complete && (statusFilter === 'passed' || statusFilter === 'skipped')
               ? `${counts[statusFilter]} ${statusFilter} tests — open a newer CI run for the full list, or use GitHub for the HTML report.`
               : 'No tests match your filter.'}
@@ -319,7 +325,7 @@ function RunDetailPanel({ runId }: { runId: string }) {
 
   if (isLoading) {
     return (
-      <div className="px-5 py-6 bg-slate-50 border-t border-gray-100 text-sm text-gray-500">
+      <div className="border-t border-admin-border bg-admin-bg/60 px-5 py-6 text-sm text-admin-muted">
         Loading test results…
       </div>
     );
@@ -329,11 +335,11 @@ function RunDetailPanel({ runId }: { runId: string }) {
   const tests = (detail.testResults ?? []) as TestResult[];
 
   return (
-    <div className="px-5 py-4 bg-slate-50 border-t border-gray-100 space-y-4">
+    <div className="space-y-4 border-t border-admin-border bg-admin-bg/60 px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-gray-900 capitalize">{detail.suite} — test breakdown</h3>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h3 className="font-semibold text-admin-ink capitalize">{detail.suite} — test breakdown</h3>
+          <p className="text-xs text-admin-muted mt-0.5">
             {detail.passed} passed · {detail.failed} failed · {detail.skipped} skipped ·{' '}
             {formatDuration(detail.durationMs)} total
           </p>
@@ -345,7 +351,7 @@ function RunDetailPanel({ runId }: { runId: string }) {
               href={detail.githubRunUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-indigo-600 hover:underline inline-flex items-center gap-1"
+              className="inline-flex items-center gap-1 text-xs font-medium text-admin-accent hover:text-admin-accent-ink"
             >
               GitHub run <ExternalLink className="h-3 w-3" />
             </a>
@@ -390,189 +396,191 @@ export default function E2eResultsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <ReliabilitySubnav />
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <FlaskConical className="h-7 w-7 text-teal-700" />
-              E2E Test Results
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Production Playwright suite from{' '}
-              <a
-                href="https://github.com/InsightHire/insighthire-e2e/actions"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-indigo-600 hover:underline inline-flex items-center gap-0.5"
-              >
-                insighthire-e2e
-                <ExternalLink className="h-3 w-3" />
-              </a>
-              {' '}— runs every 6h and after deploys. Click a run to drill into individual tests.
-            </p>
-          </div>
+      <AdminPageChrome
+        icon={<FlaskConical />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'Reliability', href: '/reliability' }, { label: 'E2E tests' }]}
+        title="E2E Test Results"
+        description={
+          <>
+            Production Playwright suite from{' '}
+            <a
+              href="https://github.com/InsightHire/insighthire-e2e/actions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-0.5 font-medium text-admin-accent hover:text-admin-accent-ink"
+            >
+              insighthire-e2e
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            {' '}— runs every 6h and after deploys. Click a run to drill into individual tests.
+          </>
+        }
+        actions={
           <button
             type="button"
             onClick={() => {
               refetchSummary();
               refetchRuns();
             }}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            className={buttonClass.secondary}
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Latest smoke</p>
-            {summary?.latestSmoke ? (
-              <div className="mt-2 space-y-2">
-                <StatusBadge status={summary.latestSmoke.status} />
-                <p className="text-sm text-gray-700">
-                  {summary.latestSmoke.passed} passed · {summary.latestSmoke.failed} failed ·{' '}
-                  {summary.latestSmoke.skipped} skipped
-                </p>
-                <p className="text-xs text-gray-400">{formatWhen(summary.latestSmoke.finishedAt)}</p>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(summary.latestSmoke.id)}
-                  className="text-xs text-indigo-600 hover:underline"
-                >
-                  View tests →
-                </button>
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-gray-400">No runs recorded yet</p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Latest functional
-            </p>
-            {summary?.latestFunctional ? (
-              <div className="mt-2 space-y-2">
-                <StatusBadge status={summary.latestFunctional.status} />
-                <p className="text-sm text-gray-700">
-                  {summary.latestFunctional.passed} passed · {summary.latestFunctional.failed}{' '}
-                  failed · {summary.latestFunctional.skipped} skipped
-                </p>
-                <p className="text-xs text-gray-400">
-                  {formatWhen(summary.latestFunctional.finishedAt)}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setSelectedId(summary.latestFunctional.id)}
-                  className="text-xs text-indigo-600 hover:underline"
-                >
-                  View tests →
-                </button>
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-gray-400">No runs recorded yet</p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Last 7 days</p>
-            <p className="mt-2 text-3xl font-semibold text-gray-900">
-              {summary?.last7Days.passRate != null ? `${summary.last7Days.passRate}%` : '—'}
-            </p>
-            <p className="text-sm text-gray-500">
-              {summary?.last7Days.passedRuns ?? 0} / {summary?.last7Days.totalRuns ?? 0} job runs
-              passed
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="font-semibold text-gray-900">Run history</h2>
-            <select
-              value={suiteFilter}
-              onChange={(e) => setSuiteFilter(e.target.value as typeof suiteFilter)}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white"
-            >
-              <option value="all">All suites</option>
-              <option value="smoke">Smoke</option>
-              <option value="functional">Functional</option>
-            </select>
-          </div>
-
-          {!runsData?.runs.length ? (
-            <div className="p-8 text-center text-sm text-gray-500">
-              No E2E runs ingested yet. Results appear after the next CI run completes.
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {runsData.runs.map((run: E2eRunRow) => (
-                <div key={run.id}>
+        }
+      >
+        <ReliabilitySubnav />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <SectionCard title="Latest smoke" icon={<Zap />}>
+              {summary?.latestSmoke ? (
+                <div className="space-y-2">
+                  <StatusBadge status={summary.latestSmoke.status} />
+                  <p className="text-sm text-admin-secondary">
+                    {summary.latestSmoke.passed} passed · {summary.latestSmoke.failed} failed ·{' '}
+                    {summary.latestSmoke.skipped} skipped
+                  </p>
+                  <p className="text-xs text-admin-muted">{formatWhen(summary.latestSmoke.finishedAt)}</p>
                   <button
                     type="button"
-                    onClick={() => setSelectedId(run.id === selectedId ? null : run.id)}
-                    className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors ${
-                      selectedId === run.id ? 'bg-indigo-50/60' : 'hover:bg-gray-50'
-                    }`}
+                    onClick={() => setSelectedId(summary.latestSmoke.id)}
+                    className="text-xs font-medium text-admin-accent hover:text-admin-accent-ink"
                   >
-                    <StatusBadge status={run.status} />
-                    <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 capitalize">
-                      {run.suite}
-                      {run.hasFullBreakdown ? (
-                        <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                          Full list
-                        </span>
-                      ) : run.passed + run.failed + run.skipped > 0 ? (
-                        <span className="ml-2 text-[10px] font-medium uppercase tracking-wide text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                          Failures only
-                        </span>
-                      ) : null}
-                        {run.triggerSource ? (
-                          <span className="text-gray-400 font-normal">
-                            {' '}
-                            · after {run.triggerSource}
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        {run.passed} passed · {run.failed} failed · {run.skipped} skipped ·{' '}
-                        {formatDuration(run.durationMs)}
-                      </p>
-                    </div>
-                    <span className="text-xs text-gray-400 shrink-0">{formatWhen(run.finishedAt)}</span>
-                    {run.githubRunUrl && (
-                      <a
-                        href={run.githubRunUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-gray-400 hover:text-indigo-600"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </a>
-                    )}
-                    {selectedId === run.id ? (
-                      <ChevronDown className="h-4 w-4 text-indigo-500" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-gray-300" />
-                    )}
+                    View tests →
                   </button>
-                  {selectedId === run.id && <RunDetailPanel runId={run.id} />}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              ) : (
+                <p className="text-sm text-admin-muted">No runs recorded yet</p>
+              )}
+            </SectionCard>
 
-        <p className="text-xs text-gray-400 flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3" />
-          Older runs may only show failed tests. New runs include full pass/fail/skip breakdown. GitHub
-          artifacts retain Playwright HTML reports for 7 days.
-        </p>
-      </div>
+            <SectionCard title="Latest functional" icon={<FlaskConical />}>
+              {summary?.latestFunctional ? (
+                <div className="space-y-2">
+                  <StatusBadge status={summary.latestFunctional.status} />
+                  <p className="text-sm text-admin-secondary">
+                    {summary.latestFunctional.passed} passed · {summary.latestFunctional.failed}{' '}
+                    failed · {summary.latestFunctional.skipped} skipped
+                  </p>
+                  <p className="text-xs text-admin-muted">
+                    {formatWhen(summary.latestFunctional.finishedAt)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(summary.latestFunctional.id)}
+                    className="text-xs font-medium text-admin-accent hover:text-admin-accent-ink"
+                  >
+                    View tests →
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-admin-muted">No runs recorded yet</p>
+              )}
+            </SectionCard>
+
+            <StatTile
+              label="Last 7 days"
+              icon={CheckCircle2}
+              tone="brand"
+              value={summary?.last7Days.passRate != null ? `${summary.last7Days.passRate}%` : '—'}
+              hint={`${summary?.last7Days.passedRuns ?? 0} / ${summary?.last7Days.totalRuns ?? 0} job runs passed`}
+            />
+          </div>
+
+          <SectionCard
+            title="Run history"
+            description="Latest 40 runs"
+            icon={<Clock />}
+            padded={false}
+            actions={
+              <select
+                value={suiteFilter}
+                onChange={(e) => setSuiteFilter(e.target.value as typeof suiteFilter)}
+                className={`${selectClass} py-1.5`}
+              >
+                <option value="all">All suites</option>
+                <option value="smoke">Smoke</option>
+                <option value="functional">Functional</option>
+              </select>
+            }
+            footer={
+              <span className="flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Older runs may only show failed tests. New runs include full pass/fail/skip breakdown. GitHub
+                artifacts retain Playwright HTML reports for 7 days.
+              </span>
+            }
+          >
+            {!runsData?.runs.length ? (
+              <EmptyState
+                compact
+                className="border-0 shadow-none"
+                icon={<FlaskConical />}
+                title="No E2E runs ingested yet."
+                description="Results appear after the next CI run completes."
+              />
+            ) : (
+              <div className="divide-y divide-admin-border">
+                {runsData.runs.map((run: E2eRunRow) => (
+                  <div key={run.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(run.id === selectedId ? null : run.id)}
+                      className={`w-full flex items-center gap-4 px-5 py-3 text-left transition-colors ${
+                        selectedId === run.id ? 'bg-admin-accent-soft/60' : 'hover:bg-admin-bg/70'
+                      }`}
+                    >
+                      <StatusBadge status={run.status} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-admin-ink capitalize">
+                          {run.suite}
+                          {run.hasFullBreakdown ? (
+                            <StatusPill tone="success" dot={false} className="ml-2 text-[10px] uppercase tracking-wide">
+                              Full list
+                            </StatusPill>
+                          ) : run.passed + run.failed + run.skipped > 0 ? (
+                            <StatusPill tone="warn" dot={false} className="ml-2 text-[10px] uppercase tracking-wide">
+                              Failures only
+                            </StatusPill>
+                          ) : null}
+                          {run.triggerSource ? (
+                            <span className="text-admin-muted font-normal">
+                              {' '}
+                              · after {run.triggerSource}
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="text-xs text-admin-muted truncate">
+                          {run.passed} passed · {run.failed} failed · {run.skipped} skipped ·{' '}
+                          {formatDuration(run.durationMs)}
+                        </p>
+                      </div>
+                      <span className="text-xs text-admin-muted shrink-0">{formatWhen(run.finishedAt)}</span>
+                      {run.githubRunUrl && (
+                        <a
+                          href={run.githubRunUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-admin-muted hover:text-admin-accent"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      )}
+                      {selectedId === run.id ? (
+                        <ChevronDown className="h-4 w-4 text-admin-accent" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-admin-border-strong" />
+                      )}
+                    </button>
+                    {selectedId === run.id && <RunDetailPanel runId={run.id} />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

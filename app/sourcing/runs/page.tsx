@@ -12,9 +12,18 @@ export const dynamic = 'force-dynamic';
  * customer reports "sourcing feels thin".
  */
 import { Fragment, useState } from 'react';
+import { CheckCircle2, Radar, ShieldCheck } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid } from '@/components/admin/stat-tile';
+import { StatusPill, type StatusTone } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, selectClass } from '@/components/admin/controls';
 
 const DAY_OPTIONS = [1, 7, 30] as const;
 
@@ -27,7 +36,7 @@ const SOURCE_LABELS: Record<string, string> = {
   APOLLO: 'Apollo',
   PDL: 'People Data Labs',
   NPI: 'NPI registry',
-  LICENSE: 'State licence boards',
+  LICENSE: 'State license boards',
   DISCOVERY: 'Contact databases',
 };
 
@@ -43,11 +52,11 @@ interface SourceStat {
   requestIds?: string[];
 }
 
-function statusTone(status: string): string {
-  if (status === 'COMPLETED') return 'bg-green-50 text-green-700 ring-green-200';
-  if (status === 'FAILED') return 'bg-red-50 text-red-700 ring-red-200';
-  if (status === 'RUNNING') return 'bg-blue-50 text-blue-700 ring-blue-200';
-  return 'bg-gray-50 text-gray-600 ring-gray-200';
+function statusTone(status: string): StatusTone {
+  if (status === 'COMPLETED') return 'success';
+  if (status === 'FAILED') return 'danger';
+  if (status === 'RUNNING') return 'info';
+  return 'neutral';
 }
 
 function duration(ms: number | null): string {
@@ -64,8 +73,8 @@ function RunFanout({ runId }: { runId: string }) {
     { refetchOnWindowFocus: false },
   );
 
-  if (detail.isLoading) return <p className="px-4 py-3 text-xs text-gray-400">Loading run…</p>;
-  if (detail.error) return <p className="px-4 py-3 text-xs text-red-600">{String(detail.error.message)}</p>;
+  if (detail.isLoading) return <p className="px-5 py-3 text-xs text-admin-muted">Loading run…</p>;
+  if (detail.error) return <p className="px-5 py-3 text-xs text-red-600">{String(detail.error.message)}</p>;
 
   const data = detail.data ?? {};
   const stats: Record<string, SourceStat> = data.providerStats ?? {};
@@ -76,25 +85,25 @@ function RunFanout({ runId }: { runId: string }) {
   const totalReturned = Object.values(returned).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="space-y-4 bg-gray-50 px-4 py-4">
+    <div className="space-y-4 bg-admin-bg/70 px-5 py-4">
       {/* The request */}
-      <div className="rounded-lg border border-gray-200 bg-white p-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">The request</p>
-        <p className="mt-1 text-sm font-medium text-gray-900">
+      <div className="admin-panel p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-muted">The request</p>
+        <p className="mt-1 text-sm font-medium text-admin-ink">
           {data.position?.title ?? 'Unknown'}
-          {data.position?.location ? <span className="font-normal text-gray-500"> · {data.position.location}</span> : null}
+          {data.position?.location ? <span className="font-normal text-admin-muted"> · {data.position.location}</span> : null}
           {data.position?.isAdHocSourcingPrompt ? (
-            <span className="ml-2 rounded bg-purple-50 px-1.5 py-0.5 text-[11px] font-medium text-purple-700">
+            <StatusPill tone="brand" dot={false} className="ml-2 text-[11px]">
               {data.topic ? `standing search · ${data.topic.cadence?.toLowerCase?.()}` : 'ad-hoc prompt'}
-            </span>
+            </StatusPill>
           ) : null}
         </p>
         {Array.isArray(plan.queries) && plan.queries.length ? (
           <div className="mt-2">
-            <p className="text-[11px] uppercase tracking-wide text-gray-400">Queries the planner wrote</p>
+            <p className="text-[11px] uppercase tracking-wide text-admin-muted">Queries the planner wrote</p>
             <ul className="mt-1 space-y-0.5">
               {plan.queries.map((q: string, i: number) => (
-                <li key={i} className="font-mono text-[11px] text-gray-600">
+                <li key={i} className="admin-mono text-[11px] text-admin-secondary">
                   {q}
                 </li>
               ))}
@@ -106,10 +115,10 @@ function RunFanout({ runId }: { runId: string }) {
       {/* Where it went */}
       <div>
         <div className="flex items-baseline justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-muted">
             Where it went ({keys.length} {keys.length === 1 ? 'source' : 'sources'})
           </p>
-          <p className="text-xs text-gray-500">{totalReturned} people stored</p>
+          <p className="text-xs text-admin-muted">{totalReturned} people stored</p>
         </div>
         <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {keys.map((key) => {
@@ -122,40 +131,30 @@ function RunFanout({ runId }: { runId: string }) {
             return (
               <div
                 key={key}
-                className={`rounded-lg border bg-white p-3 ${
-                  failed ? 'border-red-200' : empty ? 'border-amber-200' : skipped ? 'border-gray-150 opacity-70' : 'border-gray-200'
+                className={`admin-panel p-3 ${
+                  failed ? 'border-red-200' : empty ? 'border-amber-200' : skipped ? 'opacity-70' : ''
                 }`}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-sm font-semibold text-gray-900">{SOURCE_LABELS[key] ?? key}</p>
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
-                      failed
-                        ? 'bg-red-50 text-red-700'
-                        : skipped
-                          ? 'bg-gray-100 text-gray-500'
-                          : empty
-                            ? 'bg-amber-50 text-amber-800'
-                            : 'bg-green-50 text-green-700'
-                    }`}
-                  >
+                  <p className="text-sm font-semibold text-admin-ink">{SOURCE_LABELS[key] ?? key}</p>
+                  <StatusPill dot={false} tone={failed ? 'danger' : skipped ? 'neutral' : empty ? 'warn' : 'success'}>
                     {failed ? 'failed' : skipped ? 'not applicable' : `${stored} stored`}
-                  </span>
+                  </StatusPill>
                 </div>
-                {stat.target ? <p className="mt-0.5 font-mono text-[11px] text-gray-400">{stat.target}</p> : null}
+                {stat.target ? <p className="admin-mono mt-0.5 text-[11px] text-admin-muted">{stat.target}</p> : null}
                 {stat.error ? <p className="mt-1 text-[11px] text-red-600">{stat.error}</p> : null}
-                {stat.skipped ? <p className="mt-1 text-[11px] text-gray-500">Skipped — {stat.skipped}</p> : null}
+                {stat.skipped ? <p className="mt-1 text-[11px] text-admin-muted">Skipped — {stat.skipped}</p> : null}
 
                 {stat.detail?.length ? (
-                  <ul className="mt-2 space-y-1 border-t border-gray-100 pt-2">
+                  <ul className="mt-2 space-y-1 border-t border-admin-border pt-2">
                     {stat.detail.map((d, i) => (
                       <li key={i} className="flex items-start justify-between gap-2 text-[11px]">
-                        <span className={`min-w-0 flex-1 ${d.ok === false ? 'text-red-600' : 'text-gray-600'}`}>
+                        <span className={`min-w-0 flex-1 ${d.ok === false ? 'text-red-600' : 'text-admin-secondary'}`}>
                           {d.label}
                           {d.note ? <span className="block text-red-500">{d.note}</span> : null}
                         </span>
                         {d.count != null ? (
-                          <span className="shrink-0 font-mono text-gray-900">{d.count}</span>
+                          <span className="admin-mono shrink-0 text-admin-ink">{d.count}</span>
                         ) : null}
                       </li>
                     ))}
@@ -163,18 +162,18 @@ function RunFanout({ runId }: { runId: string }) {
                 ) : null}
 
                 {stat.domains?.length ? (
-                  <details className="mt-2 border-t border-gray-100 pt-2">
-                    <summary className="cursor-pointer text-[11px] text-gray-500">
+                  <details className="mt-2 border-t border-admin-border pt-2">
+                    <summary className="cursor-pointer text-[11px] text-admin-muted">
                       {stat.domains.length} domains searched
                     </summary>
-                    <p className="mt-1 font-mono text-[10px] leading-relaxed text-gray-400">
+                    <p className="admin-mono mt-1 text-[10px] leading-relaxed text-admin-muted">
                       {stat.domains.join(' · ')}
                     </p>
                   </details>
                 ) : null}
 
                 {stat.requestIds?.length ? (
-                  <p className="mt-2 font-mono text-[10px] text-gray-300">
+                  <p className="admin-mono mt-2 text-[10px] text-slate-300">
                     req {stat.requestIds.slice(0, 2).join(', ')}
                     {stat.requestIds.length > 2 ? ` +${stat.requestIds.length - 2}` : ''}
                   </p>
@@ -188,61 +187,61 @@ function RunFanout({ runId }: { runId: string }) {
       {/* What came back */}
       {profiles.length ? (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-admin-muted">
             What came back (top {Math.min(profiles.length, 25)} of {profiles.length})
           </p>
-          <div className="mt-2 overflow-x-auto rounded-lg border border-gray-200 bg-white">
-            <table className="min-w-full text-xs">
-              <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500">
+          <div className="admin-panel mt-2 overflow-x-auto">
+            <DataTableEl className="text-xs">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium">Source</th>
-                  <th className="px-3 py-2 text-left font-medium">Name</th>
-                  <th className="px-3 py-2 text-left font-medium">Title</th>
-                  <th className="px-3 py-2 text-left font-medium">Location</th>
-                  <th className="px-3 py-2 text-right font-medium">Score</th>
-                  <th className="px-3 py-2 text-left font-medium">Contact</th>
-                  <th className="px-3 py-2 text-left font-medium">Status</th>
+                  <Th className="px-3 py-2">Source</Th>
+                  <Th className="px-3 py-2">Name</Th>
+                  <Th className="px-3 py-2">Title</Th>
+                  <Th className="px-3 py-2">Location</Th>
+                  <Th className="px-3 py-2 text-right">Score</Th>
+                  <Th className="px-3 py-2">Contact</Th>
+                  <Th className="px-3 py-2">Status</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {profiles.slice(0, 25).map((p) => (
                   <tr key={p.id}>
-                    <td className="whitespace-nowrap px-3 py-1.5 font-mono text-[10px] text-gray-500">{p.source}</td>
-                    <td className="px-3 py-1.5">
+                    <Td mono className="whitespace-nowrap px-3 py-1.5 text-[10px] text-admin-muted">{p.source}</Td>
+                    <Td className="px-3 py-1.5">
                       <a
                         href={p.sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
+                        className="text-admin-accent hover:text-admin-accent-ink hover:underline"
                       >
                         {p.fullName ?? 'Unnamed'}
                       </a>
-                    </td>
-                    <td className="px-3 py-1.5 text-gray-600">
+                    </Td>
+                    <Td className="px-3 py-1.5">
                       {p.currentTitle ?? '—'}
-                      {p.currentCompany ? <span className="text-gray-400"> · {p.currentCompany}</span> : null}
-                    </td>
-                    <td className="px-3 py-1.5 text-gray-500">{p.location ?? '—'}</td>
-                    <td className="px-3 py-1.5 text-right font-mono text-gray-900">
+                      {p.currentCompany ? <span className="text-admin-muted"> · {p.currentCompany}</span> : null}
+                    </Td>
+                    <Td className="px-3 py-1.5 text-admin-muted">{p.location ?? '—'}</Td>
+                    <Td mono className="px-3 py-1.5 text-right text-admin-ink">
                       {p.coachScore != null
                         ? `${Math.round(p.coachScore * 100)}%`
                         : p.score != null
                           ? `${Math.round(p.score * 100)}%`
                           : '—'}
-                    </td>
-                    <td className="px-3 py-1.5 text-gray-500">{p.hasContact ? 'yes' : '—'}</td>
-                    <td className="px-3 py-1.5 text-gray-500">{p.status}</td>
+                    </Td>
+                    <Td className="px-3 py-1.5 text-admin-muted">{p.hasContact ? 'yes' : '—'}</Td>
+                    <Td className="px-3 py-1.5 text-admin-muted">{p.status}</Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTableEl>
           </div>
-          <p className="mt-1 text-[11px] text-gray-400">
+          <p className="mt-1 text-[11px] text-admin-muted">
             Candidate contact details are not shown here — only whether a reachable address or number exists.
           </p>
         </div>
       ) : (
-        <p className="text-xs text-gray-500">This run stored no people.</p>
+        <p className="text-xs text-admin-muted">This run stored no people.</p>
       )}
     </div>
   );
@@ -265,30 +264,32 @@ function RegistryHealth() {
   const broken = sources.filter((s) => !s.ok && !s.skipped);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-900">Registry health</h2>
-          <p className="text-xs text-gray-500">
-            {sources.length === 0
-              ? 'The canary has not run yet — it probes every licensing registry weekly.'
-              : `${summary.healthy} of ${summary.total} registries answered on the last check.`}
-          </p>
-        </div>
+    <SectionCard
+      icon={<ShieldCheck />}
+      title="Registry health"
+      description={
+        sources.length === 0
+          ? 'The canary has not run yet — it probes every licensing registry weekly.'
+          : `${summary.healthy} of ${summary.total} registries answered on the last check.`
+      }
+      actions={
         <button
           type="button"
           onClick={() => run.mutate()}
           disabled={run.isPending}
-          className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+          className={buttonClass.small}
         >
           {run.isPending ? 'Checking…' : 'Check now'}
         </button>
-      </div>
-
+      }
+      footer={
+        summary.skipped > 0 ? `${summary.skipped} skipped (not yet imported — neither healthy nor broken).` : undefined
+      }
+    >
       {broken.length > 0 ? (
-        <ul className="mt-3 space-y-1">
+        <ul className="space-y-1.5">
           {broken.map((s) => (
-            <li key={s.adapterId} className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+            <li key={s.adapterId} className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft px-3 py-1.5 text-xs text-red-800">
               <span className="font-medium">{s.board}</span> returned nothing for {s.trade}
               {s.consecutiveFailures > 1 ? ` (${s.consecutiveFailures} checks in a row)` : ''}
               {s.error ? <span className="block font-mono text-[11px] opacity-80">{s.error}</span> : null}
@@ -296,15 +297,14 @@ function RegistryHealth() {
           ))}
         </ul>
       ) : sources.length > 0 ? (
-        <p className="mt-2 text-xs text-green-700">Every registry returned a record.</p>
-      ) : null}
-
-      {summary.skipped > 0 ? (
-        <p className="mt-2 text-[11px] text-gray-500">
-          {summary.skipped} skipped (not yet imported — neither healthy nor broken).
+        <p className="flex items-center gap-1.5 text-sm text-admin-ok">
+          <CheckCircle2 className="h-4 w-4" />
+          Every registry returned a record.
         </p>
-      ) : null}
-    </div>
+      ) : (
+        <p className="text-sm text-admin-muted">No canary results yet.</p>
+      )}
+    </SectionCard>
   );
 }
 
@@ -330,30 +330,24 @@ export default function SourcingRunsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Scout runs</h1>
-            <p className="text-sm text-gray-500">
-              Every outbound sourcing request across all tenants — where it went looking and what each source returned.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {DAY_OPTIONS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={`rounded-md px-2.5 py-1.5 text-sm ${
-                  days === d ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200'
-                }`}
-              >
-                {d}d
-              </button>
-            ))}
+      <AdminPageChrome
+        icon={<Radar />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'Scout runs' }]}
+        title="Scout runs"
+        description="Every outbound sourcing request across all tenants — where it went looking and what each source returned."
+        actions={
+          <>
+            <Segmented
+              size="sm"
+              ariaLabel="Time window"
+              options={DAY_OPTIONS.map((d) => ({ value: d as number, label: `${d}d` }))}
+              value={days}
+              onChange={setDays}
+            />
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700"
+              className={selectClass}
               aria-label="Filter by status"
             >
               <option value="">All statuses</option>
@@ -366,7 +360,7 @@ export default function SourcingRunsPage() {
             <select
               value={problemSource}
               onChange={(e) => setProblemSource(e.target.value)}
-              className="rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-700"
+              className={selectClass}
               aria-label="Filter to runs where a source struggled"
             >
               <option value="">Any source</option>
@@ -376,14 +370,15 @@ export default function SourcingRunsPage() {
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-
+          </>
+        }
+      >
+      <div className="space-y-6">
         <RegistryHealth />
 
         {/* Fleet health per source — the reason this page exists. */}
         {Object.keys(health).length ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatGrid cols={4}>
             {SOURCE_ORDER.filter((k) => k in health).map((key) => {
               const h = health[key];
               const failRate = h.runs ? Math.round((h.failed / h.runs) * 100) : 0;
@@ -391,67 +386,75 @@ export default function SourcingRunsPage() {
               return (
                 <div
                   key={key}
-                  className={`rounded-lg border bg-white p-3 ${
-                    failRate > 20 ? 'border-red-200' : emptyRate > 50 ? 'border-amber-200' : 'border-gray-200'
+                  className={`admin-panel p-4 ${
+                    failRate > 20 ? 'border-red-200' : emptyRate > 50 ? 'border-amber-200' : ''
                   }`}
                 >
-                  <p className="text-sm font-semibold text-gray-900">{SOURCE_LABELS[key] ?? key}</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{h.returned.toLocaleString()}</p>
-                  <p className="text-[11px] text-gray-500">people over {h.runs} runs</p>
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-admin-muted">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        failRate > 20 ? 'bg-admin-danger' : emptyRate > 50 ? 'bg-admin-warn' : 'bg-admin-ok'
+                      }`}
+                    />
+                    {SOURCE_LABELS[key] ?? key}
+                  </p>
+                  <p className="mt-1.5 text-[1.65rem] font-bold leading-tight tracking-tight text-admin-ink tabular-nums">
+                    {h.returned.toLocaleString()}
+                  </p>
+                  <p className="text-[11px] text-admin-muted">people over {h.runs} runs</p>
                   <p className="mt-1 text-[11px]">
-                    <span className={failRate > 20 ? 'text-red-600' : 'text-gray-500'}>{failRate}% failed</span>
-                    <span className="text-gray-300"> · </span>
-                    <span className={emptyRate > 50 ? 'text-amber-700' : 'text-gray-500'}>{emptyRate}% empty</span>
+                    <span className={failRate > 20 ? 'text-red-600' : 'text-admin-muted'}>{failRate}% failed</span>
+                    <span className="text-slate-300"> · </span>
+                    <span className={emptyRate > 50 ? 'text-amber-700' : 'text-admin-muted'}>{emptyRate}% empty</span>
                   </p>
                 </div>
               );
             })}
-          </div>
+          </StatGrid>
         ) : null}
 
+        <SectionCard icon={<Radar />} title="Runs" description="Click a run to see where each source looked and what came back" padded={false}>
         {list.isLoading ? (
-          <p className="text-sm text-gray-500">Loading runs…</p>
+          <p className="px-5 py-6 text-sm text-admin-muted">Loading runs…</p>
         ) : runs.length === 0 ? (
-          <p className="text-sm text-gray-500">No sourcing runs in this window.</p>
+          <EmptyState compact className="border-0 shadow-none" icon={<Radar />} title="No sourcing runs in this window." />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+          <div className="overflow-x-auto">
+            <DataTableEl>
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium">When</th>
-                  <th className="px-4 py-2 text-left font-medium">Organization</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                  <th className="px-4 py-2 text-left font-medium">Sources</th>
-                  <th className="px-4 py-2 text-right font-medium">Found</th>
-                  <th className="px-4 py-2 text-right font-medium">New</th>
-                  <th className="px-4 py-2 text-right font-medium">Cost</th>
-                  <th className="px-4 py-2 text-right font-medium">Took</th>
+                  <Th>When</Th>
+                  <Th>Organization</Th>
+                  <Th>Status</Th>
+                  <Th>Sources</Th>
+                  <Th className="text-right">Found</Th>
+                  <Th className="text-right">New</Th>
+                  <Th className="text-right">Cost</Th>
+                  <Th className="text-right">Took</Th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {runs.map((r) => (
                   <Fragment key={r.id}>
                     <tr
                       onClick={() => setOpen(open === r.id ? null : r.id)}
-                      className="cursor-pointer hover:bg-gray-50"
+                      className="cursor-pointer"
                     >
-                      <td className="whitespace-nowrap px-4 py-2 text-gray-600">
+                      <Td className="whitespace-nowrap">
                         {new Date(r.createdAt).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-2 text-gray-900">
+                      </Td>
+                      <Td className="text-admin-ink">
                         {r.organizationName ?? r.organizationId}
                         {r.topicName ? (
-                          <span className="ml-2 rounded bg-purple-50 px-1.5 py-0.5 text-[11px] text-purple-700">
+                          <StatusPill tone="brand" dot={false} className="ml-2 text-[11px]">
                             {r.topicName}
-                          </span>
+                          </StatusPill>
                         ) : null}
-                      </td>
-                      <td className="px-4 py-2">
-                        <span className={`rounded px-1.5 py-0.5 text-xs ring-1 ${statusTone(r.status)}`}>
-                          {r.status.toLowerCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2">
+                      </Td>
+                      <Td>
+                        <StatusPill tone={statusTone(r.status)}>{r.status.toLowerCase()}</StatusPill>
+                      </Td>
+                      <Td>
                         <div className="flex flex-wrap gap-1">
                           {SOURCE_ORDER.filter((k) => r.sourcesUsed.includes(k)).map((k) => {
                             const failed = r.sourcesFailed.includes(k);
@@ -465,7 +468,7 @@ export default function SourcingRunsPage() {
                                   failed
                                     ? 'bg-red-100 text-red-700'
                                     : skipped
-                                      ? 'bg-gray-100 text-gray-400'
+                                      ? 'bg-slate-100 text-slate-400'
                                       : empty
                                         ? 'bg-amber-100 text-amber-800'
                                         : 'bg-green-100 text-green-700'
@@ -476,13 +479,13 @@ export default function SourcingRunsPage() {
                             );
                           })}
                         </div>
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono text-gray-900">{r.resultsCount ?? '—'}</td>
-                      <td className="px-4 py-2 text-right font-mono text-gray-900">{r.newCount ?? '—'}</td>
-                      <td className="px-4 py-2 text-right font-mono text-gray-500">
+                      </Td>
+                      <Td mono className="text-right text-admin-ink">{r.resultsCount ?? '—'}</Td>
+                      <Td mono className="text-right text-admin-ink">{r.newCount ?? '—'}</Td>
+                      <Td mono className="text-right text-admin-muted">
                         {r.costUsd != null ? `$${r.costUsd.toFixed(3)}` : '—'}
-                      </td>
-                      <td className="px-4 py-2 text-right font-mono text-gray-500">{duration(r.durationMs)}</td>
+                      </Td>
+                      <Td mono className="text-right text-admin-muted">{duration(r.durationMs)}</Td>
                     </tr>
                     {open === r.id ? (
                       <tr>
@@ -494,10 +497,12 @@ export default function SourcingRunsPage() {
                   </Fragment>
                 ))}
               </tbody>
-            </table>
+            </DataTableEl>
           </div>
         )}
+        </SectionCard>
       </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

@@ -10,42 +10,43 @@ import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { ReliabilitySubnav } from '@/components/admin/reliability-subnav';
 import { DevopsIncidentDetailPanel } from '@/components/devops/incident-detail-panel';
 import { DevopsMonitoringPanel } from '@/components/devops/monitoring-panel';
+import { AdminPage, AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass } from '@/components/admin/controls';
 import {
   Activity,
   AlertTriangle,
   ArrowLeft,
   BookOpen,
   CheckCircle2,
+  Database,
   ExternalLink,
   RefreshCw,
+  Server,
+  ShieldAlert,
   Wrench,
 } from 'lucide-react';
 
 function SeverityBadge({ severity }: { severity: string }) {
-  const colors =
-    severity === 'p0'
-      ? 'bg-red-100 text-red-800'
-      : severity === 'p1'
-        ? 'bg-amber-100 text-amber-800'
-        : 'bg-blue-100 text-blue-800';
+  const tone = severity === 'p0' ? 'danger' : severity === 'p1' ? 'warn' : 'info';
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold uppercase ${colors}`}>
+    <StatusPill tone={tone} dot={false} className="font-semibold uppercase">
       {severity}
-    </span>
+    </StatusPill>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const closed = status === 'closed' || status === 'false_positive';
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-        closed ? 'bg-gray-100 text-gray-700' : 'bg-indigo-100 text-indigo-800'
-      }`}
-    >
+    <StatusPill tone={closed ? 'neutral' : 'brand'} dot={false}>
       {closed ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
       {status.replace(/_/g, ' ')}
-    </span>
+    </StatusPill>
   );
 }
 
@@ -66,46 +67,32 @@ function DevopsPageContent() {
 
   if (selectedIncidentId) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <AdminPage width="narrow">
         <a
           href="/devops"
-          className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 mb-6"
+          className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-admin-muted hover:text-admin-accent-ink"
         >
           <ArrowLeft className="h-4 w-4" /> Back to DevOps
         </a>
         <DevopsIncidentDetailPanel incidentId={selectedIncidentId} />
-      </div>
+      </AdminPage>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <ReliabilitySubnav />
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Wrench className="h-7 w-7 text-teal-700" />
-            AI DevOps
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Uptime, Railway health, incidents, and Cursor auto-fix — all in admin. No separate devops URL needed.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <AdminPageChrome
+      icon={<Wrench />}
+      breadcrumbs={[{ label: 'Operations' }, { label: 'Reliability', href: '/reliability' }, { label: 'AI DevOps' }]}
+      title="AI DevOps"
+      description="Uptime, Railway health, incidents, and Cursor auto-fix — all in admin. No separate devops URL needed."
+      actions={
+        <>
           {config?.axiomStreamUrl && (
-            <a
-              href={config.axiomStreamUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
+            <a href={config.axiomStreamUrl} target="_blank" rel="noopener noreferrer" className={buttonClass.secondary}>
               Axiom logs <ExternalLink className="h-4 w-4" />
             </a>
           )}
-          <Link
-            href="/devops/skills"
-            className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <Link href="/devops/skills" className={buttonClass.secondary}>
             <BookOpen className="h-4 w-4" /> Skills
           </Link>
           <button
@@ -115,34 +102,31 @@ function DevopsPageContent() {
               void healthQuery.refetch();
               void metricsQuery.refetch();
             }}
-            className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className={buttonClass.primary}
           >
             <RefreshCw className="h-4 w-4" /> Refresh
           </button>
-        </div>
-      </div>
+        </>
+      }
+    >
+      <ReliabilitySubnav />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase">Worker</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900 capitalize">{String(workerStatus)}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {config?.enabled ? 'Configured' : 'Not configured — set DEVOPS_WORKER_URL on API'}
-          </p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase">Open incidents</p>
-          <p className="mt-1 text-lg font-semibold text-gray-900">{metricsQuery.data?.open ?? '—'}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase">P0 open</p>
-          <p className="mt-1 text-lg font-semibold text-red-700">{metricsQuery.data?.p0Open ?? '—'}</p>
-        </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium text-gray-500 uppercase">Axiom dataset</p>
-          <p className="mt-1 text-sm font-mono text-gray-900">{config?.axiomDataset ?? '—'}</p>
-        </div>
-      </div>
+      <StatGrid cols={4} className="mb-6">
+        <StatTile
+          label="Worker"
+          icon={Server}
+          tone={config?.enabled ? 'brand' : 'warn'}
+          value={<span className="capitalize">{String(workerStatus)}</span>}
+          hint={config?.enabled ? 'Configured' : 'Not configured — set DEVOPS_WORKER_URL on API'}
+        />
+        <StatTile label="Open incidents" icon={Activity} tone="info" value={metricsQuery.data?.open ?? '—'} />
+        <StatTile label="P0 open" icon={ShieldAlert} tone="critical" value={metricsQuery.data?.p0Open ?? '—'} />
+        <StatTile
+          label="Axiom dataset"
+          icon={Database}
+          value={<span className="admin-mono text-base font-medium">{config?.axiomDataset ?? '—'}</span>}
+        />
+      </StatGrid>
 
       {config?.enabled && (
         <DevopsMonitoringPanel
@@ -151,63 +135,62 @@ function DevopsPageContent() {
         />
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-2">
-          <Activity className="h-5 w-5 text-gray-500" />
-          <h2 className="text-lg font-semibold text-gray-900">Incidents</h2>
-        </div>
-
+      <SectionCard icon={<Activity />} title="Incidents" description="Latest 50, newest first" padded={false}>
         {incidentsQuery.isLoading ? (
-          <div className="p-8 text-center text-sm text-gray-500">Loading…</div>
+          <div className="p-8 text-center text-sm text-admin-muted">Loading…</div>
         ) : !incidentsQuery.data?.incidents.length ? (
-          <div className="p-8 text-center text-sm text-gray-500">
-            No incidents yet. Failed E2E runs will open incidents automatically when the devops worker is live.
-          </div>
+          <EmptyState
+            compact
+            className="border-0 shadow-none"
+            icon={<CheckCircle2 />}
+            title="No incidents yet."
+            description="Failed E2E runs will open incidents automatically when the devops worker is live."
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <DataTableEl>
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Severity</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detected</th>
-                  <th className="px-6 py-3" />
+                  <Th className="px-6">Status</Th>
+                  <Th className="px-6">Severity</Th>
+                  <Th className="px-6">Title</Th>
+                  <Th className="px-6">Service</Th>
+                  <Th className="px-6">Detected</Th>
+                  <Th className="px-6" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
+              <tbody>
                 {incidentsQuery.data.incidents.map((inc) => (
-                  <tr key={inc.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={inc.id}>
+                    <Td className="whitespace-nowrap px-6">
                       <StatusBadge status={inc.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    </Td>
+                    <Td className="whitespace-nowrap px-6">
                       <SeverityBadge severity={inc.severity} />
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-md truncate">{inc.title}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    </Td>
+                    <Td className="max-w-md truncate px-6 text-admin-ink">{inc.title}</Td>
+                    <Td className="whitespace-nowrap px-6">
                       {inc.primaryService ?? '—'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    </Td>
+                    <Td className="whitespace-nowrap px-6">
                       {new Date(inc.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    </Td>
+                    <Td className="whitespace-nowrap px-6 text-right">
                       <a
                         href={`/devops?incident=${encodeURIComponent(inc.id)}`}
-                        className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                        className="text-sm font-medium text-admin-accent hover:text-admin-accent-ink"
                       >
                         View
                       </a>
-                    </td>
+                    </Td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </DataTableEl>
           </div>
         )}
-      </div>
-    </div>
+      </SectionCard>
+    </AdminPageChrome>
   );
 }
 
@@ -216,7 +199,7 @@ export default function DevopsPage() {
     <AuthenticatedLayout>
       <Suspense
         fallback={
-          <div className="max-w-7xl mx-auto px-4 py-8 text-sm text-gray-500">Loading DevOps…</div>
+          <AdminPage className="text-sm text-admin-muted">Loading DevOps…</AdminPage>
         }
       >
         <DevopsPageContent />

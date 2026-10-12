@@ -2,7 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Mail } from 'lucide-react';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPage } from '@/components/admin/page-chrome';
+import { PageHeader } from '@/components/admin/page-header';
+import { cn } from '@/lib/cn';
 import { ChartIcon } from './_utils';
 import {
   EnvelopeIcon,
@@ -24,42 +28,49 @@ export default function EmailMonitoringLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const activeTab = tabs.find((tab) =>
+    tab.path === '/email-monitoring'
+      ? pathname === tab.path
+      : pathname === tab.path || pathname.startsWith(`${tab.path}/`),
+  );
 
   return (
     <AuthenticatedLayout>
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Communications</h1>
-          <p className="text-gray-500 mt-1">
-            Email ops console — durable outbound/inbound archive, digest queue, and provider debug
-          </p>
-        </div>
-        <nav className="border-b border-gray-200 mb-6">
-          <div className="-mb-px flex space-x-8 overflow-x-auto">
-            {tabs.map((tab) => {
-              const isActive =
-                tab.path === '/email-monitoring'
-                  ? pathname === tab.path
-                  : pathname === tab.path || pathname.startsWith(`${tab.path}/`);
-              return (
-                <Link
-                  key={tab.path}
-                  href={tab.path}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                    isActive
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <tab.icon className="h-5 w-5 mr-2" />
-                  {tab.label}
-                </Link>
-              );
-            })}
-          </div>
+      <AdminPage>
+        <PageHeader
+          icon={<Mail />}
+          breadcrumbs={[
+            { label: 'Operations' },
+            { label: 'Communications', href: activeTab && activeTab.path !== '/email-monitoring' ? '/email-monitoring' : undefined },
+            ...(activeTab && activeTab.path !== '/email-monitoring' ? [{ label: activeTab.label }] : []),
+          ]}
+          title="Communications"
+          description="Email ops console — durable outbound/inbound archive, digest queue, and provider debug"
+        />
+        <nav className="mb-6 flex gap-1 overflow-x-auto border-b border-admin-border">
+          {tabs.map((tab) => {
+            const isActive = tab === activeTab;
+            return (
+              <Link
+                key={tab.path}
+                href={tab.path}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'relative flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+                  isActive ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
+                )}
+              >
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+                {isActive ? (
+                  <span className="nav-indicator absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-admin-accent" />
+                ) : null}
+              </Link>
+            );
+          })}
         </nav>
         {children}
-      </div>
+      </AdminPage>
     </AuthenticatedLayout>
   );
 }

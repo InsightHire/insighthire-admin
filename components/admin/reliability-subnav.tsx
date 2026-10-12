@@ -12,7 +12,7 @@ const TABS = [
 export function ReliabilitySubnav() {
   const pathname = usePathname();
   return (
-    <div className="mb-4 flex gap-1 border-b border-admin-border">
+    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-admin-border">
       {TABS.map((t) => {
         const active = t.match.some(
           (m) => pathname === m || (m !== '/devops' && pathname?.startsWith(`${m}/`)) || (m === '/devops' && pathname?.startsWith('/devops')),
@@ -21,9 +21,10 @@ export function ReliabilitySubnav() {
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? 'page' : undefined}
             className={cn(
-              'relative px-3 py-2 text-sm font-medium transition-colors',
-              active ? 'text-admin-ink' : 'text-admin-muted hover:text-admin-secondary',
+              'relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+              active ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
             )}
           >
             {t.label}

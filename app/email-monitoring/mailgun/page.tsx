@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { DataTableEl, Th } from '@/components/admin/data-table';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, inputClass } from '@/components/admin/controls';
+import { ArrowPathIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { formatDate, getStatusBadge } from '../_utils';
 import { EmailMessageModal } from '../_message-modal';
 
@@ -20,59 +23,60 @@ export default function MailgunEventsPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-admin-accent" />
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900">
+      <div className="rounded-admin-sm border border-admin-warn/25 bg-admin-warn-soft px-4 py-3 text-sm text-amber-900">
         <strong className="font-semibold">Ephemeral provider debug:</strong> Mailgun events and stored
         messages expire (~3 days). For durable bodies use{' '}
         <a href="/email-monitoring/sent-emails" className="underline font-medium">Sent Emails</a>
         {' '}or{' '}
         <a href="/email-monitoring/inbound" className="underline font-medium">Inbound</a>.
       </div>
-      <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-center">
-        <span className="text-sm font-medium text-gray-700">Mailgun domain:</span>
-        <span className="font-mono text-sm text-gray-900">{mailgunData?.domain ?? '—'}</span>
-        <label className="text-sm text-gray-600">Filter by recipient:</label>
+      <div className="admin-panel p-4 flex flex-wrap gap-4 items-center">
+        <span className="text-sm font-medium text-admin-secondary">Mailgun domain:</span>
+        <span className="font-mono text-sm text-admin-ink">{mailgunData?.domain ?? '—'}</span>
+        <label className="text-sm text-admin-muted">Filter by recipient:</label>
         <input
           type="text"
           value={mailgunRecipient}
           onChange={(e) => setMailgunRecipient(e.target.value)}
           placeholder="email@example.com"
-          className="border border-gray-300 rounded-md px-3 py-1.5 text-sm text-gray-900 w-56"
+          className={`${inputClass} w-56 py-1.5`}
         />
-        <button onClick={() => refetchMailgun()} className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800">
+        <button onClick={() => refetchMailgun()} className={`${buttonClass.secondary}`}>
           <ArrowPathIcon className="h-4 w-4" /> Refresh
         </button>
       </div>
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="admin-panel overflow-hidden">
         {mailgunLoading ? (
           <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-admin-accent mx-auto" />
           </div>
         ) : !mailgunData?.items?.length ? (
-          <div className="text-center text-gray-500 py-12">No Mailgun events or Mailgun not configured</div>
+          <EmptyState compact className="border-0 shadow-none" icon={<EnvelopeIcon />} title="No Mailgun events or Mailgun not configured" />
         ) : (
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <div className="overflow-x-auto">
+          <DataTableEl>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Event</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recipient</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject / Message</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">View</th>
+                <Th>Event</Th>
+                <Th>Recipient</Th>
+                <Th>Subject / Message</Th>
+                <Th>Time</Th>
+                <Th>Reason</Th>
+                <Th>View</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody>
               {mailgunData.items.map((ev: any) => (
                 <tr
                   key={ev.id}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => setMessageModal({
                     storageKey: ev.storageKey ?? null,
                     subject: ev.message,
@@ -84,21 +88,22 @@ export default function MailgunEventsPage() {
                   })}
                 >
                   <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(ev.event) || 'bg-gray-100 text-gray-800'}`}>
+                    <span className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getStatusBadge(ev.event) || 'bg-slate-100 text-admin-secondary'}`}>
                       {ev.event}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900">{ev.recipient ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px] truncate" title={ev.message}>{ev.message ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-gray-500">{ev.timestamp ? formatDate(ev.timestamp) : '—'}</td>
-                  <td className="px-4 py-3 text-xs text-gray-500">{ev.reason ?? ev.severity ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-admin-ink">{ev.recipient ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-admin-secondary max-w-[200px] truncate" title={ev.message}>{ev.message ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-admin-muted">{ev.timestamp ? formatDate(ev.timestamp) : '—'}</td>
+                  <td className="px-4 py-3 text-xs text-admin-muted">{ev.reason ?? ev.severity ?? '—'}</td>
                   <td className="px-4 py-3 text-sm">
-                    <span className="text-blue-600 hover:text-blue-800 font-medium">View details</span>
+                    <span className="text-admin-accent hover:text-admin-accent-ink font-medium">View details</span>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTableEl>
+          </div>
         )}
       </div>
       {messageModal && (

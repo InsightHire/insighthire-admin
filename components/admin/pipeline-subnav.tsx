@@ -14,7 +14,7 @@ const TABS = [
 export function PipelineSubnav() {
   const pathname = usePathname();
   return (
-    <div className="mb-4 flex gap-1 border-b border-admin-border">
+    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-admin-border">
       {TABS.map((t) => {
         const excluded = 'exclude' in t && t.exclude.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
         const active = !excluded && t.match.some((m) => pathname === m || pathname?.startsWith(`${m}/`));
@@ -22,9 +22,10 @@ export function PipelineSubnav() {
           <Link
             key={t.href}
             href={t.href}
+            aria-current={active ? 'page' : undefined}
             className={cn(
-              'relative px-3 py-2 text-sm font-medium transition-colors',
-              active ? 'text-admin-ink' : 'text-admin-muted hover:text-admin-secondary',
+              'relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+              active ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
             )}
           >
             {t.label}

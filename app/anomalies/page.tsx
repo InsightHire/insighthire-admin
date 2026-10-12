@@ -4,10 +4,13 @@ export const dynamic = 'force-dynamic';
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, MapPin, X } from 'lucide-react';
+import { CheckCircle2, Gauge, Info, MapPin, X } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { AdminPage } from '@/components/admin/page-chrome';
 import { PageHeader } from '@/components/admin/page-header';
+import { SectionCard } from '@/components/admin/section-card';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
 import { StatStrip } from '@/components/admin/stat-strip';
 import { FilterBar, FilterSelect } from '@/components/admin/filter-bar';
 import { EmptyState } from '@/components/admin/empty-state';
@@ -97,9 +100,10 @@ export default function AnomaliesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <AdminPage>
       <PageHeader
-        eyebrow="Operations"
+        icon={<Gauge />}
+        breadcrumbs={[{ label: 'Attention' }, { label: 'Anomalies' }]}
         title="Location activity"
         description="Recent journey page visits that feed location checks, plus flagged impossible-travel anomalies. Green means healthy traffic; yellow needs review; red is a critical jump."
       />
@@ -160,11 +164,19 @@ export default function AnomaliesPage() {
         />
       </FilterBar>
 
+      <SectionCard
+        icon={<MapPin />}
+        title="Journey location events"
+        description="Page visits and impossible-travel anomalies, newest first"
+        padded={false}
+      >
       {isLoading ? (
-        <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading activity…</div>
+        <div className="py-16 text-center text-sm text-admin-muted">Loading activity…</div>
       ) : events.length === 0 ? (
         <EmptyState
-          icon={<CheckCircle2 className="h-8 w-8 text-admin-ok" />}
+          compact
+          className="border-0 shadow-none"
+          icon={<CheckCircle2 className="text-admin-ok" />}
           title={
             statusFilter === 'all'
               ? 'No journey location activity in this window'
@@ -177,55 +189,40 @@ export default function AnomaliesPage() {
           }
         />
       ) : (
-        <div className="admin-panel overflow-hidden">
-          <table className="min-w-full divide-y divide-admin-border">
-            <thead className="bg-slate-50/80">
+        <div className="overflow-x-auto">
+          <DataTableEl>
+            <thead>
               <tr>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Time
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Candidate
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Journey
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Location
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Detail
-                </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-admin-muted">
-                  Actions
-                </th>
+                <Th>Status</Th>
+                <Th>Time</Th>
+                <Th>Candidate</Th>
+                <Th>Journey</Th>
+                <Th>Location</Th>
+                <Th>Detail</Th>
+                <Th>Actions</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-admin-border">
+            <tbody>
               {events.map((event: any) => (
                 <tr
                   key={`${event.kind}-${event.id}`}
                   className={cn(
-                    'hover:bg-slate-50/60',
                     event.status === 'critical' && 'bg-admin-danger-soft/40',
                     event.status === 'warn' && event.kind === 'anomaly' && 'bg-admin-warn-soft/30',
                   )}
                 >
-                  <td className="px-4 py-3">
+                  <Td>
                     <SeverityBadge
                       severity={statusToSeverity(event.status)}
                       pulse={event.status === 'critical'}
                     >
                       {statusLabel(event.status, event.kind)}
                     </SeverityBadge>
-                  </td>
-                  <td className="admin-mono px-4 py-3 text-xs text-admin-secondary">
+                  </Td>
+                  <Td mono className="whitespace-nowrap">
                     {new Date(event.createdAt).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3">
+                  </Td>
+                  <Td>
                     {event.candidateId ? (
                       <Link
                         href={`/candidate/${event.candidateId}`}
@@ -237,9 +234,9 @@ export default function AnomaliesPage() {
                       <span className="text-sm font-medium text-admin-ink">{event.candidateName}</span>
                     )}
                     <div className="text-xs text-admin-muted">{event.candidateEmail}</div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-admin-secondary">{event.journeyName}</td>
-                  <td className="px-4 py-3">
+                  </Td>
+                  <Td>{event.journeyName}</Td>
+                  <Td>
                     {event.kind === 'anomaly' ? (
                       <div className="flex items-center gap-1.5 text-sm text-admin-ink">
                         <MapPin className="h-3.5 w-3.5 shrink-0 text-admin-muted" />
@@ -258,8 +255,8 @@ export default function AnomaliesPage() {
                         IP {event.ipAddress}
                       </div>
                     ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-admin-secondary">
+                  </Td>
+                  <Td>
                     {event.kind === 'anomaly' ? (
                       <>
                         <span className="font-medium text-admin-ink">
@@ -291,8 +288,8 @@ export default function AnomaliesPage() {
                         )}
                       </>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
+                  </Td>
+                  <Td>
                     <div className="flex items-center gap-2">
                       {event.candidateId ? (
                         <Link
@@ -317,17 +314,17 @@ export default function AnomaliesPage() {
                         <span className="text-xs text-admin-muted">Dismissed</span>
                       ) : null}
                     </div>
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTableEl>
         </div>
       )}
+      </SectionCard>
 
-      <div className="admin-panel mt-6 p-4">
-        <h3 className="text-sm font-semibold text-admin-ink">How the lights work</h3>
-        <ul className="mt-2 space-y-1 text-sm text-admin-secondary">
+      <SectionCard icon={<Info />} title="How the lights work" className="mt-6">
+        <ul className="space-y-1.5 text-sm text-admin-secondary">
           <li>
             <span className="font-medium text-admin-ok">Green</span> — normal journey page visit with
             no impossible-travel flag (proves location checks are running).
@@ -341,7 +338,7 @@ export default function AnomaliesPage() {
             in &lt;24h). Dismiss after review.
           </li>
         </ul>
-      </div>
-    </div>
+      </SectionCard>
+    </AdminPage>
   );
 }

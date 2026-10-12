@@ -93,16 +93,16 @@ const EVENT_META: Record<string, { label: string; color: string }> = {
   client_error: { label: 'Client error', color: 'text-red-600 bg-red-50' },
   e2e_failure: { label: 'E2E failure', color: 'text-red-600 bg-red-50' },
   slack_sent: { label: 'Slack notified', color: 'text-violet-600 bg-violet-50' },
-  github_issue: { label: 'GitHub issue', color: 'text-gray-700 bg-gray-100' },
-  agent_spawn: { label: 'Agent spawned', color: 'text-indigo-600 bg-indigo-50' },
+  github_issue: { label: 'GitHub issue', color: 'text-admin-secondary bg-slate-100' },
+  agent_spawn: { label: 'Agent spawned', color: 'text-admin-accent-ink bg-admin-accent-soft' },
   skills_applied: { label: 'Skills applied', color: 'text-violet-600 bg-violet-50' },
   pr_opened: { label: 'PR opened', color: 'text-emerald-600 bg-emerald-50' },
   agent_finished: { label: 'Agent finished', color: 'text-emerald-600 bg-emerald-50' },
   agent_failed: { label: 'Agent failed', color: 'text-red-600 bg-red-50' },
-  agent_resume: { label: 'Agent resumed', color: 'text-indigo-600 bg-indigo-50' },
+  agent_resume: { label: 'Agent resumed', color: 'text-admin-accent-ink bg-admin-accent-soft' },
   verify_dispatched: { label: 'Verify dispatched', color: 'text-blue-600 bg-blue-50' },
   verify_complete: { label: 'Verify complete', color: 'text-emerald-600 bg-emerald-50' },
-  human_action: { label: 'Operator action', color: 'text-gray-700 bg-gray-100' },
+  human_action: { label: 'Operator action', color: 'text-admin-secondary bg-slate-100' },
 };
 
 function severityColor(sev: string): string {
@@ -117,7 +117,7 @@ function fileStatusColor(status: string): string {
   if (status === 'added') return 'text-emerald-700 bg-emerald-50';
   if (status === 'removed') return 'text-red-700 bg-red-50';
   if (status === 'renamed') return 'text-blue-700 bg-blue-50';
-  return 'text-gray-700 bg-gray-100';
+  return 'text-admin-secondary bg-slate-100';
 }
 
 /* ----------------------------- subcomponents ----------------------------- */
@@ -125,8 +125,8 @@ function fileStatusColor(status: string): string {
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
-      <div className="mt-0.5 text-sm text-gray-900 break-words">{children || '—'}</div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-admin-muted">{label}</p>
+      <div className="mt-0.5 text-sm text-admin-ink break-words">{children || '—'}</div>
     </div>
   );
 }
@@ -134,7 +134,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 function StatusStepper({ status }: { status: string }) {
   if (status === 'false_positive') {
     return (
-      <div className="flex items-center gap-2 text-sm text-gray-500">
+      <div className="flex items-center gap-2 text-sm text-admin-muted">
         <XCircle className="h-4 w-4" /> Marked false positive
       </div>
     );
@@ -151,17 +151,17 @@ function StatusStepper({ status }: { status: string }) {
             <div
               className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
                 active
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-admin-accent text-white'
                   : done
-                    ? 'bg-indigo-100 text-indigo-700'
-                    : 'bg-gray-100 text-gray-400'
+                    ? 'bg-admin-accent-soft text-admin-accent-ink'
+                    : 'bg-slate-100 text-admin-muted'
               }`}
             >
               {done ? <Check className="h-3 w-3" /> : null}
               {STATUS_LABEL[step]}
             </div>
             {i < STATUS_STEPS.length - 1 && (
-              <div className={`h-px w-3 ${done ? 'bg-indigo-300' : 'bg-gray-200'}`} />
+              <div className={`h-px w-3 ${done ? 'bg-admin-accent-border' : 'bg-slate-200'}`} />
             )}
           </div>
         );
@@ -182,9 +182,9 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-gray-100">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+    <div className="admin-panel">
+      <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-admin-border">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-admin-ink">
           {icon}
           {title}
         </h2>
@@ -255,7 +255,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
   const latestRun = agentRuns[0] ?? null;
 
   if (detailQuery.isLoading) {
-    return <p className="text-sm text-gray-500">Loading incident…</p>;
+    return <p className="text-sm text-admin-muted">Loading incident…</p>;
   }
   if (detailQuery.isError) {
     return (
@@ -278,7 +278,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
   const btn =
     'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-50';
   const linkBtn =
-    'inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50';
+    'inline-flex items-center gap-1.5 rounded-md border border-admin-border px-3 py-1.5 text-sm text-admin-secondary hover:bg-admin-bg';
 
   return (
     <div className="space-y-6">
@@ -288,34 +288,34 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
           <span className={`rounded-full px-2 py-0.5 text-xs font-bold uppercase ${severityColor(incident.severity)}`}>
             {incident.severity}
           </span>
-          <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+          <span className="rounded-full bg-admin-accent-soft px-2.5 py-0.5 text-xs font-medium text-admin-accent-ink">
             {STATUS_LABEL[incident.status] ?? incident.status}
           </span>
           {incident.ruleName && (
-            <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-admin-muted">
               {incident.ruleName}
             </span>
           )}
-          <span className="flex items-center gap-1 text-xs text-gray-400">
+          <span className="flex items-center gap-1 text-xs text-admin-muted">
             <Clock className="h-3.5 w-3.5" /> opened {relativeTime(incident.createdAt)}
           </span>
           <button
             type="button"
             onClick={refresh}
-            className="ml-auto inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+            className="ml-auto inline-flex items-center gap-1 rounded-md border border-admin-border px-2 py-1 text-xs text-admin-muted hover:bg-admin-bg"
           >
             <RotateCw className={`h-3.5 w-3.5 ${detailQuery.isFetching ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
-        <h1 className="mt-2 text-2xl font-bold text-gray-900">{incident.title}</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-admin-ink">{incident.title}</h1>
         {incident.summary && (
-          <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">{incident.summary}</p>
+          <p className="mt-2 text-sm text-admin-muted whitespace-pre-wrap">{incident.summary}</p>
         )}
         <button
           type="button"
           onClick={copyId}
-          className="mt-2 inline-flex items-center gap-1 text-xs font-mono text-gray-400 hover:text-gray-600"
+          className="mt-2 inline-flex items-center gap-1 text-xs font-mono text-admin-muted hover:text-admin-muted"
         >
           {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           {incident.id}
@@ -323,7 +323,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
       </div>
 
       {/* Status stepper */}
-      <div className="rounded-lg border border-gray-200 bg-white px-5 py-4 shadow-sm">
+      <div className="admin-panel px-5 py-4">
         <StatusStepper status={incident.status} />
       </div>
 
@@ -335,7 +335,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
               type="button"
               disabled={ackMutation.isPending}
               onClick={() => ackMutation.mutate({ id: incidentId })}
-              className={`${btn} bg-indigo-600 text-white hover:bg-indigo-700`}
+              className={`${btn} bg-admin-accent text-white hover:bg-admin-accent-ink`}
             >
               {ackMutation.isPending ? 'Acknowledging…' : 'Acknowledge'}
             </button>
@@ -371,7 +371,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                   if (!window.confirm('Close this incident without verify?')) return;
                   closeMutation.mutate({ id: incidentId });
                 }}
-                className={`${btn} border border-gray-300 text-gray-700 hover:bg-gray-50`}
+                className={`${btn} border border-admin-border text-admin-secondary hover:bg-admin-bg`}
               >
                 {closeMutation.isPending ? 'Closing…' : 'Close'}
               </button>
@@ -383,7 +383,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                 const note = window.prompt('Optional note for false positive:') ?? undefined;
                 fpMutation.mutate({ id: incidentId, note: note || undefined });
               }}
-              className={`${btn} border border-gray-300 text-gray-700 hover:bg-gray-50`}
+              className={`${btn} border border-admin-border text-admin-secondary hover:bg-admin-bg`}
             >
               {fpMutation.isPending ? 'Updating…' : 'False positive'}
             </button>
@@ -418,7 +418,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
       )}
 
       {/* Facts grid */}
-      <Card title="Details" icon={<AlertTriangle className="h-4 w-4 text-gray-400" />}>
+      <Card title="Details" icon={<AlertTriangle className="h-4 w-4 text-admin-muted" />}>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Fact label="Service">{incident.primaryService}</Fact>
           <Fact label="Repo">{incident.likelyRepo}</Fact>
@@ -450,27 +450,27 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
               href={pr.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+              className="inline-flex items-center gap-1 text-xs font-medium text-admin-accent hover:text-admin-accent-ink"
             >
               Open PR #{pr.number} <ExternalLink className="h-3 w-3" />
             </a>
           }
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold text-gray-900">{pr.title}</span>
+            <span className="text-sm font-semibold text-admin-ink">{pr.title}</span>
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
                 pr.merged
                   ? 'bg-violet-100 text-violet-800'
                   : pr.state === 'open'
                     ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-gray-100 text-gray-600'
+                    : 'bg-slate-100 text-admin-muted'
               }`}
             >
               {pr.merged ? 'merged' : pr.draft ? 'draft' : pr.state}
             </span>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-500">
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-admin-muted">
             <span className="text-emerald-600 font-medium">+{pr.additions}</span>
             <span className="text-red-600 font-medium">−{pr.deletions}</span>
             <span>{pr.changedFiles} files</span>
@@ -483,11 +483,11 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
           </div>
 
           {pr.files.length > 0 && (
-            <ul className="mt-4 divide-y divide-gray-100 rounded-md border border-gray-100">
+            <ul className="mt-4 divide-y divide-admin-border rounded-md border border-admin-border">
               {pr.files.map((f: any) => (
                 <li key={f.filename} className="flex items-center gap-3 px-3 py-2 text-xs">
-                  <FileCode2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                  <span className="flex-1 truncate font-mono text-gray-700">{f.filename}</span>
+                  <FileCode2 className="h-3.5 w-3.5 shrink-0 text-admin-muted" />
+                  <span className="flex-1 truncate font-mono text-admin-secondary">{f.filename}</span>
                   <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${fileStatusColor(f.status)}`}>
                     {f.status}
                   </span>
@@ -500,10 +500,10 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
 
           {pr.body && (
             <details className="mt-4 group">
-              <summary className="cursor-pointer text-xs font-medium text-gray-500 hover:text-gray-700">
+              <summary className="cursor-pointer text-xs font-medium text-admin-muted hover:text-admin-secondary">
                 PR description
               </summary>
-              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-xs text-gray-700">
+              <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-admin-bg p-3 text-xs text-admin-secondary">
                 {pr.body}
               </pre>
             </details>
@@ -517,7 +517,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
           title="Cursor's response"
           icon={<Sparkles className="h-4 w-4 text-violet-600" />}
           right={
-            <span className="flex items-center gap-2 text-[11px] text-gray-400">
+            <span className="flex items-center gap-2 text-[11px] text-admin-muted">
               {latestRun?.model && <span className="font-mono">{latestRun.model}</span>}
               {formatDuration(latestRun?.durationMs) && (
                 <span>· {formatDuration(latestRun?.durationMs)}</span>
@@ -525,7 +525,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
             </span>
           }
         >
-          <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded bg-violet-50/40 p-4 text-sm leading-relaxed text-gray-800">
+          <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded bg-violet-50/40 p-4 text-sm leading-relaxed text-admin-secondary">
             {latestReply}
           </pre>
         </Card>
@@ -545,9 +545,9 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
               </span>
             ))}
           </div>
-          <p className="text-xs text-gray-500 mt-3">
+          <p className="text-xs text-admin-muted mt-3">
             Playbooks injected into the agent prompt.{' '}
-            <a href="/devops/skills" className="text-indigo-600 hover:underline">
+            <a href="/devops/skills" className="text-admin-accent hover:text-admin-accent-ink">
               Edit skills
             </a>
           </p>
@@ -556,10 +556,10 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
 
       {/* Agent runs */}
       {agentRuns.length > 0 && (
-        <Card title={`Agent runs (${agentRuns.length})`} icon={<Bot className="h-4 w-4 text-indigo-600" />}>
+        <Card title={`Agent runs (${agentRuns.length})`} icon={<Bot className="h-4 w-4 text-admin-accent" />}>
           <ul className="space-y-3">
             {agentRuns.map((run: any) => (
-              <li key={run.id} className="rounded-md border border-gray-100 p-3">
+              <li key={run.id} className="rounded-md border border-admin-border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
@@ -568,23 +568,23 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                         : run.status === 'error'
                           ? 'bg-red-100 text-red-800'
                           : run.status === 'running' || run.status === 'starting'
-                            ? 'bg-indigo-100 text-indigo-800'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-admin-accent-soft text-admin-accent-ink'
+                            : 'bg-slate-100 text-admin-muted'
                     }`}
                   >
                     {run.status}
                   </span>
-                  {run.model && <span className="font-mono text-[11px] text-gray-500">{run.model}</span>}
+                  {run.model && <span className="font-mono text-[11px] text-admin-muted">{run.model}</span>}
                   {formatDuration(run.durationMs) && (
-                    <span className="text-[11px] text-gray-500">{formatDuration(run.durationMs)}</span>
+                    <span className="text-[11px] text-admin-muted">{formatDuration(run.durationMs)}</span>
                   )}
-                  <span className="ml-auto text-[11px] text-gray-400">{relativeTime(run.createdAt)}</span>
+                  <span className="ml-auto text-[11px] text-admin-muted">{relativeTime(run.createdAt)}</span>
                 </div>
-                <p className="mt-1.5 font-mono text-[11px] text-gray-500">
+                <p className="mt-1.5 font-mono text-[11px] text-admin-muted">
                   {run.repo ?? '—'} · {run.branch ?? '—'}
                 </p>
                 {run.resultSummary && (
-                  <p className="mt-1.5 line-clamp-3 text-xs text-gray-600 whitespace-pre-wrap">
+                  <p className="mt-1.5 line-clamp-3 text-xs text-admin-muted whitespace-pre-wrap">
                     {run.resultSummary}
                   </p>
                 )}
@@ -594,7 +594,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                       href={run.cursorAgentUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800"
+                      className="inline-flex items-center gap-1 text-[11px] text-admin-accent hover:text-admin-accent-ink"
                     >
                       <Bot className="h-3 w-3" /> Cursor agent
                     </a>
@@ -604,7 +604,7 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                       href={run.prUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800"
+                      className="inline-flex items-center gap-1 text-[11px] text-admin-accent hover:text-admin-accent-ink"
                     >
                       <GitPullRequest className="h-3 w-3" /> PR
                     </a>
@@ -617,18 +617,18 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
       )}
 
       {/* Timeline */}
-      <Card title={`Timeline (${events.length})`} icon={<Clock className="h-4 w-4 text-gray-400" />}>
+      <Card title={`Timeline (${events.length})`} icon={<Clock className="h-4 w-4 text-admin-muted" />}>
         {events.length === 0 ? (
-          <p className="text-sm text-gray-500">No timeline events yet.</p>
+          <p className="text-sm text-admin-muted">No timeline events yet.</p>
         ) : (
           <ul className="space-y-1">
             {events.map((evt: any, index: number) => {
-              const meta = EVENT_META[evt.kind] ?? { label: evt.kind, color: 'text-gray-600 bg-gray-100' };
+              const meta = EVENT_META[evt.kind] ?? { label: evt.kind, color: 'text-admin-muted bg-slate-100' };
               const payloadText = formatEventPayload(evt.payload);
               const key = evt.id ?? `${evt.kind}-${index}`;
               const isOpen = openEvents[key];
               return (
-                <li key={key} className="rounded-md hover:bg-gray-50">
+                <li key={key} className="rounded-md hover:bg-admin-bg">
                   <button
                     type="button"
                     onClick={() => payloadText && setOpenEvents((s) => ({ ...s, [key]: !s[key] }))}
@@ -636,9 +636,9 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                   >
                     {payloadText ? (
                       isOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-admin-muted" />
                       ) : (
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-admin-muted" />
                       )
                     ) : (
                       <span className="w-3.5" />
@@ -646,13 +646,13 @@ export function DevopsIncidentDetailPanel({ incidentId }: { incidentId: string }
                     <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${meta.color}`}>
                       {meta.label}
                     </span>
-                    {evt.actorId && <span className="text-[11px] text-gray-400">{evt.actorId}</span>}
-                    <span className="ml-auto text-[11px] text-gray-400" title={formatDate(evt.createdAt)}>
+                    {evt.actorId && <span className="text-[11px] text-admin-muted">{evt.actorId}</span>}
+                    <span className="ml-auto text-[11px] text-admin-muted" title={formatDate(evt.createdAt)}>
                       {relativeTime(evt.createdAt)}
                     </span>
                   </button>
                   {isOpen && payloadText && (
-                    <pre className="mx-2 mb-2 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-gray-50 p-3 text-xs text-gray-700">
+                    <pre className="mx-2 mb-2 max-h-72 overflow-auto whitespace-pre-wrap rounded bg-admin-bg p-3 text-xs text-admin-secondary">
                       {payloadText}
                     </pre>
                   )}

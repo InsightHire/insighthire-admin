@@ -1,37 +1,49 @@
 'use client';
 
+import { StatTile, type StatTone } from '@/components/admin/stat-tile';
+
 export function formatDate(date: string | Date | null) {
   if (!date) return '-';
   return new Date(date).toLocaleString();
 }
 
+const BADGE = {
+  warn: 'bg-admin-warn-soft text-amber-800 ring-1 ring-inset ring-amber-600/20',
+  ok: 'bg-admin-ok-soft text-emerald-700 ring-1 ring-inset ring-emerald-600/15',
+  danger: 'bg-admin-danger-soft text-red-700 ring-1 ring-inset ring-red-600/15',
+  neutral: 'bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-500/15',
+  info: 'bg-admin-info-soft text-sky-700 ring-1 ring-inset ring-sky-600/15',
+  brand: 'bg-admin-accent-soft text-admin-accent-ink ring-1 ring-inset ring-admin-accent/20',
+  purple: 'bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/15',
+} as const;
+
 export function getStatusBadge(status: string) {
   const styles: Record<string, string> = {
-    PENDING: 'bg-yellow-100 text-yellow-800',
-    SENT: 'bg-green-100 text-green-800',
-    FAILED: 'bg-red-100 text-red-800',
-    CANCELLED: 'bg-gray-100 text-gray-800',
-    OPENED: 'bg-blue-100 text-blue-800',
-    CLICKED: 'bg-purple-100 text-purple-800',
-    BOUNCED: 'bg-red-100 text-red-800',
-    accepted: 'bg-green-100 text-green-800',
-    delivered: 'bg-green-100 text-green-800',
-    opened: 'bg-blue-100 text-blue-800',
-    clicked: 'bg-purple-100 text-purple-800',
-    failed: 'bg-red-100 text-red-800',
-    rejected: 'bg-red-100 text-red-800',
-    stored: 'bg-gray-100 text-gray-800',
+    PENDING: BADGE.warn,
+    SENT: BADGE.ok,
+    FAILED: BADGE.danger,
+    CANCELLED: BADGE.neutral,
+    OPENED: BADGE.info,
+    CLICKED: BADGE.purple,
+    BOUNCED: BADGE.danger,
+    accepted: BADGE.ok,
+    delivered: BADGE.ok,
+    opened: BADGE.info,
+    clicked: BADGE.purple,
+    failed: BADGE.danger,
+    rejected: BADGE.danger,
+    stored: BADGE.neutral,
   };
-  return styles[status] || 'bg-gray-100 text-gray-800';
+  return styles[status] || BADGE.neutral;
 }
 
 export function getDeliveryBadge(method: string) {
   const styles: Record<string, string> = {
-    IMMEDIATE: 'bg-blue-100 text-blue-800',
-    DAILY_DIGEST: 'bg-indigo-100 text-indigo-800',
-    WEEKLY_DIGEST: 'bg-purple-100 text-purple-800',
+    IMMEDIATE: BADGE.info,
+    DAILY_DIGEST: BADGE.brand,
+    WEEKLY_DIGEST: BADGE.purple,
   };
-  return styles[method] || 'bg-gray-100 text-gray-800';
+  return styles[method] || BADGE.neutral;
 }
 
 export function ChartIcon({ className }: { className?: string }) {
@@ -42,45 +54,19 @@ export function ChartIcon({ className }: { className?: string }) {
   );
 }
 
+const COLOR_TONE: Record<string, StatTone> = {
+  yellow: 'warn',
+  green: 'ok',
+  red: 'critical',
+  blue: 'info',
+  purple: 'brand',
+  gray: 'muted',
+};
+
 export function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: any; color: string }) {
-  const colors: Record<string, string> = {
-    yellow: 'bg-yellow-50 text-yellow-600',
-    green: 'bg-green-50 text-green-600',
-    red: 'bg-red-50 text-red-600',
-    blue: 'bg-blue-50 text-blue-600',
-    purple: 'bg-purple-50 text-purple-600',
-  };
-  return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-sm text-gray-500">{title}</div>
-          <div className="text-2xl font-bold text-gray-900">{value.toLocaleString()}</div>
-        </div>
-        <div className={`p-3 rounded-full ${colors[color]}`}>
-          <Icon className="h-6 w-6" />
-        </div>
-      </div>
-    </div>
-  );
+  return <StatTile label={title} value={value.toLocaleString()} icon={Icon} tone={COLOR_TONE[color] ?? 'muted'} />;
 }
 
 export function MiniStat({ label, value, color, suffix }: { label: string; value?: number | null; color: string; suffix?: string }) {
-  const colors: Record<string, string> = {
-    yellow: 'border-yellow-300 bg-yellow-50',
-    green: 'border-green-300 bg-green-50',
-    red: 'border-red-300 bg-red-50',
-    blue: 'border-blue-300 bg-blue-50',
-    purple: 'border-purple-300 bg-purple-50',
-    gray: 'border-gray-300 bg-gray-50',
-  };
-  return (
-    <div className={`rounded-lg border p-3 ${colors[color]}`}>
-      <div className="text-xs text-gray-600">{label}</div>
-      <div className="text-lg font-semibold text-gray-900">
-        {(value ?? 0).toLocaleString()}
-        {suffix && <span className="text-xs text-gray-500 ml-1">{suffix}</span>}
-      </div>
-    </div>
-  );
+  return <StatTile label={label} value={(value ?? 0).toLocaleString()} hint={suffix} tone={COLOR_TONE[color] ?? 'muted'} />;
 }

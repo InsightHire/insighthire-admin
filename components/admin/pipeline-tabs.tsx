@@ -22,14 +22,15 @@ export function PipelineTabs({ children }: { children?: React.ReactNode }) {
         title="Pipeline"
         description="Workers, scoring health, and API status — consolidated ops surface."
       />
-      <div className="mb-4 flex gap-1 border-b border-admin-border">
+      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-admin-border">
         {TABS.map((t) => (
           <Link
             key={t.id}
             href={t.href}
+            aria-current={tab === t.id ? 'page' : undefined}
             className={cn(
-              'relative px-3 py-2 text-sm font-medium transition-colors',
-              tab === t.id ? 'text-admin-ink' : 'text-admin-muted hover:text-admin-secondary',
+              'relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+              tab === t.id ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
             )}
           >
             {t.label}

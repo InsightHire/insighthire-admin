@@ -15,8 +15,8 @@ export default function DevopsIncidentLegacyRedirect() {
   }, [id]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <p className="text-sm text-gray-500">Opening incident…</p>
+    <div className="min-h-screen bg-admin-bg flex items-center justify-center">
+      <p className="text-sm text-admin-muted">Opening incident…</p>
     </div>
   );
 }

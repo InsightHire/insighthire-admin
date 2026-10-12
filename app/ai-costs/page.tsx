@@ -7,9 +7,16 @@ export const dynamic = 'force-dynamic';
  */
 import { Fragment, useState } from 'react';
 import Link from 'next/link';
+import { Building2, Code2, Coins, Cpu, DollarSign, Hash } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
 
 function usd(v: number): string {
   return v >= 100 ? `$${v.toFixed(0)}` : v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(4)}`;
@@ -34,141 +41,132 @@ export default function AiCostsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">AI costs</h1>
-            <p className="text-sm text-gray-500">
-              LLM spend and token volume per tenant and per call site.
-            </p>
-          </div>
-          <select
+      <AdminPageChrome
+        icon={<Coins />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'AI costs' }]}
+        title="AI costs"
+        description="LLM spend and token volume per tenant and per call site."
+        actions={
+          <Segmented
+            size="sm"
+            ariaLabel="Time window"
+            options={[
+              { value: 7, label: 'Last 7 days' },
+              { value: 30, label: 'Last 30 days' },
+              { value: 90, label: 'Last 90 days' },
+            ]}
             value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
-        </div>
-
+            onChange={setDays}
+          />
+        }
+      >
         {summary.isLoading ? (
-          <p className="text-sm text-gray-400">Loading AI cost data…</p>
+          <p className="text-sm text-admin-muted">Loading AI cost data…</p>
         ) : summary.error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <div className="rounded-admin border border-admin-danger/20 bg-admin-danger-soft px-4 py-3 text-sm text-red-900">
             {summary.error.message}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white rounded-lg shadow p-5">
-                <p className="text-sm text-gray-500">Total spend</p>
-                <p className="text-3xl font-bold text-gray-900">{usd(d.totalCost)}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-5">
-                <p className="text-sm text-gray-500">Tokens</p>
-                <p className="text-3xl font-bold text-gray-900">{tokens(d.totalTokens)}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-5">
-                <p className="text-sm text-gray-500">Calls</p>
-                <p className="text-3xl font-bold text-gray-900">{d.totalCalls.toLocaleString()}</p>
-              </div>
-            </div>
+          <div className="space-y-6">
+            <StatGrid cols={3}>
+              <StatTile label="Total spend" icon={DollarSign} tone="brand" value={usd(d.totalCost)} />
+              <StatTile label="Tokens" icon={Hash} tone="info" value={tokens(d.totalTokens)} />
+              <StatTile label="Calls" icon={Cpu} tone="muted" value={d.totalCalls.toLocaleString()} />
+            </StatGrid>
 
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <h2 className="text-sm font-semibold text-gray-900">Spend by organization</h2>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-left text-gray-500">
-                    <th className="px-4 py-2.5 font-medium">Organization</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Spend</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Tokens</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Calls</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Failed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.byOrg.length === 0 ? (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">No LLM usage in this window.</td></tr>
-                  ) : (
-                    d.byOrg.map((o: any) => {
-                      const key = o.organizationId ?? 'platform';
-                      const expanded = expandedOrg === key;
-                      return (
-                        <Fragment key={key}>
-                          <tr
-                            onClick={() => setExpandedOrg(expanded ? null : key)}
-                            className="border-b border-gray-50 cursor-pointer hover:bg-gray-50"
-                          >
-                            <td className="px-4 py-2.5">
-                              {o.organizationId ? (
-                                <Link
-                                  href={`/organizations/${o.organizationId}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="font-medium text-blue-600 hover:text-blue-700"
-                                >
-                                  {o.organizationName}
-                                </Link>
-                              ) : (
-                                <span className="font-medium text-gray-700">{o.organizationName}</span>
-                              )}
-                              <span className="ml-2 text-xs text-gray-400">{expanded ? '▾' : '▸'}</span>
-                            </td>
-                            <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">{usd(o.cost)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{tokens(o.tokens)}</td>
-                            <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{o.calls.toLocaleString()}</td>
-                            <td className={`px-4 py-2.5 text-right tabular-nums ${o.failedCalls > 0 ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
-                              {o.failedCalls}
-                            </td>
-                          </tr>
-                          {expanded && o.models.map((m: any) => (
-                            <tr key={`${key}-${m.model}`} className="border-b border-gray-50 bg-gray-50/50 text-xs">
-                              <td className="px-4 py-1.5 pl-10 text-gray-500">{m.model}</td>
-                              <td className="px-4 py-1.5 text-right tabular-nums text-gray-600">{usd(m.cost)}</td>
-                              <td className="px-4 py-1.5 text-right tabular-nums text-gray-500">{tokens(m.tokens)}</td>
-                              <td className="px-4 py-1.5 text-right tabular-nums text-gray-500">{m.calls.toLocaleString()}</td>
-                              <td />
+            <SectionCard
+              icon={<Building2 />}
+              title="Spend by organization"
+              description="Click a row to see spend by model"
+              padded={false}
+            >
+              {d.byOrg.length === 0 ? (
+                <EmptyState compact className="border-0 shadow-none" icon={<Coins />} title="No LLM usage in this window." />
+              ) : (
+                <div className="overflow-x-auto">
+                  <DataTableEl>
+                    <thead>
+                      <tr>
+                        <Th>Organization</Th>
+                        <Th className="text-right">Spend</Th>
+                        <Th className="text-right">Tokens</Th>
+                        <Th className="text-right">Calls</Th>
+                        <Th className="text-right">Failed</Th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.byOrg.map((o: any) => {
+                        const key = o.organizationId ?? 'platform';
+                        const expanded = expandedOrg === key;
+                        return (
+                          <Fragment key={key}>
+                            <tr onClick={() => setExpandedOrg(expanded ? null : key)} className="cursor-pointer">
+                              <Td>
+                                {o.organizationId ? (
+                                  <Link
+                                    href={`/organizations/${o.organizationId}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="font-medium text-admin-accent hover:text-admin-accent-ink"
+                                  >
+                                    {o.organizationName}
+                                  </Link>
+                                ) : (
+                                  <span className="font-medium text-admin-ink">{o.organizationName}</span>
+                                )}
+                                <span className="ml-2 text-xs text-admin-muted">{expanded ? '▾' : '▸'}</span>
+                              </Td>
+                              <Td className="text-right font-medium tabular-nums text-admin-ink">{usd(o.cost)}</Td>
+                              <Td className="text-right tabular-nums">{tokens(o.tokens)}</Td>
+                              <Td className="text-right tabular-nums">{o.calls.toLocaleString()}</Td>
+                              <Td className={`text-right tabular-nums ${o.failedCalls > 0 ? 'font-medium text-red-600' : 'text-admin-muted'}`}>
+                                {o.failedCalls}
+                              </Td>
                             </tr>
-                          ))}
-                        </Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                            {expanded && o.models.map((m: any) => (
+                              <tr key={`${key}-${m.model}`} className="bg-admin-bg/50 text-xs">
+                                <Td className="py-1.5 pl-10 text-admin-muted">{m.model}</Td>
+                                <Td className="py-1.5 text-right tabular-nums">{usd(m.cost)}</Td>
+                                <Td className="py-1.5 text-right tabular-nums text-admin-muted">{tokens(m.tokens)}</Td>
+                                <Td className="py-1.5 text-right tabular-nums text-admin-muted">{m.calls.toLocaleString()}</Td>
+                                <Td />
+                              </tr>
+                            ))}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </DataTableEl>
+                </div>
+              )}
+            </SectionCard>
 
-            <div className="bg-white rounded-lg shadow overflow-x-auto">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <h2 className="text-sm font-semibold text-gray-900">Spend by call site</h2>
-              </div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50 text-left text-gray-500">
-                    <th className="px-4 py-2.5 font-medium">Call site</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Spend</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Tokens</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Calls</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.byCallSite.map((c: any) => (
-                    <tr key={c.callSite} className="border-b border-gray-50">
-                      <td className="px-4 py-2.5 font-mono text-xs text-gray-700">{c.callSite}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums font-medium text-gray-900">{usd(c.cost)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{tokens(c.tokens)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{c.calls.toLocaleString()}</td>
+            <SectionCard icon={<Code2 />} title="Spend by call site" description="Where in the code the LLM calls come from" padded={false}>
+              <div className="overflow-x-auto">
+                <DataTableEl>
+                  <thead>
+                    <tr>
+                      <Th>Call site</Th>
+                      <Th className="text-right">Spend</Th>
+                      <Th className="text-right">Tokens</Th>
+                      <Th className="text-right">Calls</Th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+                  </thead>
+                  <tbody>
+                    {d.byCallSite.map((c: any) => (
+                      <tr key={c.callSite}>
+                        <Td mono className="text-admin-ink">{c.callSite}</Td>
+                        <Td className="text-right font-medium tabular-nums text-admin-ink">{usd(c.cost)}</Td>
+                        <Td className="text-right tabular-nums">{tokens(c.tokens)}</Td>
+                        <Td className="text-right tabular-nums">{c.calls.toLocaleString()}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTableEl>
+              </div>
+            </SectionCard>
+          </div>
         )}
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

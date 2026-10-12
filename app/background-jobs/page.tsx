@@ -7,12 +7,34 @@ import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { QueueTrendsSection } from '@/components/platform-admin/queue-trends';
 import {
-  FunnelIcon,
-  ArrowPathIcon,
-  XMarkIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from '@heroicons/react/24/outline';
+  Activity,
+  BarChart3,
+  Briefcase,
+  Building2,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Film,
+  Filter,
+  Hourglass,
+  Layers,
+  Map as MapIcon,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Video,
+  X,
+  XCircle,
+} from 'lucide-react';
+import { AdminPage } from '@/components/admin/page-chrome';
+import { PageHeader } from '@/components/admin/page-header';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { DataTableEl, Th, Td } from '@/components/admin/data-table';
+import { buttonClass, checkboxClass, inputClass, selectClass } from '@/components/admin/controls';
 
 interface FailedJob {
   id: string;
@@ -262,45 +284,96 @@ export default function BackgroundJobsAdmin() {
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+        <div className="animate-spin h-8 w-8 border-4 border-admin-accent border-t-transparent rounded-full"></div>
       </div>
     );
   }
 
-  return (
-    <div className="p-6 max-w-full">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Background Jobs Management</h1>
-        <p className="text-gray-600">Monitor and retry failed background processing jobs with detailed filtering</p>
-      </div>
+  const sortButton = (
+    <button
+      type="button"
+      onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
+      className={buttonClass.small}
+    >
+      {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
+    </button>
+  );
 
+  const selectionActions = (visibleCount: number) =>
+    selected.size > 0 ? (
+      <>
+        <button
+          type="button"
+          onClick={dismissSelected}
+          disabled={bulkDismissMutation.isPending}
+          className={`${buttonClass.primary} px-3 py-1 text-xs`}
+        >
+          <X className="h-3.5 w-3.5" />
+          Dismiss {selected.size} selected
+        </button>
+        <button type="button" onClick={clearSelection} className={`${buttonClass.ghost} text-xs`}>
+          Clear
+        </button>
+      </>
+    ) : (
+      <button
+        type="button"
+        onClick={selectAllVisible}
+        disabled={visibleCount === 0}
+        className={`${buttonClass.ghost} text-xs`}
+      >
+        Select all visible
+      </button>
+    );
+
+  const noMatch = (
+    <EmptyState
+      compact
+      className="border-0 shadow-none"
+      icon={<Search />}
+      title="No jobs match your filters"
+      action={
+        <button onClick={clearFilters} className={buttonClass.secondary}>
+          Clear filters
+        </button>
+      }
+    />
+  );
+
+  return (
+    <AdminPage className="pt-0 sm:px-6 lg:px-6 lg:pt-0">
+      <PageHeader
+        icon={<Activity />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'Pipeline', href: '/pipeline' }, { label: 'Background jobs' }]}
+        title="Background Jobs Management"
+        description="Monitor and retry failed background processing jobs with detailed filtering"
+      />
+
+      <div className="space-y-6">
       {/* Queue Overview Cards */}
       {queueStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {queueStats.queues.map((queue: any) => (
-            <div key={queue.name} className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 capitalize mb-4">
-                {queue.name.replace('-', ' ')}
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 bg-yellow-50 rounded-lg">
-                  <div className="text-2xl font-bold text-yellow-900">{queue.waiting}</div>
-                  <div className="text-xs text-yellow-700">Waiting</div>
+            <SectionCard key={queue.name} icon={<Layers />} title={<span className="capitalize">{queue.name.replace('-', ' ')}</span>}>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="rounded-admin-sm border border-admin-warn/20 bg-admin-warn-soft p-3 text-center">
+                  <div className="text-2xl font-bold tabular-nums text-amber-900">{queue.waiting}</div>
+                  <div className="text-xs text-amber-700">Waiting</div>
                 </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-900">{queue.active}</div>
-                  <div className="text-xs text-blue-700">Active</div>
+                <div className="rounded-admin-sm border border-admin-info/20 bg-admin-info-soft p-3 text-center">
+                  <div className="text-2xl font-bold tabular-nums text-sky-900">{queue.active}</div>
+                  <div className="text-xs text-sky-700">Active</div>
                 </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg">
-                  <div className="text-2xl font-bold text-green-900">{queue.completed}</div>
-                  <div className="text-xs text-green-700">Last 24h</div>
+                <div className="rounded-admin-sm border border-admin-ok/20 bg-admin-ok-soft p-3 text-center">
+                  <div className="text-2xl font-bold tabular-nums text-emerald-900">{queue.completed}</div>
+                  <div className="text-xs text-emerald-700">Last 24h</div>
                 </div>
-                <div className="text-center p-3 bg-red-50 rounded-lg">
-                  <div className="text-2xl font-bold text-red-900">{queue.failed}</div>
+                <div className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft p-3 text-center">
+                  <div className="text-2xl font-bold tabular-nums text-red-900">{queue.failed}</div>
                   <div className="text-xs text-red-700">Failed</div>
                 </div>
               </div>
-            </div>
+            </SectionCard>
           ))}
         </div>
       )}
@@ -308,84 +381,86 @@ export default function BackgroundJobsAdmin() {
       <QueueTrendsSection />
 
       {/* AI Feedback Backfill */}
-      <div className="bg-white rounded-lg shadow-sm border border-purple-200 p-6 mb-8">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Assessment AI Feedback Backfill</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Re-score assessment TEXT/CODING responses with detailed AI feedback (strengths, improvements, feedback).
-          Responses already scored with rich feedback will be skipped.
-        </p>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={async () => {
-              // Dry run first
-              try {
-                const dryResult = await backfillMutation.mutateAsync({ dryRun: true, limit: 200 });
-                setBackfillResult(dryResult);
-              } catch (e: any) {
-                alert('Error: ' + e.message);
-              }
-            }}
-            disabled={backfillRunning}
-            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm font-medium"
-          >
-            Preview (Dry Run)
-          </button>
-          <button
-            onClick={async () => {
-              if (!confirm('This will call OpenAI for each response. Continue?')) return;
-              setBackfillRunning(true);
-              setBackfillResult(null);
-              try {
-                const result = await backfillMutation.mutateAsync({ dryRun: false, limit: 200 });
-                setBackfillResult(result);
-              } catch (e: any) {
-                alert('Error: ' + e.message);
-              } finally {
-                setBackfillRunning(false);
-              }
-            }}
-            disabled={backfillRunning}
-            className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 ${
-              backfillRunning
-                ? 'bg-purple-300 text-purple-100 cursor-not-allowed'
-                : 'bg-purple-600 text-white hover:bg-purple-700'
-            }`}
-          >
-            {backfillRunning && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
-            <span>{backfillRunning ? 'Scoring...' : 'Run Backfill'}</span>
-          </button>
-        </div>
-        {backfillResult && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg text-sm">
-            <div className="font-medium mb-2">
+      <SectionCard
+        icon={<Sparkles />}
+        title="Assessment AI Feedback Backfill"
+        description={
+          <>
+            Re-score assessment TEXT/CODING responses with detailed AI feedback (strengths, improvements, feedback).
+            Responses already scored with rich feedback will be skipped.
+          </>
+        }
+        actions={
+          <>
+            <button
+              onClick={async () => {
+                // Dry run first
+                try {
+                  const dryResult = await backfillMutation.mutateAsync({ dryRun: true, limit: 200 });
+                  setBackfillResult(dryResult);
+                } catch (e: any) {
+                  alert('Error: ' + e.message);
+                }
+              }}
+              disabled={backfillRunning}
+              className={buttonClass.secondary}
+            >
+              Preview (Dry Run)
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm('This will call OpenAI for each response. Continue?')) return;
+                setBackfillRunning(true);
+                setBackfillResult(null);
+                try {
+                  const result = await backfillMutation.mutateAsync({ dryRun: false, limit: 200 });
+                  setBackfillResult(result);
+                } catch (e: any) {
+                  alert('Error: ' + e.message);
+                } finally {
+                  setBackfillRunning(false);
+                }
+              }}
+              disabled={backfillRunning}
+              className={buttonClass.primary}
+            >
+              {backfillRunning && <RefreshCw className="h-4 w-4 animate-spin" />}
+              <span>{backfillRunning ? 'Scoring...' : 'Run Backfill'}</span>
+            </button>
+          </>
+        }
+      >
+        {backfillResult ? (
+          <div className="space-y-3 text-sm">
+            <div className="font-medium text-admin-ink">
               {backfillResult.dryRun ? 'Preview Results' : 'Backfill Complete'}
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="text-center p-2 bg-white rounded border">
-                <div className="text-xl font-bold">{backfillResult.totalFound}</div>
-                <div className="text-xs text-gray-500">Total TEXT/CODING</div>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="rounded-admin-sm border border-admin-border p-2 text-center">
+                <div className="text-xl font-bold tabular-nums text-admin-ink">{backfillResult.totalFound}</div>
+                <div className="text-xs text-admin-muted">Total TEXT/CODING</div>
               </div>
-              <div className="text-center p-2 bg-white rounded border">
-                <div className="text-xl font-bold text-purple-600">{backfillResult.needsBackfill}</div>
-                <div className="text-xs text-gray-500">Need AI Feedback</div>
+              <div className="rounded-admin-sm border border-admin-accent-border bg-admin-accent-soft p-2 text-center">
+                <div className="text-xl font-bold tabular-nums text-admin-accent-ink">{backfillResult.needsBackfill}</div>
+                <div className="text-xs text-admin-muted">Need AI Feedback</div>
               </div>
               {!backfillResult.dryRun && (
                 <>
-                  <div className="text-center p-2 bg-green-50 rounded border border-green-200">
-                    <div className="text-xl font-bold text-green-700">{backfillResult.scored}</div>
+                  <div className="rounded-admin-sm border border-green-200 bg-green-50 p-2 text-center">
+                    <div className="text-xl font-bold tabular-nums text-green-700">{backfillResult.scored}</div>
                     <div className="text-xs text-green-600">Scored</div>
                   </div>
-                  <div className="text-center p-2 bg-red-50 rounded border border-red-200">
-                    <div className="text-xl font-bold text-red-700">{backfillResult.failed}</div>
+                  <div className="rounded-admin-sm border border-red-200 bg-red-50 p-2 text-center">
+                    <div className="text-xl font-bold tabular-nums text-red-700">{backfillResult.failed}</div>
                     <div className="text-xs text-red-600">Failed</div>
                   </div>
                 </>
               )}
             </div>
             {!backfillResult.dryRun && backfillResult.results?.length > 0 && (
-              <div className="mt-3 space-y-1 max-h-40 overflow-y-auto">
+              <div className="max-h-40 space-y-1 overflow-y-auto rounded-admin-sm border border-admin-border bg-admin-bg/50 p-2">
                 {backfillResult.results.map((r: any, i: number) => (
-                  <div key={i} className="text-xs text-gray-600 flex items-center space-x-2">
+                  <div key={i} className="flex items-center space-x-2 text-xs text-admin-secondary">
                     <span className="font-mono">{r.responseId.slice(0, 12)}...</span>
                     <span>{r.oldScore} → {r.newScore}</span>
                     <span className={r.hasStrengths ? 'text-green-600' : 'text-red-600'}>
@@ -399,36 +474,36 @@ export default function BackgroundJobsAdmin() {
               </div>
             )}
           </div>
+        ) : (
+          <p className="text-sm text-admin-muted">Run a preview to see how many responses need AI feedback.</p>
         )}
-      </div>
+      </SectionCard>
 
       {/* Filters Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <FunnelIcon className="h-5 w-5 text-gray-500" />
-            <h3 className="font-medium text-gray-900">Filters</h3>
-            {hasActiveFilters && (
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                Active
-              </span>
-            )}
-          </div>
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="text-sm text-gray-600 hover:text-gray-900 flex items-center space-x-1"
-            >
-              <XMarkIcon className="h-4 w-4" />
-              <span>Clear all</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <SectionCard
+        icon={<Filter />}
+        title="Filters"
+        description={
+          hasActiveFilters
+            ? `Showing ${activeTab === 'failed' ? filteredFailedJobs.length : filteredPendingJobs.length} of ${activeTab === 'failed' ? (failedData?.jobs?.length || 0) : (pendingData?.jobs?.length || 0)} jobs`
+            : undefined
+        }
+        actions={
+          hasActiveFilters ? (
+            <>
+              <StatusPill tone="brand">Active</StatusPill>
+              <button onClick={clearFilters} className={`${buttonClass.ghost} text-xs`}>
+                <X className="h-3.5 w-3.5" />
+                <span>Clear all</span>
+              </button>
+            </>
+          ) : null
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Search */}
           <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-xs font-medium text-admin-secondary">
               Search (candidate name, email, error, question)
             </label>
             <input
@@ -436,19 +511,19 @@ export default function BackgroundJobsAdmin() {
               value={filters.searchText}
               onChange={(e) => setFilters(prev => ({ ...prev, searchText: e.target.value }))}
               placeholder="Search jobs..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
 
           {/* Job Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+            <label className="mb-1 block text-xs font-medium text-admin-secondary">Job Type</label>
             <select
               value={filters.jobType}
               onChange={(e) => setFilters(prev => ({ ...prev, jobType: e.target.value as any }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+              className={`${selectClass} w-full`}
             >
-              <option value="" className="text-gray-900">All Types</option>
+              <option value="">All Types</option>
               <option value="transcription">Transcription</option>
               <option value="scoring">Scoring</option>
               <option value="video_generation">Video Generation</option>
@@ -457,15 +532,15 @@ export default function BackgroundJobsAdmin() {
 
           {/* Organization */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-xs font-medium text-admin-secondary">
               Organization ({allOrganizations.length})
             </label>
             <select
               value={filters.organizationId}
               onChange={(e) => setFilters(prev => ({ ...prev, organizationId: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+              className={`${selectClass} w-full`}
             >
-              <option value="" className="text-gray-900">All Organizations</option>
+              <option value="">All Organizations</option>
               {allOrganizations.map((org: any) => (
                 <option key={org.id} value={org.id}>
                   {org.name || org.domain || org.id}
@@ -476,15 +551,15 @@ export default function BackgroundJobsAdmin() {
 
           {/* Journey */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-xs font-medium text-admin-secondary">
               Journey ({uniqueJourneys.length})
             </label>
             <select
               value={filters.journeyId}
               onChange={(e) => setFilters(prev => ({ ...prev, journeyId: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+              className={`${selectClass} w-full`}
             >
-              <option value="" className="text-gray-900">All Hiring Flows</option>
+              <option value="">All Hiring Flows</option>
               {uniqueJourneys.map(jId => {
                 const job = allJobs.find(j => j.journeyId === jId);
                 return (
@@ -498,15 +573,15 @@ export default function BackgroundJobsAdmin() {
 
           {/* Assessment */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-xs font-medium text-admin-secondary">
               Assessment ({uniqueAssessments.length})
             </label>
             <select
               value={filters.assessmentId}
               onChange={(e) => setFilters(prev => ({ ...prev, assessmentId: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+              className={`${selectClass} w-full`}
             >
-              <option value="" className="text-gray-900">All Assessments</option>
+              <option value="">All Assessments</option>
               {uniqueAssessments.map(aId => {
                 const job = allJobs.find(j => j.assessmentId === aId);
                 return (
@@ -520,15 +595,15 @@ export default function BackgroundJobsAdmin() {
 
           {/* Question (Interview) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-xs font-medium text-admin-secondary">
               Interview Question ({uniqueQuestions.length})
             </label>
             <select
               value={filters.questionId}
               onChange={(e) => setFilters(prev => ({ ...prev, questionId: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 bg-white"
+              className={`${selectClass} w-full`}
             >
-              <option value="" className="text-gray-900">All Interview Questions</option>
+              <option value="">All Interview Questions</option>
               {uniqueQuestions.map(qId => {
                 const job = allJobs.find(j => j.questionId === qId);
                 return (
@@ -540,97 +615,37 @@ export default function BackgroundJobsAdmin() {
             </select>
           </div>
         </div>
-
-        {hasActiveFilters && (
-          <div className="mt-3 text-sm text-gray-600">
-            Showing {activeTab === 'failed' ? filteredFailedJobs.length : filteredPendingJobs.length} of {activeTab === 'failed' ? (failedData?.jobs?.length || 0) : (pendingData?.jobs?.length || 0)} jobs
-          </div>
-        )}
-      </div>
+      </SectionCard>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => switchTab('failed')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'failed'
-                ? 'border-red-500 text-red-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            ❌ Failed Jobs {failedData?.jobs ? `(${filteredFailedJobs.length})` : ''}
-          </button>
-          <button
-            onClick={() => switchTab('pending')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'pending'
-                ? 'border-yellow-500 text-yellow-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            ⏳ Pending Jobs {pendingData?.jobs ? `(${filteredPendingJobs.length})` : ''}
-          </button>
-          <button
-            onClick={() => switchTab('completed')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'completed'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            ✅ Recent Completed
-          </button>
-        </nav>
-      </div>
+      <Segmented
+        ariaLabel="Job status"
+        options={[
+          { value: 'failed', label: 'Failed Jobs', count: failedData?.jobs ? filteredFailedJobs.length : undefined },
+          { value: 'pending', label: 'Pending Jobs', count: pendingData?.jobs ? filteredPendingJobs.length : undefined },
+          { value: 'completed', label: 'Recent Completed' },
+        ]}
+        value={activeTab}
+        onChange={switchTab}
+      />
 
       {/* Failed Jobs */}
       {activeTab === 'failed' && (
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-medium">Failed Jobs</h2>
-              <p className="text-sm text-gray-500">Sorted by date · dismiss hides from this queue (keeps the response)</p>
-            </div>
+        <SectionCard
+          icon={<XCircle />}
+          title="Failed Jobs"
+          description="Sorted by date · dismiss hides from this queue (keeps the response)"
+          padded={false}
+          actions={
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
-              </button>
-              {selected.size > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={dismissSelected}
-                    disabled={bulkDismissMutation.isPending}
-                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                    Dismiss {selected.size} selected
-                  </button>
-                  <button type="button" onClick={clearSelection} className="text-sm text-gray-500 hover:text-gray-800">
-                    Clear
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={selectAllVisible}
-                  disabled={filteredFailedJobs.length === 0}
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40"
-                >
-                  Select all visible
-                </button>
-              )}
+              {sortButton}
+              {selectionActions(filteredFailedJobs.length)}
             </div>
-          </div>
-
-          <div className="divide-y divide-gray-200">
+          }
+        >
+          <div className="divide-y divide-admin-border">
             {loadingFailed ? (
-              <div className="px-6 py-8 text-center text-gray-500">
+              <div className="px-6 py-8 text-center text-sm text-admin-muted">
                 <p>Loading failed jobs...</p>
               </div>
             ) : filteredFailedJobs.length > 0 ? (
@@ -648,191 +663,143 @@ export default function BackgroundJobsAdmin() {
                   isDismissing={dismissMutation.isPending}
                 />
               ))
+            ) : hasActiveFilters ? (
+              noMatch
             ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
-                {hasActiveFilters ? (
-                  <>
-                    <p className="text-lg">🔍 No jobs match your filters</p>
-                    <button
-                      onClick={clearFilters}
-                      className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Clear filters
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-lg">✅ No failed jobs found</p>
-                    <p className="text-sm mt-2">🎉 All background processing is healthy!</p>
-                  </>
-                )}
-              </div>
+              <EmptyState
+                compact
+                className="border-0 shadow-none"
+                icon={<CheckCircle2 className="text-admin-ok" />}
+                title="No failed jobs found"
+                description="All background processing is healthy!"
+              />
             )}
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Pending Jobs */}
       {activeTab === 'pending' && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-medium">Pending Jobs ({filteredPendingJobs.length})</h2>
-              <p className="text-sm text-gray-500">
-                Waiting/processing · dismiss hides from this queue (does not cancel workers)
-              </p>
-            </div>
+        <SectionCard
+          icon={<Hourglass />}
+          title={`Pending Jobs (${filteredPendingJobs.length})`}
+          description="Waiting/processing · dismiss hides from this queue (does not cancel workers)"
+          padded={false}
+          actions={
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
-              </button>
-              {selected.size > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={dismissSelected}
-                    disabled={bulkDismissMutation.isPending}
-                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-50"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                    Dismiss {selected.size} selected
-                  </button>
-                  <button type="button" onClick={clearSelection} className="text-sm text-gray-500 hover:text-gray-800">
-                    Clear
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={selectAllVisible}
-                  disabled={filteredPendingJobs.length === 0}
-                  className="text-sm font-medium text-gray-600 hover:text-gray-900 disabled:opacity-40"
-                >
-                  Select all visible
-                </button>
-              )}
+              {sortButton}
+              {selectionActions(filteredPendingJobs.length)}
             </div>
-          </div>
+          }
+        >
           {loadingPending ? (
-            <div className="px-6 py-8 text-center text-gray-500">
+            <div className="px-6 py-8 text-center text-sm text-admin-muted">
               <p>Loading pending jobs...</p>
             </div>
           ) : filteredPendingJobs.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <DataTableEl>
+                <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10">
+                    <Th className="w-10">
                       <span className="sr-only">Select</span>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Organization</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question/Assessment</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </Th>
+                    <Th>Type</Th>
+                    <Th>Candidate</Th>
+                    <Th>Organization</Th>
+                    <Th>Question/Assessment</Th>
+                    <Th>Submitted</Th>
+                    <Th className="text-right">Actions</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody>
                   {filteredPendingJobs.map(job => (
-                    <tr key={job.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-4">
+                    <tr key={job.id}>
+                      <Td>
                         <input
                           type="checkbox"
                           checked={selected.has(jobKey(job))}
                           onChange={() => toggleSelect(job)}
-                          className="h-4 w-4 rounded border-gray-300 text-teal-700 focus:ring-teal-600"
+                          className={checkboxClass}
                           aria-label={`Select ${job.candidateName}`}
                         />
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                          {job.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{job.candidateName}</div>
-                        {job.candidateEmail && <div className="text-sm text-gray-500">{job.candidateEmail}</div>}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      </Td>
+                      <Td>
+                        <StatusPill tone="brand" dot={false}>{job.type}</StatusPill>
+                      </Td>
+                      <Td>
+                        <div className="font-medium text-admin-ink">{job.candidateName}</div>
+                        {job.candidateEmail && <div className="text-admin-muted">{job.candidateEmail}</div>}
+                      </Td>
+                      <Td className="text-admin-ink">
                         {job.organizationName || 'Unknown'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-md truncate">
+                      </Td>
+                      <Td>
+                        <div className="max-w-md truncate text-admin-ink">
                           {job.assessmentName || job.questionText || 'N/A'}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      </Td>
+                      <Td className="whitespace-nowrap text-admin-muted">
                         {job.failedAt ? new Date(job.failedAt).toLocaleString() : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
+                      </Td>
+                      <Td className="text-right">
                         <button
                           type="button"
                           onClick={() => dismissOne(job)}
                           disabled={dismissMutation.isPending}
-                          className="px-3 py-1.5 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
-                          title="Hide from this queue without cancelling processing"
+                          className={buttonClass.small}
+                          title="Hide from this queue without canceling processing"
                         >
                           Dismiss
                         </button>
-                      </td>
+                      </Td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </DataTableEl>
             </div>
+          ) : hasActiveFilters ? (
+            noMatch
           ) : (
-            <div className="px-6 py-8 text-center text-gray-500">
-              {hasActiveFilters ? (
-                <>
-                  <p className="text-lg">🔍 No jobs match your filters</p>
-                  <button
-                    onClick={clearFilters}
-                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Clear filters
-                  </button>
-                </>
-              ) : (
-                <p>✅ No pending jobs - all caught up!</p>
-              )}
-            </div>
+            <EmptyState
+              compact
+              className="border-0 shadow-none"
+              icon={<CheckCircle2 className="text-admin-ok" />}
+              title="No pending jobs - all caught up!"
+            />
           )}
-        </div>
+        </SectionCard>
       )}
 
       {/* Completed Jobs */}
       {activeTab === 'completed' && (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-medium">Recently Completed</h2>
-              <p className="text-sm text-gray-500">Last 100 successfully processed jobs</p>
-            </div>
-            <button onClick={() => refetchCompleted()} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-              <ArrowPathIcon className="h-4 w-4" /> Refresh
+        <SectionCard
+          icon={<CheckCircle2 />}
+          title="Recently Completed"
+          description="Last 100 successfully processed jobs"
+          padded={false}
+          actions={
+            <button onClick={() => refetchCompleted()} className={buttonClass.small}>
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
             </button>
-          </div>
+          }
+        >
           {loadingCompleted ? (
-            <div className="px-6 py-8 text-center text-gray-500">Loading completed jobs...</div>
+            <div className="px-6 py-8 text-center text-sm text-admin-muted">Loading completed jobs...</div>
           ) : completedData?.jobs && completedData.jobs.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <DataTableEl>
+                <thead>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Candidate</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hiring Flow</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Completed</th>
+                    <Th>Candidate</Th>
+                    <Th>Type</Th>
+                    <Th>Hiring Flow</Th>
+                    <Th>Question</Th>
+                    <Th>Score</Th>
+                    <Th>Completed</Th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody>
                   {completedData.jobs.map((job: any) => {
                     const score = (() => {
                       try {
@@ -844,57 +811,61 @@ export default function BackgroundJobsAdmin() {
                       } catch { return null; }
                     })();
                     return (
-                      <tr key={job.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-gray-900">{job.candidateName || 'Unknown'}</div>
-                          {job.candidateEmail && <div className="text-xs text-gray-500">{job.candidateEmail}</div>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            job.type === 'transcription' ? 'bg-purple-100 text-purple-800' :
-                            job.type === 'scoring' ? 'bg-blue-100 text-blue-800' :
-                            job.type === 'video_generation' ? 'bg-orange-100 text-orange-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
+                      <tr key={job.id}>
+                        <Td>
+                          <div className="font-medium text-admin-ink">{job.candidateName || 'Unknown'}</div>
+                          {job.candidateEmail && <div className="text-xs text-admin-muted">{job.candidateEmail}</div>}
+                        </Td>
+                        <Td>
+                          <StatusPill
+                            dot={false}
+                            tone={
+                              job.type === 'transcription' ? 'brand' :
+                              job.type === 'scoring' ? 'info' :
+                              job.type === 'video_generation' ? 'warn' :
+                              'neutral'
+                            }
+                          >
                             {job.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                          </StatusPill>
+                        </Td>
+                        <Td>
                           {job.journeyName || job.assessmentName || '—'}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-sm text-gray-700 max-w-xs truncate" title={job.questionText}>
+                        </Td>
+                        <Td>
+                          <div className="max-w-xs truncate" title={job.questionText}>
                             {job.questionText?.substring(0, 60) || '—'}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
+                        </Td>
+                        <Td>
                           {score != null ? (
-                            <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                              score >= 80 ? 'bg-green-100 text-green-800' :
-                              score >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
+                            <StatusPill
+                              dot={false}
+                              className="font-bold"
+                              tone={score >= 80 ? 'success' : score >= 60 ? 'warn' : 'danger'}
+                            >
                               {Math.round(score)}%
-                            </span>
+                            </StatusPill>
                           ) : (
-                            <span className="text-xs text-gray-400">—</span>
+                            <span className="text-xs text-admin-muted">—</span>
                           )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        </Td>
+                        <Td className="whitespace-nowrap text-xs text-admin-muted">
                           {job.failedAt ? new Date(job.failedAt).toLocaleString() : '—'}
-                        </td>
+                        </Td>
                       </tr>
                     );
                   })}
                 </tbody>
-              </table>
+              </DataTableEl>
             </div>
           ) : (
-            <div className="px-6 py-8 text-center text-gray-500">No recently completed jobs</div>
+            <EmptyState compact className="border-0 shadow-none" icon={<CheckCircle2 />} title="No recently completed jobs" />
           )}
-        </div>
+        </SectionCard>
       )}
-    </div>
+      </div>
+    </AdminPage>
   );
 }
 
@@ -919,114 +890,113 @@ function DetailedJobRow({
   isRetrying: boolean;
   isDismissing: boolean;
 }) {
+  const TypeIcon = job.type === 'transcription' ? Video : job.type === 'scoring' ? BarChart3 : Film;
   return (
-    <div className="px-6 py-4 hover:bg-gray-50">
+    <div className="px-5 py-4 transition-colors hover:bg-admin-bg/70">
       <div className="flex items-start justify-between gap-3">
         <div className="pt-1">
           <input
             type="checkbox"
             checked={selected}
             onChange={onToggleSelect}
-            className="h-4 w-4 rounded border-gray-300 text-teal-700 focus:ring-teal-600"
+            className={checkboxClass}
             aria-label={`Select ${job.candidateName}`}
           />
         </div>
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center space-x-3 mb-2">
-            <span className="text-2xl">
-              {job.type === 'transcription' ? '🎥' : job.type === 'scoring' ? '📊' : '🎬'}
+          <div className="mb-2 flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-admin-danger/20 bg-admin-danger-soft text-admin-danger">
+              <TypeIcon className="h-4 w-4" />
             </span>
             <div className="flex-1">
-              <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-medium text-gray-900">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-medium text-admin-ink">
                   {job.type === 'interview_transcription' ? 'Interview Transcription' :
                    job.type === 'assessment_scoring' ? 'Assessment Scoring' : job.type}
                 </h3>
-                <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">
-                  Failed {job.retryCount || 0}x
-                </span>
+                <StatusPill tone="danger">Failed {job.retryCount || 0}x</StatusPill>
               </div>
-              <p className="text-sm text-gray-600 font-medium">{job.candidateName}</p>
+              <p className="text-sm font-medium text-admin-secondary">{job.candidateName}</p>
               {job.candidateEmail && (
-                <p className="text-xs text-gray-500">{job.candidateEmail}</p>
+                <p className="text-xs text-admin-muted">{job.candidateEmail}</p>
               )}
             </div>
 
             <button
               onClick={onToggleExpand}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-admin-muted hover:text-admin-ink"
             >
               {isExpanded ? (
-                <ChevronUpIcon className="h-5 w-5" />
+                <ChevronUp className="h-5 w-5" />
               ) : (
-                <ChevronDownIcon className="h-5 w-5" />
+                <ChevronDown className="h-5 w-5" />
               )}
             </button>
           </div>
 
           {/* Quick Info */}
-          <div className="ml-11 space-y-1">
-            <div className="flex flex-wrap gap-3 text-xs text-gray-600">
+          <div className="ml-11 space-y-1.5">
+            <div className="flex flex-wrap gap-3 text-xs text-admin-secondary">
               {job.organizationName && (
-                <span className="flex items-center space-x-1">
-                  <span>🏢</span>
+                <span className="flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5 text-admin-muted" />
                   <span>{job.organizationName}</span>
                 </span>
               )}
               {job.positionTitle && (
-                <span className="flex items-center space-x-1">
-                  <span>💼</span>
+                <span className="flex items-center gap-1">
+                  <Briefcase className="h-3.5 w-3.5 text-admin-muted" />
                   <span>{job.positionTitle}</span>
                 </span>
               )}
               {job.journeyName && (
-                <span className="flex items-center space-x-1">
-                  <span>🗺️</span>
+                <span className="flex items-center gap-1">
+                  <MapIcon className="h-3.5 w-3.5 text-admin-muted" />
                   <span>{job.journeyName}</span>
                 </span>
               )}
-              <span className="flex items-center space-x-1 font-medium text-gray-800">
-                <span>⏰</span>
+              <span className="flex items-center gap-1 font-medium text-admin-ink">
+                <Clock className="h-3.5 w-3.5 text-admin-muted" />
                 <span>{new Date(job.failedAt).toLocaleString()}</span>
               </span>
             </div>
 
             {/* Error Preview */}
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded truncate">
+            <div className="truncate rounded-admin-sm bg-admin-danger-soft p-2 text-sm text-red-700">
               <strong>Error:</strong> {job.error?.substring(0, 100)}...
             </div>
           </div>
 
           {/* Expanded Details */}
           {isExpanded && (
-            <div className="ml-11 mt-4 border-t pt-4 space-y-3">
+            <div className="ml-11 mt-4 space-y-3 border-t border-admin-border pt-4">
               <div className="grid grid-cols-2 gap-4">
                 {/* IDs Column */}
-                <div className="space-y-2 text-xs">
-                  <h4 className="font-medium text-gray-900 mb-2">Identifiers</h4>
-                  <div><strong>Job ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.id}</code></div>
-                  <div><strong>Response ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.responseId}</code></div>
-                  <div><strong>Candidate ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.candidateId}</code></div>
-                  {job.organizationId && <div><strong>Org ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.organizationId}</code></div>}
-                  {job.questionId && <div><strong>Question ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.questionId}</code></div>}
-                  {job.assessmentId && <div><strong>Assessment ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.assessmentId}</code></div>}
-                  {job.journeyId && <div><strong>Hiring flow ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.journeyId}</code></div>}
-                  {job.positionId && <div><strong>Position ID:</strong> <code className="bg-gray-100 px-1 py-0.5 rounded">{job.positionId}</code></div>}
+                <div className="space-y-2 text-xs text-admin-secondary">
+                  <h4 className="mb-2 font-medium text-admin-ink">Identifiers</h4>
+                  <div><strong>Job ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.id}</code></div>
+                  <div><strong>Response ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.responseId}</code></div>
+                  <div><strong>Candidate ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.candidateId}</code></div>
+                  {job.organizationId && <div><strong>Org ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.organizationId}</code></div>}
+                  {job.questionId && <div><strong>Question ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.questionId}</code></div>}
+                  {job.assessmentId && <div><strong>Assessment ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.assessmentId}</code></div>}
+                  {job.journeyId && <div><strong>Hiring flow ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.journeyId}</code></div>}
+                  {job.positionId && <div><strong>Position ID:</strong> <code className="admin-mono rounded bg-slate-100 px-1 py-0.5">{job.positionId}</code></div>}
                 </div>
 
                 {/* Details Column */}
-                <div className="space-y-2 text-xs">
-                  <h4 className="font-medium text-gray-900 mb-2">Details</h4>
+                <div className="space-y-2 text-xs text-admin-secondary">
+                  <h4 className="mb-2 font-medium text-admin-ink">Details</h4>
                   {job.questionText && (
-                    <div className="bg-blue-50 p-2 rounded">
+                    <div className="rounded-admin-sm bg-admin-info-soft p-2">
                       <strong>Question:</strong> {job.questionText}
                     </div>
                   )}
                   {job.metadata && (
-                    <div className="bg-gray-50 p-2 rounded">
+                    <div className="rounded-admin-sm bg-admin-bg p-2">
                       <strong>Metadata:</strong>
-                      <pre className="mt-1 text-xs overflow-x-auto">
+                      <pre className="mt-1 overflow-x-auto text-xs">
                         {JSON.stringify(job.metadata, null, 2)}
                       </pre>
                     </div>
@@ -1035,9 +1005,9 @@ function DetailedJobRow({
               </div>
 
               {/* Full Error */}
-              <div className="bg-red-50 p-3 rounded">
-                <h4 className="font-medium text-red-900 mb-2">Full Error Message</h4>
-                <pre className="text-xs text-red-800 whitespace-pre-wrap font-mono">
+              <div className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft p-3">
+                <h4 className="mb-2 font-medium text-red-900">Full Error Message</h4>
+                <pre className="whitespace-pre-wrap font-mono text-xs text-red-800">
                   {job.error}
                 </pre>
               </div>
@@ -1048,14 +1018,14 @@ function DetailedJobRow({
         <div className="ml-auto flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <button
             onClick={onToggleExpand}
-            className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md"
+            className={buttonClass.ghost}
           >
             {isExpanded ? 'Hide Details' : 'Show Details'}
           </button>
           <button
             onClick={onDismiss}
             disabled={isDismissing}
-            className="px-3 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-md hover:bg-slate-50 disabled:opacity-50"
+            className={buttonClass.secondary}
             title="Hide from this queue without deleting the response"
           >
             Dismiss
@@ -1063,13 +1033,9 @@ function DetailedJobRow({
           <button
             onClick={onRetry}
             disabled={isRetrying || job.type === 'video_generation'}
-            className={`px-4 py-2 rounded-md text-sm font-medium flex items-center space-x-2 ${
-              isRetrying || job.type === 'video_generation'
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+            className={buttonClass.primary}
           >
-            <ArrowPathIcon className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
             <span>{isRetrying ? 'Retrying...' : 'Retry Now'}</span>
           </button>
         </div>

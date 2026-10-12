@@ -11,13 +11,18 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Moon,
   RotateCcw,
   Undo2,
+  Wrench,
   XCircle,
 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
+import { AdminPage } from '@/components/admin/page-chrome';
 import { PageHeader } from '@/components/admin/page-header';
+import { SectionCard } from '@/components/admin/section-card';
+import { buttonClass } from '@/components/admin/controls';
 import { StatStrip } from '@/components/admin/stat-strip';
 import { FilterBar, FilterSelect } from '@/components/admin/filter-bar';
 import { EmptyState } from '@/components/admin/empty-state';
@@ -206,9 +211,10 @@ function AttentionPageInner() {
   ];
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+    <AdminPage>
       <PageHeader
-        eyebrow="Operations"
+        icon={<AlertTriangle />}
+        breadcrumbs={[{ label: 'Attention' }, { label: 'Stuck sessions' }]}
         title="Attention"
         description="Technical and pipeline sessions InsightHire can act on. Quiet abandoners live under Engagement — they are not stuck."
         actions={
@@ -216,7 +222,7 @@ function AttentionPageInner() {
             <button
               type="button"
               onClick={() => setConfirm({ kind: 'bulk' })}
-              className="inline-flex items-center gap-1.5 rounded-admin-sm bg-admin-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+              className={buttonClass.primary}
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Bulk retry technical
@@ -254,19 +260,20 @@ function AttentionPageInner() {
         ]}
       />
 
-      <div className="mb-4 flex gap-1 border-b border-admin-border">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-admin-border">
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
+            aria-current={tab === t.id ? 'page' : undefined}
             onClick={() => {
               setTab(t.id);
               setCursor(undefined);
               setExpanded(null);
             }}
             className={cn(
-              'relative px-3 py-2 text-sm font-medium transition-colors',
-              tab === t.id ? 'text-admin-ink' : 'text-admin-muted hover:text-admin-secondary',
+              'relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors',
+              tab === t.id ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink',
             )}
           >
             {t.label}
@@ -307,20 +314,28 @@ function AttentionPageInner() {
 
       {tab === 'needs_action' && (
         <>
+          <SectionCard
+            icon={<Wrench />}
+            title="Needs action"
+            description="Failed steps, scoring gates and queue delays, newest first"
+            padded={false}
+          >
           {attentionQuery.isLoading ? (
-            <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
+            <div className="py-16 text-center text-sm text-admin-muted">Loading…</div>
           ) : (attentionQuery.data?.candidates?.length ?? 0) === 0 ? (
             <EmptyState
-              icon={<CheckCircle2 className="h-8 w-8 text-admin-ok" />}
+              compact
+              className="border-0 shadow-none"
+              icon={<CheckCircle2 className="text-admin-ok" />}
               title="Nothing needs action"
               description="No technical or pipeline sessions in this filter. Quiet abandoners are under Engagement."
             />
           ) : (
-            <div className="admin-panel divide-y divide-admin-border overflow-hidden">
+            <div className="divide-y divide-admin-border">
               {attentionQuery.data!.candidates.map((row: any) => {
                 const isOpen = expanded === row.candidateId;
                 return (
-                  <div key={row.id} className="px-4 py-3">
+                  <div key={row.id} className="px-5 py-3.5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
@@ -362,7 +377,7 @@ function AttentionPageInner() {
                         <button
                           type="button"
                           onClick={() => setConfirm({ kind: 'retry', candidateId: row.candidateId })}
-                          className="inline-flex items-center gap-1 rounded-admin-sm bg-admin-ink px-2 py-1 text-xs font-medium text-white hover:bg-slate-800"
+                          className="inline-flex items-center gap-1 rounded-admin-sm bg-admin-accent px-2 py-1 text-xs font-medium text-white hover:bg-admin-accent-ink"
                         >
                           <RotateCcw className="h-3 w-3" />
                           Retry
@@ -501,12 +516,13 @@ function AttentionPageInner() {
               })}
             </div>
           )}
+          </SectionCard>
           {attentionQuery.data?.nextCursor ? (
             <div className="mt-4 flex justify-center">
               <button
                 type="button"
                 onClick={() => setCursor(attentionQuery.data!.nextCursor!)}
-                className="rounded-admin-sm border border-admin-border bg-white px-4 py-2 text-sm font-medium text-admin-secondary hover:bg-slate-50"
+                className={buttonClass.secondary}
               >
                 Load more
               </button>
@@ -517,18 +533,26 @@ function AttentionPageInner() {
 
       {tab === 'dismissed' && (
         <>
+          <SectionCard
+            icon={<Clock />}
+            title="Dismissed"
+            description="Sessions taken out of Needs action. Undo to bring one back."
+            padded={false}
+          >
           {dismissedQuery.isLoading ? (
-            <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
+            <div className="py-16 text-center text-sm text-admin-muted">Loading…</div>
           ) : (dismissedQuery.data?.items?.length ?? 0) === 0 ? (
             <EmptyState
-              icon={<Clock className="h-8 w-8" />}
+              compact
+              className="border-0 shadow-none"
+              icon={<Clock />}
               title="No dismissed sessions"
               description="Dismissed attention items appear here so you can undo."
             />
           ) : (
-            <div className="admin-panel divide-y divide-admin-border">
+            <div className="divide-y divide-admin-border">
               {dismissedQuery.data!.items.map((row: any) => (
-                <div key={row.sessionId} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <div key={row.sessionId} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
                   <div>
                     <p className="font-medium text-admin-ink">{row.candidateName}</p>
                     <p className="text-xs text-admin-muted">
@@ -540,7 +564,7 @@ function AttentionPageInner() {
                   <button
                     type="button"
                     onClick={() => clearDismissalMutation.mutate({ sessionId: row.sessionId })}
-                    className="inline-flex items-center gap-1 rounded-admin-sm border border-admin-border px-2 py-1 text-xs font-medium hover:bg-slate-50"
+                    className={buttonClass.small}
                   >
                     <Undo2 className="h-3 w-3" />
                     Undo dismiss
@@ -549,26 +573,32 @@ function AttentionPageInner() {
               ))}
             </div>
           )}
+          </SectionCard>
         </>
       )}
 
       {tab === 'engagement' && (
         <>
-          <div className="mb-3 rounded-admin border border-admin-border bg-slate-50 px-3 py-2 text-xs text-admin-muted">
-            These sessions went quiet for 24h+. That is candidate drop-off, not a platform failure — no red badges.
-          </div>
+          <SectionCard
+            icon={<Moon />}
+            title="Engagement"
+            description="These sessions went quiet for 24h+. That is candidate drop-off, not a platform failure — no red badges."
+            padded={false}
+          >
           {engagementQuery.isLoading ? (
-            <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
+            <div className="py-16 text-center text-sm text-admin-muted">Loading…</div>
           ) : (engagementQuery.data?.sessions?.length ?? 0) === 0 ? (
             <EmptyState
-              icon={<AlertTriangle className="h-8 w-8" />}
+              compact
+              className="border-0 shadow-none"
+              icon={<AlertTriangle />}
               title="No quiet sessions"
               description="No in-progress journeys idle for 24h+ in this filter."
             />
           ) : (
-            <div className="admin-panel divide-y divide-admin-border">
+            <div className="divide-y divide-admin-border">
               {engagementQuery.data!.sessions.map((row: any) => (
-                <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                <div key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-admin-ink">{row.candidateName}</p>
@@ -590,6 +620,7 @@ function AttentionPageInner() {
               ))}
             </div>
           )}
+          </SectionCard>
         </>
       )}
 
@@ -620,7 +651,7 @@ function AttentionPageInner() {
               <button
                 type="button"
                 onClick={() => setConfirm(null)}
-                className="rounded-admin-sm border border-admin-border px-3 py-1.5 text-sm font-medium text-admin-secondary hover:bg-slate-50"
+                className={buttonClass.secondary}
               >
                 Cancel
               </button>
@@ -642,7 +673,7 @@ function AttentionPageInner() {
                   }
                   setConfirm(null);
                 }}
-                className="rounded-admin-sm bg-admin-ink px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+                className={buttonClass.primary}
               >
                 Confirm
               </button>
@@ -650,7 +681,7 @@ function AttentionPageInner() {
           </div>
         </div>
       ) : null}
-    </div>
+    </AdminPage>
   );
 }
 

@@ -9,9 +9,16 @@ export const dynamic = 'force-dynamic';
  */
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { BellOff, CheckCircle2, Inbox } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { SeverityBadge } from '@/components/admin/severity-badge';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, checkboxClass } from '@/components/admin/controls';
 
 type InboxAlert = {
   key: string;
@@ -119,73 +126,90 @@ export default function AlertsPage() {
   const loading = health.isLoading || billing.isLoading || drift.isLoading || clientErrors.isLoading || activation.isLoading;
 
   const renderRow = (a: InboxAlert, isAcked: boolean) => (
-    <div key={a.key} className={`px-4 py-3 flex flex-wrap items-start gap-3 ${isAcked ? 'opacity-60' : ''}`}>
-      <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 font-medium ${
-        a.severity === 'danger' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-      }`}>
+    <li key={a.key} className={`flex flex-wrap items-start gap-3 px-5 py-3.5 transition-colors hover:bg-admin-bg/70 ${isAcked ? 'opacity-60' : ''}`}>
+      <SeverityBadge severity={a.severity === 'danger' ? 'critical' : 'warn'} className="shrink-0">
         {a.category}
-      </span>
+      </SeverityBadge>
       <div className="min-w-0 flex-1">
         {a.href ? (
-          <Link href={a.href} className="text-sm font-medium text-gray-900 hover:text-purple-700">
+          <Link href={a.href} className="text-sm font-medium text-admin-ink hover:text-admin-accent-ink">
             {a.title}
           </Link>
         ) : (
-          <p className="text-sm font-medium text-gray-900">{a.title}</p>
+          <p className="text-sm font-medium text-admin-ink">{a.title}</p>
         )}
-        {a.detail && <p className="text-xs text-gray-500 mt-0.5">{a.detail}</p>}
+        {a.detail && <p className="mt-0.5 text-xs text-admin-muted">{a.detail}</p>}
       </div>
       <button
         onClick={() => (isAcked ? unack.mutate({ alertKey: a.key }) : ack.mutate({ alertKey: a.key }))}
         disabled={ack.isPending || unack.isPending}
-        className="px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 shrink-0"
+        className={`${buttonClass.small} shrink-0`}
       >
         {isAcked ? 'Un-acknowledge' : 'Acknowledge'}
       </button>
-    </div>
+    </li>
   );
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Alert inbox</h1>
-            <p className="text-sm text-gray-500">
-              Tenant health, billing, scoring drift, and client errors in one place.
-              Acknowledged alerts stay hidden until they stop firing or you bring them back.
-            </p>
-          </div>
-          <label className="flex items-center gap-2 text-sm text-gray-600">
+      <AdminPageChrome
+        width="narrow"
+        icon={<Inbox />}
+        breadcrumbs={[{ label: 'Attention', href: '/attention' }, { label: 'Alerts' }]}
+        title="Alert inbox"
+        description={
+          <>
+            Tenant health, billing, scoring drift, and client errors in one place.
+            Acknowledged alerts stay hidden until they stop firing or you bring them back.
+          </>
+        }
+        meta={!loading ? <StatusPill tone={active.length > 0 ? 'warn' : 'success'}>{active.length} active</StatusPill> : null}
+        actions={
+          <label className="flex items-center gap-2 text-sm text-admin-secondary">
             <input
               type="checkbox"
               checked={showAcked}
               onChange={(e) => setShowAcked(e.target.checked)}
-              className="rounded border-gray-300"
+              className={checkboxClass}
             />
             Show acknowledged ({acked.length})
           </label>
-        </div>
+        }
+      >
+        <div className="space-y-6">
+          <SectionCard
+            icon={<Inbox />}
+            title="Needs attention"
+            description="Sorted by severity, most urgent first"
+            padded={false}
+          >
+            {loading ? (
+              <p className="px-5 py-6 text-sm text-admin-muted">Gathering alerts…</p>
+            ) : active.length === 0 ? (
+              <EmptyState
+                compact
+                className="border-0 shadow-none"
+                icon={<CheckCircle2 />}
+                title="Inbox zero"
+                description="Nothing needs attention."
+              />
+            ) : (
+              <ul className="divide-y divide-admin-border">{active.map((a) => renderRow(a, false))}</ul>
+            )}
+          </SectionCard>
 
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
-          {loading ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Gathering alerts…</p>
-          ) : active.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Inbox zero — nothing needs attention.</p>
-          ) : (
-            active.map((a) => renderRow(a, false))
+          {showAcked && acked.length > 0 && (
+            <SectionCard
+              icon={<BellOff />}
+              title="Acknowledged"
+              description="Hidden until they stop firing or you bring them back"
+              padded={false}
+            >
+              <ul className="divide-y divide-admin-border">{acked.map((a) => renderRow(a, true))}</ul>
+            </SectionCard>
           )}
         </div>
-
-        {showAcked && acked.length > 0 && (
-          <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
-            <div className="px-4 py-3">
-              <h2 className="text-sm font-semibold text-gray-500">Acknowledged</h2>
-            </div>
-            {acked.map((a) => renderRow(a, true))}
-          </div>
-        )}
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

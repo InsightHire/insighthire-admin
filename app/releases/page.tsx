@@ -6,9 +6,14 @@ export const dynamic = 'force-dynamic';
  * service's health endpoint and reports the running commit and latency.
  */
 import Link from 'next/link';
+import { ExternalLink, RefreshCw, Rocket, Server } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { buttonClass } from '@/components/admin/controls';
 
 const SERVICE_LABELS: Record<string, { label: string; repo: string }> = {
   web: { label: 'Tenant app (www)', repo: 'insighthire-web' },
@@ -27,81 +32,87 @@ export default function ReleasesPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Releases</h1>
-            <p className="text-sm text-gray-500">
-              Live commit and health per service, checked from the API. Refreshes every minute.
-              {' '}<Link href="/incidents" className="text-purple-700 hover:text-purple-900">View incident history →</Link>
-            </p>
-          </div>
-          <button
-            onClick={() => status.refetch()}
-            disabled={status.isFetching}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
+      <AdminPageChrome
+        width="narrow"
+        icon={<Rocket />}
+        breadcrumbs={[{ label: 'Operations' }, { label: 'Releases' }]}
+        title="Releases"
+        description={
+          <>
+            Live commit and health per service, checked from the API. Refreshes every minute.{' '}
+            <Link href="/incidents" className="font-medium text-admin-accent hover:text-admin-accent-ink">View incident history →</Link>
+          </>
+        }
+        actions={
+          <button onClick={() => status.refetch()} disabled={status.isFetching} className={buttonClass.secondary}>
+            <RefreshCw className="h-4 w-4" />
             {status.isFetching ? 'Checking…' : 'Check now'}
           </button>
-        </div>
-
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
-          {status.isLoading ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Checking services…</p>
-          ) : (
-            services.map((s) => {
-              const meta = SERVICE_LABELS[s.name] ?? { label: s.name, repo: s.name };
-              return (
-                <div key={s.name} className="px-4 py-4 flex flex-wrap items-center gap-3">
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-                      s.ok ? 'bg-green-500' : 'bg-red-500'
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {meta.label}
-                      <span className="ml-2 text-xs text-gray-400">{meta.repo}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {s.ok ? `healthy · ${s.latencyMs}ms` : `DOWN (status ${s.status || 'timeout'})`}
-                      {s.detail && s.detail !== 'ok' ? ` · ${s.detail}` : ''}
-                    </p>
+        }
+      >
+        <SectionCard
+          icon={<Server />}
+          title="Services"
+          description="Health endpoint status and running commit"
+          padded={false}
+          footer={
+            status.data?.checkedAt ? (
+              <span className="flex flex-wrap items-center gap-1">
+                Last checked {new Date(status.data.checkedAt).toLocaleString()} ·
+                <a
+                  href="https://railway.app/project/52bfec78-3459-4916-bfff-2a99e0a09d45"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-admin-accent hover:text-admin-accent-ink"
+                >
+                  Open Railway <ExternalLink className="h-3 w-3" />
+                </a>
+              </span>
+            ) : undefined
+          }
+        >
+          <div className="divide-y divide-admin-border">
+            {status.isLoading ? (
+              <p className="px-5 py-6 text-sm text-admin-muted">Checking services…</p>
+            ) : (
+              services.map((s) => {
+                const meta = SERVICE_LABELS[s.name] ?? { label: s.name, repo: s.name };
+                return (
+                  <div key={s.name} className="flex flex-wrap items-center gap-3 px-5 py-4">
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${s.ok ? 'bg-admin-ok' : 'bg-admin-danger'}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-admin-ink">
+                        {meta.label}
+                        <span className="ml-2 admin-mono text-xs font-normal text-admin-muted">{meta.repo}</span>
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-admin-muted">
+                        <StatusPill tone={s.ok ? 'success' : 'danger'}>
+                          {s.ok ? `healthy · ${s.latencyMs}ms` : `DOWN (status ${s.status || 'timeout'})`}
+                        </StatusPill>
+                        {s.detail && s.detail !== 'ok' ? <span>{s.detail}</span> : null}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      {s.commit ? (
+                        <a
+                          href={`https://github.com/InsightHire/${meta.repo}/commit/${s.commit}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-admin-sm border border-admin-border bg-admin-bg px-2 py-1 font-mono text-xs text-admin-accent-ink hover:border-admin-accent-border hover:bg-admin-accent-soft"
+                        >
+                          {String(s.commit).slice(0, 7)}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-admin-muted">commit unknown</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    {s.commit ? (
-                      <a
-                        href={`https://github.com/InsightHire/${meta.repo}/commit/${s.commit}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-mono text-purple-700 hover:underline"
-                      >
-                        {String(s.commit).slice(0, 7)}
-                      </a>
-                    ) : (
-                      <span className="text-xs text-gray-400">commit unknown</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {status.data?.checkedAt && (
-          <p className="text-xs text-gray-400">
-            Last checked {new Date(status.data.checkedAt).toLocaleString()} ·{' '}
-            <a
-              href="https://railway.app/project/52bfec78-3459-4916-bfff-2a99e0a09d45"
-              target="_blank"
-              rel="noreferrer"
-              className="text-purple-700 hover:underline"
-            >
-              Open Railway
-            </a>
-          </p>
-        )}
-      </div>
+                );
+              })
+            )}
+          </div>
+        </SectionCard>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }
