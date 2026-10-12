@@ -43,8 +43,8 @@ function ToolbarButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
-        active ? 'bg-admin-ink text-white' : 'text-admin-secondary hover:bg-slate-100'
+      className={`flex h-8 w-8 items-center justify-center rounded-admin-sm transition-colors ${
+        active ? 'bg-admin-accent-soft text-admin-accent-ink ring-1 ring-inset ring-admin-accent-border' : 'text-admin-secondary hover:bg-white hover:text-admin-ink'
       }`}
     >
       {children}
@@ -115,8 +115,8 @@ export function BlogRichTextEditor({ content, onChange }: BlogRichTextEditorProp
   if (!editor) return null;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-admin-border bg-white">
-      <div className="flex flex-wrap items-center gap-1 border-b border-admin-border bg-slate-50 px-2 py-1.5">
+    <div className="admin-panel overflow-hidden">
+      <div className="flex flex-wrap items-center gap-1 border-b border-admin-border bg-admin-bg/70 px-2 py-1.5">
         <ToolbarButton label="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
           <Bold className="h-4 w-4" />
         </ToolbarButton>

@@ -4,6 +4,12 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { trpc } from '@/lib/trpc';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatGrid, StatTile } from '@/components/admin/stat-tile';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, checkboxClass, inputClass, selectClass } from '@/components/admin/controls';
 import {
   Puzzle,
   ToggleLeft,
@@ -79,6 +85,8 @@ const FEATURE_FLAG_SLUGS = new Set<string>([
   'vms',
 ]);
 
+const labelClass = 'mb-1 block text-xs font-medium text-admin-secondary';
+
 type ConfigField = {
   key: string;
   label: string;
@@ -133,18 +141,18 @@ function ConfigFieldInput({
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
-  const baseClasses = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-colors';
+  const baseClasses = inputClass;
 
   if (field.type === 'toggle') {
     return (
       <label className="flex items-center gap-3 cursor-pointer">
         <div
           onClick={() => onChange(!value)}
-          className={`relative w-10 h-6 rounded-full transition-colors ${value ? 'bg-purple-600' : 'bg-gray-300'}`}
+          className={`relative w-10 h-6 rounded-full transition-colors ${value ? 'bg-admin-accent' : 'bg-slate-300'}`}
         >
           <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${value ? 'translate-x-4' : ''}`} />
         </div>
-        <span className="text-sm text-gray-700">{field.label}</span>
+        <span className="text-sm text-admin-secondary">{field.label}</span>
       </label>
     );
   }
@@ -189,7 +197,7 @@ function ConfigFieldInput({
         <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-admin-muted hover:text-admin-ink"
         >
           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
@@ -272,7 +280,7 @@ function TenantAccessPanel({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs text-blue-900">
+      <div className="rounded-admin-sm border border-admin-info/20 bg-admin-info-soft px-4 py-3 text-xs text-sky-900">
         <p>
           <span className="font-semibold">When enabled,</span> this org&apos;s admin can opt in to
           the feature from their own Settings page. Disabling here hides the feature entirely
@@ -285,7 +293,7 @@ function TenantAccessPanel({
           </p>
         )}
         <p className="mt-2">
-          <Link href={`/tenant-features?feature=${encodeURIComponent(integration.slug)}`} className="font-medium text-blue-800 hover:underline">
+          <Link href={`/tenant-features?feature=${encodeURIComponent(integration.slug)}`} className="font-medium text-admin-accent-ink hover:underline">
             See this module across every tenant
           </Link>
         </p>
@@ -293,21 +301,21 @@ function TenantAccessPanel({
 
       <div className="flex items-center gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-admin-muted" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by org name or domain..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+            className={`${inputClass} pl-9`}
           />
         </div>
-        <div className="text-xs text-gray-500 whitespace-nowrap">
-          <span className="font-semibold text-gray-700">{grantedCount}</span> of{' '}
-          <span className="font-semibold text-gray-700">{totalCount}</span> tenants enabled
+        <div className="text-xs text-admin-muted whitespace-nowrap">
+          <span className="font-semibold text-admin-secondary">{grantedCount}</span> of{' '}
+          <span className="font-semibold text-admin-secondary">{totalCount}</span> tenants enabled
         </div>
         <button
           onClick={() => grantsQuery.refetch()}
-          className="text-gray-400 hover:text-gray-600"
+          className="text-admin-muted hover:text-admin-ink"
           title="Refresh"
         >
           <RefreshCw className={`h-4 w-4 ${grantsQuery.isFetching ? 'animate-spin' : ''}`} />
@@ -315,51 +323,54 @@ function TenantAccessPanel({
       </div>
 
       {grantsQuery.isLoading ? (
-        <div className="py-12 text-center text-sm text-gray-500">Loading tenants...</div>
+        <div className="py-12 text-center text-sm text-admin-muted">Loading tenants...</div>
       ) : grantsQuery.error ? (
         <div className="py-12 text-center text-sm text-red-600">
           Failed to load tenants. {String((grantsQuery.error as { message?: string })?.message ?? '')}
         </div>
       ) : filteredOrgs.length === 0 ? (
-        <div className="py-12 text-center text-sm text-gray-500">
-          {search ? 'No tenants match your search.' : 'No customer organizations found.'}
-        </div>
+        <EmptyState
+          compact
+          className="border-dashed shadow-none"
+          icon={<Users />}
+          title={search ? 'No tenants match your search.' : 'No customer organizations found.'}
+        />
       ) : (
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="max-h-[480px] overflow-y-auto divide-y divide-gray-100">
+        <div className="overflow-hidden rounded-admin-sm border border-admin-border">
+          <div className="max-h-[480px] overflow-y-auto divide-y divide-admin-border">
             {filteredOrgs.map((org) => {
               const isPending =
                 pendingOrgId === org.id && toggleMutation.isPending;
               return (
                 <div
                   key={org.id}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
+                  className="flex items-center justify-between px-4 py-3 hover:bg-admin-bg/70"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-gray-900 truncate">
+                      <span className="text-sm font-medium text-admin-ink truncate">
                         {org.name || '(unnamed)'}
                       </span>
                       {org.granted ? (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        <StatusPill tone="success">
                           Granted
-                        </span>
+                        </StatusPill>
                       ) : (
-                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                        <StatusPill tone="neutral">
                           Not granted
-                        </span>
+                        </StatusPill>
                       )}
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-admin-muted">
                         {org.subscriptionPlan} · {org.subscriptionStatus}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                    <div className="text-xs text-admin-muted mt-0.5 flex items-center gap-2">
                       {org.domain && <span>{org.domain}</span>}
-                      <span className="text-gray-300">·</span>
-                      <code className="bg-gray-100 px-1 rounded text-[10px]">{org.id}</code>
+                      <span className="text-admin-border-strong">·</span>
+                      <code className="bg-slate-100 px-1 rounded text-[10px]">{org.id}</code>
                       {org.granted && org.grantedAt && (
                         <>
-                          <span className="text-gray-300">·</span>
+                          <span className="text-admin-border-strong">·</span>
                           <span>
                             granted {new Date(org.grantedAt).toLocaleDateString()}
                           </span>
@@ -367,7 +378,7 @@ function TenantAccessPanel({
                       )}
                     </div>
                     {org.notes && (
-                      <p className="text-xs text-gray-400 mt-1 italic truncate">{org.notes}</p>
+                      <p className="text-xs text-admin-muted mt-1 italic truncate">{org.notes}</p>
                     )}
                   </div>
                   <button
@@ -378,13 +389,13 @@ function TenantAccessPanel({
                   >
                     {org.granted ? (
                       <>
-                        <ToggleRight className="h-7 w-7 text-green-500" />
-                        <span className="text-xs font-medium text-green-600 w-12">On</span>
+                        <ToggleRight className="h-7 w-7 text-admin-accent" />
+                        <span className="text-xs font-medium text-admin-accent-ink w-12">On</span>
                       </>
                     ) : (
                       <>
-                        <ToggleLeft className="h-7 w-7 text-gray-300" />
-                        <span className="text-xs font-medium text-gray-400 w-12">Off</span>
+                        <ToggleLeft className="h-7 w-7 text-admin-border-strong" />
+                        <span className="text-xs font-medium text-admin-muted w-12">Off</span>
                       </>
                     )}
                   </button>
@@ -489,55 +500,56 @@ function IntegrationEditPanel({
   ];
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-lg mt-2 overflow-hidden">
-      <div className="flex items-center justify-between bg-gray-50 px-6 py-3 border-b border-gray-200">
+    <div className="admin-panel mt-2 overflow-hidden shadow-lg">
+      <div className="flex items-center justify-between bg-admin-bg/60 px-5 py-3 border-b border-admin-border">
         <div className="flex items-center gap-3">
           <span className="text-xl">{integration.logo || '🔌'}</span>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">{integration.name}</h3>
-            <p className="text-xs text-gray-500">slug: <code className="bg-gray-100 px-1 rounded">{integration.slug}</code></p>
+            <h3 className="text-sm font-semibold text-admin-ink">{integration.name}</h3>
+            <p className="text-xs text-admin-muted">slug: <code className="admin-mono rounded bg-slate-100 px-1">{integration.slug}</code></p>
           </div>
         </div>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <button onClick={onClose} className={buttonClass.ghost} aria-label="Close">
           <X className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="flex border-b border-gray-200">
+      <div className="flex gap-1 overflow-x-auto border-b border-admin-border px-3">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === tab.id
-                ? 'text-purple-700 border-purple-600 bg-purple-50/50'
-                : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
+            className={`relative flex items-center gap-2 whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors ${
+              activeTab === tab.id ? 'text-admin-accent-ink' : 'text-admin-muted hover:text-admin-ink'
             }`}
           >
             <tab.icon className="h-4 w-4" />
             {tab.label}
+            {activeTab === tab.id ? (
+              <span className="nav-indicator absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-admin-accent" />
+            ) : null}
           </button>
         ))}
       </div>
 
-      <div className="p-6">
+      <div className="p-5">
         {activeTab === 'details' && (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                <label className={labelClass}>Name</label>
                 <input
                   value={details.name}
                   onChange={e => setDetails(d => ({ ...d, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                <label className={labelClass}>Category</label>
                 <select
                   value={details.category}
                   onChange={e => setDetails(d => ({ ...d, category: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className={`${selectClass} w-full`}
                 >
                   {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
                     <option key={val} value={val}>{label}</option>
@@ -545,50 +557,50 @@ function IntegrationEditPanel({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Logo (emoji)</label>
+                <label className={labelClass}>Logo (emoji)</label>
                 <input
                   value={details.logo}
                   onChange={e => setDetails(d => ({ ...d, logo: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Sort Order</label>
+                <label className={labelClass}>Sort Order</label>
                 <input
                   type="number"
                   value={details.sortOrder}
                   onChange={e => setDetails(d => ({ ...d, sortOrder: parseInt(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className={inputClass}
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+              <label className={labelClass}>Description</label>
               <textarea
                 value={details.description}
                 onChange={e => setDetails(d => ({ ...d, description: e.target.value }))}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                className={inputClass}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Documentation URL</label>
+                <label className={labelClass}>Documentation URL</label>
                 <input
                   type="url"
                   value={details.docsUrl}
                   onChange={e => setDetails(d => ({ ...d, docsUrl: e.target.value }))}
                   placeholder="https://docs.example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Webhook Endpoint</label>
+                <label className={labelClass}>Webhook Endpoint</label>
                 <input
                   value={details.webhookUrl}
                   onChange={e => setDetails(d => ({ ...d, webhookUrl: e.target.value }))}
                   placeholder="/api/webhooks/integration-slug"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -597,15 +609,15 @@ function IntegrationEditPanel({
                 type="checkbox"
                 checked={details.comingSoon}
                 onChange={e => setDetails(d => ({ ...d, comingSoon: e.target.checked }))}
-                className="h-4 w-4 rounded text-purple-600"
+                className={checkboxClass}
               />
-              <span className="text-sm text-gray-700">Mark as &quot;Coming Soon&quot;</span>
+              <span className="text-sm text-admin-secondary">Mark as &quot;Coming Soon&quot;</span>
             </label>
             <div className="flex gap-2 pt-2">
               <button
                 onClick={saveDetails}
                 disabled={upsertMutation.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 <Save className="h-4 w-4" />
                 {upsertMutation.isPending ? 'Saving...' : 'Save Details'}
@@ -620,18 +632,20 @@ function IntegrationEditPanel({
         {activeTab === 'config' && (
           <div className="space-y-5">
             {schema.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <Key className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No configuration schema defined for this integration.</p>
-                <p className="text-xs text-gray-400 mt-1">Re-run &quot;Initialize Defaults&quot; to populate schemas, or define one via the API.</p>
-              </div>
+              <EmptyState
+                compact
+                className="border-dashed shadow-none"
+                icon={<Key />}
+                title="No configuration schema defined for this integration."
+                description={<>Re-run &quot;Initialize Defaults&quot; to populate schemas, or define one via the API.</>}
+              />
             ) : (
               <>
                 {requiredFieldCount > 0 && (
                   <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
                     configuredRequiredCount === requiredFieldCount
-                      ? 'bg-green-50 text-green-700'
-                      : 'bg-amber-50 text-amber-700'
+                      ? 'bg-admin-ok-soft text-emerald-700'
+                      : 'bg-admin-warn-soft text-amber-800'
                   }`}>
                     {configuredRequiredCount === requiredFieldCount ? (
                       <><CheckCircle className="h-3.5 w-3.5" /> All {requiredFieldCount} required fields configured</>
@@ -644,7 +658,7 @@ function IntegrationEditPanel({
                   {schema.map(field => (
                     <div key={field.key}>
                       <div className="flex items-center gap-1 mb-1">
-                        <label className="text-xs font-medium text-gray-700">{field.label}</label>
+                        <label className="text-xs font-medium text-admin-secondary">{field.label}</label>
                         {field.required && <span className="text-red-500 text-xs">*</span>}
                       </div>
                       <ConfigFieldInput
@@ -653,7 +667,7 @@ function IntegrationEditPanel({
                         onChange={val => setConfigValues(c => ({ ...c, [field.key]: val }))}
                       />
                       {field.helpText && (
-                        <p className="text-xs text-gray-400 mt-1">{field.helpText}</p>
+                        <p className="text-xs text-admin-muted mt-1">{field.helpText}</p>
                       )}
                     </div>
                   ))}
@@ -662,7 +676,7 @@ function IntegrationEditPanel({
                   <button
                     onClick={saveConfig}
                     disabled={configMutation.isPending}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    className={buttonClass.primary}
                   >
                     <Save className="h-4 w-4" />
                     {configMutation.isPending ? 'Saving...' : 'Save Configuration'}
@@ -676,7 +690,7 @@ function IntegrationEditPanel({
                     href={integration.docsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-admin-accent hover:text-admin-accent-ink"
                   >
                     <ExternalLink className="h-3 w-3" /> View API Documentation
                   </a>
@@ -688,7 +702,7 @@ function IntegrationEditPanel({
 
         {activeTab === 'features' && (
           <div className="space-y-4">
-            <p className="text-xs text-gray-500">These feature descriptions are shown to customers on the integrations settings page.</p>
+            <p className="text-xs text-admin-muted">These feature descriptions are shown to customers on the integrations settings page.</p>
             <div className="space-y-2">
               {features.map((feat, idx) => (
                 <div key={idx} className="flex items-center gap-2 group">
@@ -700,11 +714,11 @@ function IntegrationEditPanel({
                       updated[idx] = e.target.value;
                       setFeatures(updated);
                     }}
-                    className="flex-1 px-3 py-1.5 border border-transparent hover:border-gray-300 focus:border-purple-500 rounded-lg text-sm outline-none transition-colors"
+                    className="flex-1 px-3 py-1.5 border border-transparent hover:border-admin-border focus:border-admin-accent rounded-admin-sm text-sm outline-none transition-colors"
                   />
                   <button
                     onClick={() => setFeatures(features.filter((_, i) => i !== idx))}
-                    className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-admin-border-strong hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -722,7 +736,7 @@ function IntegrationEditPanel({
                   }
                 }}
                 placeholder="Add a feature..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                className={`${inputClass} flex-1`}
               />
               <button
                 onClick={() => {
@@ -731,7 +745,7 @@ function IntegrationEditPanel({
                     setNewFeature('');
                   }
                 }}
-                className="px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+                className={buttonClass.secondary}
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -740,7 +754,7 @@ function IntegrationEditPanel({
               <button
                 onClick={saveDetails}
                 disabled={upsertMutation.isPending}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 <Save className="h-4 w-4" />
                 {upsertMutation.isPending ? 'Saving...' : 'Save Features'}
@@ -782,86 +796,87 @@ export default function IntegrationsAdminPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Puzzle className="h-7 w-7 text-admin-accent" />
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-admin-muted">Platform</p>
-                <h1 className="text-2xl font-bold text-admin-ink">Integrations</h1>
-                <p className="text-sm text-admin-muted">Define, configure, and control integrations available to customers</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => seedMutation.mutate()}
-                disabled={seedMutation.isPending}
-                className="flex items-center gap-2 rounded-admin-sm bg-admin-accent px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
-              >
-                <Zap className="h-4 w-4" />
-                {seedMutation.isPending ? 'Seeding...' : 'Initialize Defaults'}
-              </button>
-              <button
-                onClick={() => setShowAdd(!showAdd)}
-                className="flex items-center gap-2 rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-              >
-                <Plus className="h-4 w-4" />
-                Add Integration
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <p className="text-sm text-gray-500">Total</p>
-            <p className="text-2xl font-bold text-gray-900">{settings.length}</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <p className="text-sm text-gray-500">Enabled</p>
-            </div>
-            <p className="text-2xl font-bold text-green-600">{enabledCount}</p>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-500" />
-              <p className="text-sm text-gray-500">Coming Soon</p>
-            </div>
-            <p className="text-2xl font-bold text-amber-600">{comingSoonCount}</p>
-          </div>
-        </div>
+      <AdminPageChrome
+        icon={<Puzzle />}
+        eyebrow="Platform"
+        breadcrumbs={[{ label: 'System' }, { label: 'Integrations' }]}
+        title="Integrations"
+        description="Define, configure, and control integrations available to customers"
+        actions={
+          <>
+            <button
+              onClick={() => seedMutation.mutate()}
+              disabled={seedMutation.isPending}
+              className={buttonClass.secondary}
+            >
+              <Zap className="h-4 w-4" />
+              {seedMutation.isPending ? 'Seeding...' : 'Initialize Defaults'}
+            </button>
+            <button
+              onClick={() => setShowAdd(!showAdd)}
+              className={buttonClass.primary}
+            >
+              <Plus className="h-4 w-4" />
+              Add Integration
+            </button>
+          </>
+        }
+      >
+        <StatGrid cols={3} className="mb-6">
+          <StatTile label="Total" icon={Puzzle} tone="brand" value={settings.length} />
+          <StatTile label="Enabled" icon={CheckCircle} tone="ok" value={enabledCount} />
+          <StatTile label="Coming Soon" icon={Clock} tone="warn" value={comingSoonCount} />
+        </StatGrid>
 
         {showAdd && (
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Add New Integration</h3>
+          <SectionCard
+            className="mb-6"
+            icon={<Plus />}
+            title="Add New Integration"
+            description="New integrations start disabled"
+            footer={
+              <div className="flex gap-2">
+                <button
+                  onClick={() => upsertMutation.mutate({ ...newForm, enabled: false, sortOrder: settings.length + 1 })}
+                  disabled={!newForm.slug || !newForm.name || upsertMutation.isPending}
+                  className={buttonClass.primary}
+                >
+                  {upsertMutation.isPending ? 'Saving...' : 'Add Integration'}
+                </button>
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className={buttonClass.secondary}
+                >
+                  Cancel
+                </button>
+              </div>
+            }
+          >
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Slug (unique ID)</label>
+                <label className={labelClass}>Slug (unique ID)</label>
                 <input
                   value={newForm.slug}
                   onChange={e => setNewForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '') }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={inputClass}
                   placeholder="e.g. smartrecruiters"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                <label className={labelClass}>Name</label>
                 <input
                   value={newForm.name}
                   onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={inputClass}
                   placeholder="e.g. SmartRecruiters"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                <label className={labelClass}>Category</label>
                 <select
                   value={newForm.category}
                   onChange={e => setNewForm(f => ({ ...f, category: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={`${selectClass} w-full`}
                 >
                   {Object.entries(CATEGORY_LABELS).map(([val, label]) => (
                     <option key={val} value={val}>{label}</option>
@@ -869,71 +884,63 @@ export default function IntegrationsAdminPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Logo (emoji)</label>
+                <label className={labelClass}>Logo (emoji)</label>
                 <input
                   value={newForm.logo}
                   onChange={e => setNewForm(f => ({ ...f, logo: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={inputClass}
                   placeholder="e.g. 🚀"
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
+                <label className={labelClass}>Description</label>
                 <input
                   value={newForm.description}
                   onChange={e => setNewForm(f => ({ ...f, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className={inputClass}
                   placeholder="Short description for customers"
                 />
               </div>
             </div>
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={newForm.comingSoon}
                   onChange={e => setNewForm(f => ({ ...f, comingSoon: e.target.checked }))}
-                  className="h-4 w-4 rounded text-purple-600"
+                  className={checkboxClass}
                 />
-                <span className="text-sm text-gray-700">Mark as &quot;Coming Soon&quot;</span>
+                <span className="text-sm text-admin-secondary">Mark as &quot;Coming Soon&quot;</span>
               </label>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => upsertMutation.mutate({ ...newForm, enabled: false, sortOrder: settings.length + 1 })}
-                disabled={!newForm.slug || !newForm.name || upsertMutation.isPending}
-                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50"
-              >
-                {upsertMutation.isPending ? 'Saving...' : 'Add Integration'}
-              </button>
-              <button
-                onClick={() => setShowAdd(false)}
-                className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          </SectionCard>
         )}
 
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">All Integrations</span>
+        <SectionCard
+          icon={<Puzzle />}
+          title="All Integrations"
+          padded={false}
+          actions={
             <button
               onClick={() => settingsQuery.refetch()}
-              className="text-gray-400 hover:text-gray-600"
+              className={buttonClass.ghost}
+              aria-label="Refresh"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
-          </div>
-
+          }
+          footer="Enabled integrations appear on the customer-facing Integrations settings page. Disabled integrations are hidden from customers."
+        >
           {settings.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
-              <Puzzle className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm">No integrations configured. Click &quot;Initialize Defaults&quot; to get started.</p>
-            </div>
+            <EmptyState
+              compact
+              className="border-0 shadow-none"
+              icon={<Puzzle />}
+              title="No integrations configured."
+              description={<>Click &quot;Initialize Defaults&quot; to get started.</>}
+            />
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-admin-border">
               {settings.map((setting) => {
                 const schema = (setting.configSchema as ConfigField[]) || [];
                 const config = (setting.config as Record<string, any>) || {};
@@ -942,53 +949,47 @@ export default function IntegrationsAdminPage() {
 
                 return (
                   <div key={setting.id}>
-                    <div className={`px-6 py-4 flex items-center justify-between transition-colors ${isExpanded ? 'bg-purple-50/50' : 'hover:bg-gray-50'}`}>
+                    <div className={`px-5 py-4 flex items-center justify-between transition-colors ${isExpanded ? 'bg-admin-accent-soft/50' : 'hover:bg-admin-bg/70'}`}>
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <span className="text-2xl w-10 text-center">{setting.logo || '🔌'}</span>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-admin-sm border border-admin-border bg-admin-bg text-xl">{setting.logo || '🔌'}</span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-gray-900">{setting.name}</span>
-                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                            <span className="font-medium text-admin-ink">{setting.name}</span>
+                            <StatusPill tone="neutral" dot={false}>
                               {CATEGORY_LABELS[setting.category] || setting.category}
-                            </span>
+                            </StatusPill>
                             {setting.comingSoon && (
-                              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                              <StatusPill tone="warn" dot={false}>Coming Soon</StatusPill>
                             )}
                             {schema.length > 0 && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                configuredCount === schema.length
-                                  ? 'bg-green-100 text-green-700'
-                                  : configuredCount > 0
-                                    ? 'bg-amber-100 text-amber-700'
-                                    : 'bg-gray-100 text-gray-500'
-                              }`}>
+                              <StatusPill
+                                tone={configuredCount === schema.length ? 'success' : configuredCount > 0 ? 'warn' : 'neutral'}
+                                dot={false}
+                              >
                                 {configuredCount}/{schema.length} configured
-                              </span>
+                              </StatusPill>
                             )}
                             {(typeof setting.supportsTenantAccess === 'boolean'
                               ? setting.supportsTenantAccess
                               : FEATURE_FLAG_SLUGS.has(setting.slug)) && (
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
-                                  (setting.grantedTenantCount ?? 0) > 0
-                                    ? 'bg-purple-100 text-purple-700'
-                                    : 'bg-gray-100 text-gray-500'
-                                }`}
+                              <StatusPill
+                                tone={(setting.grantedTenantCount ?? 0) > 0 ? 'brand' : 'neutral'}
+                                dot={false}
                                 title="Number of tenants this feature is granted to"
                               >
                                 <Users className="h-3 w-3" />
                                 {setting.grantedTenantCount ?? 0} tenant{(setting.grantedTenantCount ?? 0) === 1 ? '' : 's'} enabled
-                              </span>
+                              </StatusPill>
                             )}
                           </div>
-                          <p className="text-sm text-gray-500 truncate">{setting.description || 'No description'}</p>
+                          <p className="mt-0.5 text-sm text-admin-muted truncate">{setting.description || 'No description'}</p>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3 flex-shrink-0 ml-4">
                         <button
                           onClick={() => setExpandedSlug(isExpanded ? null : setting.slug)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+                          className={buttonClass.ghost}
                         >
                           <Settings className="h-4 w-4" />
                           Edit
@@ -1002,13 +1003,13 @@ export default function IntegrationsAdminPage() {
                         >
                           {setting.enabled ? (
                             <>
-                              <ToggleRight className="h-8 w-8 text-green-500" />
-                              <span className="text-sm font-medium text-green-600 w-16">Enabled</span>
+                              <ToggleRight className="h-8 w-8 text-admin-accent" />
+                              <span className="text-sm font-medium text-admin-accent-ink w-16">Enabled</span>
                             </>
                           ) : (
                             <>
-                              <ToggleLeft className="h-8 w-8 text-gray-300" />
-                              <span className="text-sm font-medium text-gray-400 w-16">Disabled</span>
+                              <ToggleLeft className="h-8 w-8 text-admin-border-strong" />
+                              <span className="text-sm font-medium text-admin-muted w-16">Disabled</span>
                             </>
                           )}
                         </button>
@@ -1016,7 +1017,7 @@ export default function IntegrationsAdminPage() {
                     </div>
 
                     {isExpanded && (
-                      <div className="px-6 pb-4">
+                      <div className="px-5 pb-4">
                         <IntegrationEditPanel
                           integration={setting}
                           onClose={() => setExpandedSlug(null)}
@@ -1029,12 +1030,8 @@ export default function IntegrationsAdminPage() {
               })}
             </div>
           )}
-        </div>
-
-        <p className="mt-4 text-xs text-gray-500">
-          Enabled integrations appear on the customer-facing Integrations settings page. Disabled integrations are hidden from customers.
-        </p>
-      </div>
+        </SectionCard>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

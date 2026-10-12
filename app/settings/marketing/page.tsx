@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Megaphone, Tag } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
-import { PageHeader } from '@/components/admin/page-header';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { buttonClass, checkboxClass, inputClass } from '@/components/admin/controls';
 
 export default function MarketingAnalyticsSettingsPage() {
   const { data, isLoading, refetch } = trpc.marketingAnalytics.getConfig.useQuery(undefined, {
@@ -37,23 +41,33 @@ export default function MarketingAnalyticsSettingsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <PageHeader
-          eyebrow="Platform"
-          title="Marketing tags"
-          description="Ad tags loaded on the public marketing site (homepage, pricing, contact, etc.). Requires marketing cookie consent on the web."
-        />
-
+      <AdminPageChrome
+        width="narrow"
+        icon={<Megaphone />}
+        breadcrumbs={[{ label: 'Platform' }, { label: 'Marketing tags' }]}
+        title="Marketing tags"
+        description="Ad tags loaded on the public marketing site (homepage, pricing, contact, etc.). Requires marketing cookie consent on the web."
+      >
         {isLoading ? (
           <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
         ) : (
-          <div className="admin-panel space-y-6 p-6">
-            <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-4 hover:bg-slate-50">
+          <SectionCard
+            icon={<Tag />}
+            title="Tag settings"
+            description="Applies to www.insighthire.com marketing routes"
+            actions={
+              data?.config ? (
+                <StatusPill tone={data.config.enabled ? 'success' : 'neutral'}>{data.config.enabled ? 'On' : 'Off'}</StatusPill>
+              ) : null
+            }
+            bodyClassName="space-y-6"
+          >
+            <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-4 hover:bg-admin-bg/70">
               <input
                 type="checkbox"
                 checked={enabled}
                 onChange={(e) => setEnabled(e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                className={`${checkboxClass} mt-1`}
               />
               <div>
                 <span className="text-sm font-semibold text-admin-ink">Enable marketing tags</span>
@@ -73,16 +87,16 @@ export default function MarketingAnalyticsSettingsPage() {
                 onChange={(e) => setGoogleAdsId(e.target.value)}
                 placeholder="AW-18384455410"
                 spellCheck={false}
-                className="mt-1 block w-full max-w-md rounded-admin-sm border border-admin-border bg-white px-3 py-2 font-mono text-sm text-admin-ink shadow-sm focus:border-admin-accent focus:outline-none focus:ring-1 focus:ring-admin-accent"
+                className={`${inputClass} mt-1 max-w-md font-mono`}
               />
               <p className="mt-1 text-xs text-admin-muted">
                 From Google Ads → Tools → Google tag. Format{' '}
-                <code className="rounded bg-slate-100 px-1">AW-…</code>. Leave blank to disable
+                <code className="admin-mono rounded bg-admin-bg px-1">AW-…</code>. Leave blank to disable
                 Google only.
               </p>
             </div>
 
-            <div className="rounded-admin-sm border border-dashed border-admin-border bg-slate-50 p-4 text-xs text-admin-muted">
+            <div className="rounded-admin-sm border border-dashed border-admin-border bg-admin-bg/50 p-4 text-xs text-admin-muted">
               <p className="font-semibold text-admin-ink">Where this loads</p>
               <p className="mt-1">
                 Marketing routes on www.insighthire.com (not dashboard, candidate journeys, or
@@ -91,7 +105,7 @@ export default function MarketingAnalyticsSettingsPage() {
             </div>
 
             {updateMutation.error ? (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-admin-danger">
                 {(updateMutation.error as { message?: string }).message ?? 'Save failed'}
               </p>
             ) : null}
@@ -101,17 +115,17 @@ export default function MarketingAnalyticsSettingsPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={updateMutation.isPending}
-                className="inline-flex items-center rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
               {saved ? (
-                <span className="text-sm font-medium text-emerald-600">Saved</span>
+                <StatusPill tone="success">Saved</StatusPill>
               ) : null}
             </div>
-          </div>
+          </SectionCard>
         )}
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

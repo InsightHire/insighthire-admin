@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { JSONContent } from '@tiptap/react';
 import { trpc } from '@/lib/trpc';
 import { BlogRichTextEditor } from './blog-rich-text-editor';
+import { buttonClass, inputClass } from '@/components/admin/controls';
 
 export type BlogPostFormValues = {
   id?: string;
@@ -136,10 +137,10 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft px-4 py-3 text-sm text-red-700">{error}</div>
         )}
 
-        <div className="rounded-lg border border-admin-border bg-white p-4">
+        <div className="admin-panel p-5">
           <label className="block text-sm font-medium text-admin-secondary">Title</label>
           <input
             type="text"
@@ -149,7 +150,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
               if (!slugTouched) update('slug', slugify(e.target.value));
             }}
             placeholder="Why resume screening doesn't predict who can do the job"
-            className="mt-1 w-full rounded-md border border-admin-border px-3 py-2 text-lg font-semibold focus:border-admin-ink focus:outline-none"
+            className={`${inputClass} mt-1 text-lg font-semibold`}
           />
           <label className="mt-4 block text-sm font-medium text-admin-secondary">Slug</label>
           <div className="mt-1 flex items-center gap-1 text-sm text-admin-muted">
@@ -161,7 +162,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
                 setSlugTouched(true);
                 update('slug', slugify(e.target.value));
               }}
-              className="flex-1 rounded-md border border-admin-border px-3 py-1.5 font-mono text-sm focus:border-admin-ink focus:outline-none"
+              className={`${inputClass} flex-1 py-1.5 font-mono`}
             />
           </div>
           <label className="mt-4 block text-sm font-medium text-admin-secondary">Excerpt</label>
@@ -171,7 +172,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             rows={2}
             maxLength={400}
             placeholder="One or two sentences shown on the index page and in search results."
-            className="mt-1 w-full rounded-md border border-admin-border px-3 py-2 text-sm focus:border-admin-ink focus:outline-none"
+            className={`${inputClass} mt-1`}
           />
         </div>
 
@@ -188,12 +189,12 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
       </div>
 
       <div className="space-y-6">
-        <div className="rounded-lg border border-admin-border bg-white p-4">
+        <div className="admin-panel p-5">
           <h3 className="text-sm font-semibold text-admin-ink">Cover image</h3>
           {values.coverImageUrl ? (
             <div className="relative mt-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={values.coverImageUrl} alt="" className="aspect-video w-full rounded-md object-cover" />
+              <img src={values.coverImageUrl} alt="" className="aspect-video w-full rounded-admin-sm object-cover" />
               <button
                 type="button"
                 onClick={() => update('coverImageUrl', null)}
@@ -206,7 +207,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             <button
               type="button"
               onClick={() => coverInputRef.current?.click()}
-              className="mt-3 flex aspect-video w-full items-center justify-center rounded-md border-2 border-dashed border-admin-border text-sm text-admin-muted hover:border-slate-400"
+              className="mt-3 flex aspect-video w-full items-center justify-center rounded-admin-sm border-2 border-dashed border-admin-border text-sm text-admin-muted hover:border-admin-accent-border hover:bg-admin-accent-soft/40 hover:text-admin-accent-ink"
             >
               {getUploadUrl.isLoading ? 'Uploading…' : 'Click to upload'}
             </button>
@@ -214,13 +215,13 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
           <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverFile} />
         </div>
 
-        <div className="rounded-lg border border-admin-border bg-white p-4">
+        <div className="admin-panel p-5">
           <h3 className="text-sm font-semibold text-admin-ink">Tags</h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {values.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-admin-secondary"
+                className="inline-flex items-center gap-1 rounded-full border border-admin-accent-border bg-admin-accent-soft px-2.5 py-1 text-xs font-medium text-admin-accent-ink"
               >
                 {tag}
                 <button
@@ -246,11 +247,11 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             }}
             onBlur={addTag}
             placeholder="Add a tag, press Enter"
-            className="mt-3 w-full rounded-md border border-admin-border px-3 py-1.5 text-sm focus:border-admin-ink focus:outline-none"
+            className={`${inputClass} mt-3 py-1.5`}
           />
         </div>
 
-        <div className="rounded-lg border border-admin-border bg-white p-4">
+        <div className="admin-panel p-5">
           <h3 className="text-sm font-semibold text-admin-ink">SEO</h3>
           <label className="mt-3 block text-xs font-medium text-admin-muted">
             Meta title <span className="font-normal">(optional — defaults to the post title)</span>
@@ -259,7 +260,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             type="text"
             value={values.seoTitle}
             onChange={(e) => update('seoTitle', e.target.value)}
-            className="mt-1 w-full rounded-md border border-admin-border px-3 py-1.5 text-sm focus:border-admin-ink focus:outline-none"
+            className={`${inputClass} mt-1 py-1.5`}
           />
           <label className="mt-3 block text-xs font-medium text-admin-muted">
             Meta description <span className="font-normal">(optional — defaults to the excerpt)</span>
@@ -268,7 +269,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             value={values.seoDescription}
             onChange={(e) => update('seoDescription', e.target.value)}
             rows={2}
-            className="mt-1 w-full rounded-md border border-admin-border px-3 py-1.5 text-sm focus:border-admin-ink focus:outline-none"
+            className={`${inputClass} mt-1 py-1.5`}
           />
         </div>
 
@@ -277,7 +278,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             type="button"
             onClick={handlePublish}
             disabled={saving}
-            className="rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+            className={`${buttonClass.primary} py-2.5 font-semibold`}
           >
             {values.status === 'PUBLISHED' ? 'Save & keep published' : 'Publish'}
           </button>
@@ -285,7 +286,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
             type="button"
             onClick={handleSaveDraft}
             disabled={saving}
-            className="rounded-lg border border-admin-border px-4 py-2.5 text-sm font-semibold text-admin-secondary hover:bg-slate-50 disabled:opacity-50"
+            className={`${buttonClass.secondary} py-2.5 font-semibold`}
           >
             Save draft
           </button>
@@ -298,7 +299,7 @@ export function BlogPostForm({ initial }: { initial: BlogPostFormValues }) {
                 await setStatus.mutateAsync({ id: values.id, status: 'DRAFT' });
                 update('status', 'DRAFT');
               }}
-              className="text-xs font-medium text-admin-muted hover:text-admin-secondary"
+              className="text-xs font-medium text-admin-muted hover:text-admin-danger"
             >
               Unpublish
             </button>

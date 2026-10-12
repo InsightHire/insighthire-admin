@@ -13,6 +13,13 @@ import { useAdminAuth } from '@/lib/use-admin-auth';
 import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
+import { Flag, Plus, ToggleLeft } from 'lucide-react';
+import { cn } from '@/lib/cn';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, inputClass, selectClass } from '@/components/admin/controls';
 
 export default function FlagsPage() {
   useAdminAuth();
@@ -79,204 +86,215 @@ export default function FlagsPage() {
     });
   };
 
+  const dangerSmall = cn(buttonClass.small, 'border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50');
+
   return (
     <AuthenticatedLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Feature flags</h1>
-          <p className="text-sm text-gray-500">
+      <AdminPageChrome
+        width="narrow"
+        icon={<ToggleLeft />}
+        breadcrumbs={[{ label: 'System' }, { label: 'Feature flags' }]}
+        title="Feature flags"
+        description={
+          <>
             Platform-wide kill switches. Changes take effect within ~30 seconds — no deploy.
             A feature gated behind a missing or disabled flag is off. Expand a flag to enable
             it for specific orgs ahead of (or instead of) a global rollout.
-          </p>
-        </div>
+          </>
+        }
+      >
+        <div className="space-y-6">
+          <SectionCard icon={<Plus />} title="New flag" description="New flags start off">
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <input
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder="key (lowercase, e.g. tenant_announcements)"
+                  className={`${inputClass} flex-1 min-w-56 font-mono`}
+                />
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What does this flag control?"
+                  className={`${inputClass} flex-[2] min-w-64`}
+                />
+                <button
+                  onClick={() => create.mutate({ key: key.trim(), description: description.trim() || undefined })}
+                  disabled={create.isPending || !/^[a-z0-9_.-]{2,80}$/.test(key.trim())}
+                  className={buttonClass.primary}
+                >
+                  {create.isPending ? 'Creating…' : 'Create (off)'}
+                </button>
+              </div>
+              {error && (
+                <p className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft px-3 py-2 text-sm text-red-700">{error}</p>
+              )}
+            </div>
+          </SectionCard>
 
-        <div className="bg-white rounded-lg shadow p-6 space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900">New flag</h2>
-          <div className="flex flex-wrap gap-3">
-            <input
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="key (lowercase, e.g. tenant_announcements)"
-              className="flex-1 min-w-56 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this flag control?"
-              className="flex-[2] min-w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-            <button
-              onClick={() => create.mutate({ key: key.trim(), description: description.trim() || undefined })}
-              disabled={create.isPending || !/^[a-z0-9_.-]{2,80}$/.test(key.trim())}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-            >
-              {create.isPending ? 'Creating…' : 'Create (off)'}
-            </button>
-          </div>
-          {error && (
-            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
-          )}
-        </div>
-
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
-          {list.isLoading ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Loading…</p>
-          ) : rows.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-gray-400">No flags yet.</p>
-          ) : (
-            rows.map((f) => {
-              const overrides: Record<string, boolean> = f.orgOverrides ?? {};
-              const overrideEntries = Object.entries(overrides);
-              const isExpanded = expanded.has(f.id);
-              return (
-                <div key={f.id}>
-                  <div className="px-4 py-3 flex flex-wrap items-center gap-3">
-                    <button
-                      onClick={() => toggleExpanded(f.id)}
-                      className="text-gray-400 hover:text-gray-600 shrink-0"
-                      aria-label={isExpanded ? 'Collapse overrides' : 'Expand overrides'}
-                    >
-                      {isExpanded ? (
-                        <ChevronDownIcon className="h-4 w-4" />
-                      ) : (
-                        <ChevronRightIcon className="h-4 w-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => update.mutate({ id: f.id, enabled: !f.enabled })}
-                      disabled={update.isPending || !isSuperAdmin}
-                      title={isSuperAdmin ? undefined : 'Super admin only'}
-                      role="switch"
-                      aria-checked={f.enabled}
-                      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-                        f.enabled ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow transform transition-transform ${
-                          f.enabled ? 'translate-x-5' : 'translate-x-0.5'
-                        }`}
-                      />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-mono font-medium text-gray-900">
-                        {f.key}
-                        <span className={`ml-2 px-1.5 py-0.5 text-xs rounded font-sans ${
-                          f.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {f.enabled ? 'on' : 'off'}
-                        </span>
-                        {overrideEntries.length > 0 && (
-                          <span className="ml-2 px-1.5 py-0.5 text-xs rounded font-sans bg-purple-100 text-purple-800">
-                            {overrideEntries.length} override{overrideEntries.length === 1 ? '' : 's'}
-                          </span>
-                        )}
-                      </p>
-                      {f.description && <p className="text-sm text-gray-600">{f.description}</p>}
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Updated {new Date(f.updatedAt).toLocaleString()}
-                      </p>
-                    </div>
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Delete flag ${f.key}? Gated features will read it as OFF.`)) {
-                            remove.mutate({ id: f.id });
-                          }
-                        }}
-                        disabled={remove.isPending}
-                        className="px-2.5 py-1 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50 shrink-0"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-
-                  {isExpanded && (
-                    <div className="px-4 pb-4 pl-11 space-y-2 bg-gray-50/60">
-                      {overrideEntries.length === 0 ? (
-                        <p className="text-xs text-gray-400 pt-2">No per-org overrides.</p>
-                      ) : (
-                        overrideEntries.map(([orgId, enabled]) => (
-                          <div key={orgId} className="flex items-center gap-3 pt-2">
-                            <span className="text-sm text-gray-800 min-w-0 flex-1 truncate">
-                              {nameById.get(orgId) ?? orgId}
-                            </span>
-                            <span className={`px-1.5 py-0.5 text-xs rounded ${
-                              enabled ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'
-                            }`}>
-                              {enabled ? 'on' : 'off'}
-                            </span>
-                            {isSuperAdmin && (
-                              <>
-                                <button
-                                  onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, enabled: !enabled } })}
-                                  disabled={update.isPending}
-                                  className="px-2 py-0.5 text-xs rounded border border-gray-300 text-gray-700 hover:bg-white"
-                                >
-                                  Flip
-                                </button>
-                                <button
-                                  onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, clear: true } })}
-                                  disabled={update.isPending}
-                                  className="px-2 py-0.5 text-xs rounded border border-red-200 text-red-700 hover:bg-red-50"
-                                >
-                                  Remove
-                                </button>
-                              </>
+          <SectionCard
+            icon={<Flag />}
+            title="Flags"
+            description={isSuperAdmin ? 'Toggle to switch a flag on or off everywhere' : 'Only super admins can change flags'}
+            padded={false}
+          >
+            {list.isLoading ? (
+              <p className="px-5 py-6 text-sm text-admin-muted">Loading…</p>
+            ) : rows.length === 0 ? (
+              <EmptyState compact className="border-0 shadow-none" icon={<Flag />} title="No flags yet." />
+            ) : (
+              <div className="divide-y divide-admin-border">
+                {rows.map((f) => {
+                  const overrides: Record<string, boolean> = f.orgOverrides ?? {};
+                  const overrideEntries = Object.entries(overrides);
+                  const isExpanded = expanded.has(f.id);
+                  return (
+                    <div key={f.id}>
+                      <div className="flex flex-wrap items-center gap-3 px-5 py-3.5">
+                        <button
+                          onClick={() => toggleExpanded(f.id)}
+                          className="shrink-0 text-admin-muted hover:text-admin-ink"
+                          aria-label={isExpanded ? 'Collapse overrides' : 'Expand overrides'}
+                        >
+                          {isExpanded ? (
+                            <ChevronDownIcon className="h-4 w-4" />
+                          ) : (
+                            <ChevronRightIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => update.mutate({ id: f.id, enabled: !f.enabled })}
+                          disabled={update.isPending || !isSuperAdmin}
+                          title={isSuperAdmin ? undefined : 'Super admin only'}
+                          role="switch"
+                          aria-checked={f.enabled}
+                          className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-admin-accent/30 disabled:opacity-50 ${
+                            f.enabled ? 'bg-admin-accent' : 'bg-slate-300'
+                          }`}
+                        >
+                          <span
+                            className={`inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow transform transition-transform ${
+                              f.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex flex-wrap items-center gap-2 font-mono text-sm font-medium text-admin-ink">
+                            {f.key}
+                            <StatusPill tone={f.enabled ? 'success' : 'neutral'} className="font-sans">
+                              {f.enabled ? 'on' : 'off'}
+                            </StatusPill>
+                            {overrideEntries.length > 0 && (
+                              <StatusPill tone="brand" dot={false} className="font-sans">
+                                {overrideEntries.length} override{overrideEntries.length === 1 ? '' : 's'}
+                              </StatusPill>
                             )}
-                          </div>
-                        ))
-                      )}
-
-                      {addingOverrideFor === f.id ? (
-                        <div className="flex flex-wrap items-center gap-2 pt-2">
-                          <select
-                            value={pickedOrgId}
-                            onChange={(e) => setPickedOrgId(e.target.value)}
-                            className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm min-w-56"
-                          >
-                            <option value="">Select an org…</option>
-                            {orgOptions.map((org: any) => (
-                              <option key={org.id} value={org.id}>{org.name || org.domain || org.id}</option>
-                            ))}
-                          </select>
+                          </p>
+                          {f.description && <p className="mt-0.5 text-sm text-admin-secondary">{f.description}</p>}
+                          <p className="mt-0.5 text-xs text-admin-muted">
+                            Updated {new Date(f.updatedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        {isSuperAdmin && (
                           <button
                             onClick={() => {
-                              if (!pickedOrgId) return;
-                              update.mutate({ id: f.id, setOrgOverride: { organizationId: pickedOrgId, enabled: true } });
-                              setAddingOverrideFor(null);
-                              setPickedOrgId('');
+                              if (window.confirm(`Delete flag ${f.key}? Gated features will read it as OFF.`)) {
+                                remove.mutate({ id: f.id });
+                              }
                             }}
-                            disabled={!pickedOrgId || update.isPending}
-                            className="px-2.5 py-1 text-xs rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+                            disabled={remove.isPending}
+                            className={cn(dangerSmall, 'shrink-0')}
                           >
-                            Add override (on)
+                            Delete
                           </button>
-                          <button
-                            onClick={() => { setAddingOverrideFor(null); setPickedOrgId(''); }}
-                            className="px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-white"
-                          >
-                            Cancel
-                          </button>
+                        )}
+                      </div>
+
+                      {isExpanded && (
+                        <div className="space-y-2 border-t border-admin-border bg-admin-bg/60 px-5 pb-4 pl-12">
+                          {overrideEntries.length === 0 ? (
+                            <p className="pt-3 text-xs text-admin-muted">No per-org overrides.</p>
+                          ) : (
+                            overrideEntries.map(([orgId, enabled]) => (
+                              <div key={orgId} className="flex items-center gap-3 pt-2">
+                                <span className="min-w-0 flex-1 truncate text-sm text-admin-ink">
+                                  {nameById.get(orgId) ?? orgId}
+                                </span>
+                                <StatusPill tone={enabled ? 'success' : 'neutral'}>
+                                  {enabled ? 'on' : 'off'}
+                                </StatusPill>
+                                {isSuperAdmin && (
+                                  <>
+                                    <button
+                                      onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, enabled: !enabled } })}
+                                      disabled={update.isPending}
+                                      className={buttonClass.small}
+                                    >
+                                      Flip
+                                    </button>
+                                    <button
+                                      onClick={() => update.mutate({ id: f.id, setOrgOverride: { organizationId: orgId, clear: true } })}
+                                      disabled={update.isPending}
+                                      className={dangerSmall}
+                                    >
+                                      Remove
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            ))
+                          )}
+
+                          {addingOverrideFor === f.id ? (
+                            <div className="flex flex-wrap items-center gap-2 pt-2">
+                              <select
+                                value={pickedOrgId}
+                                onChange={(e) => setPickedOrgId(e.target.value)}
+                                className={`${selectClass} min-w-56`}
+                              >
+                                <option value="">Select an org…</option>
+                                {orgOptions.map((org: any) => (
+                                  <option key={org.id} value={org.id}>{org.name || org.domain || org.id}</option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => {
+                                  if (!pickedOrgId) return;
+                                  update.mutate({ id: f.id, setOrgOverride: { organizationId: pickedOrgId, enabled: true } });
+                                  setAddingOverrideFor(null);
+                                  setPickedOrgId('');
+                                }}
+                                disabled={!pickedOrgId || update.isPending}
+                                className={buttonClass.primary}
+                              >
+                                Add override (on)
+                              </button>
+                              <button
+                                onClick={() => { setAddingOverrideFor(null); setPickedOrgId(''); }}
+                                className={buttonClass.secondary}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : isSuperAdmin ? (
+                            <button
+                              onClick={() => setAddingOverrideFor(f.id)}
+                              className="pt-2 text-xs font-medium text-admin-accent hover:text-admin-accent-ink"
+                            >
+                              + Add org override
+                            </button>
+                          ) : null}
                         </div>
-                      ) : isSuperAdmin ? (
-                        <button
-                          onClick={() => setAddingOverrideFor(f.id)}
-                          className="text-xs text-purple-700 hover:text-purple-900 pt-2"
-                        >
-                          + Add org override
-                        </button>
-                      ) : null}
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </SectionCard>
         </div>
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

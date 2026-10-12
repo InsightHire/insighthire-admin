@@ -56,9 +56,9 @@ export function VmsPrivacyPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-gray-900">Agency users and contract workers</h2>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="admin-panel p-6">
+        <h2 className="text-base font-semibold text-admin-ink">Agency users and contract workers</h2>
+        <p className="text-sm text-admin-muted mt-1">
           Run these only after the controller (the agency or the client) confirms the request. Export and erase are recorded in
           the platform audit log. Erase keeps hours, invoices, rates and tax records, which the law requires us to retain.
         </p>
@@ -81,24 +81,24 @@ export function VmsPrivacyPanel() {
             placeholder="person@agency.com"
             className="flex-1 px-3 py-2 border border-gray-400 rounded-lg text-sm"
           />
-          <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">
+          <button type="submit" className="inline-flex items-center gap-2 px-4 py-2 bg-admin-accent text-white text-sm font-medium rounded-admin-sm hover:bg-admin-accent-ink">
             <Search className="h-4 w-4" aria-hidden /> Find
           </button>
         </form>
         {find.isError && <p role="alert" className="mt-3 text-sm text-red-700">{find.error.message}</p>}
         {searched && find.isSuccess && !user && (
-          <p className="mt-3 text-sm text-gray-600">No agency user or worker with that email.</p>
+          <p className="mt-3 text-sm text-admin-muted">No agency user or worker with that email.</p>
         )}
       </div>
 
       {user && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
+        <div className="admin-panel p-6 space-y-6">
           <div>
-            <p className="text-base font-semibold text-gray-900">
+            <p className="text-base font-semibold text-admin-ink">
               {[user.firstName, user.lastName].filter(Boolean).join(' ') || '(no name)'}
             </p>
-            <p className="text-sm text-gray-600">{user.email}</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-sm text-admin-muted">{user.email}</p>
+            <p className="text-xs text-admin-muted mt-1">
               {user.isActive ? 'Active' : 'Inactive'} · {user.memberships.length} agency membership
               {user.memberships.length === 1 ? '' : 's'} · last sign-in{' '}
               {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'never'}
@@ -118,11 +118,11 @@ export function VmsPrivacyPanel() {
             {exportMutation.isError && <p role="alert" className="mt-2 text-sm text-red-700">{exportMutation.error.message}</p>}
           </div>
 
-          <div className="border-t border-gray-200 pt-6">
+          <div className="border-t border-admin-border pt-6">
             <h3 className="flex items-center gap-2 text-sm font-semibold text-red-800">
               <AlertTriangle className="h-4 w-4" aria-hidden /> Erase this person
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-admin-muted mt-1">
               Removes their name, email, notes, punch locations, photos and documents, and closes their sign-in. This cannot be
               undone. Refused while they still have an open assignment. Super admins only.
             </p>
@@ -167,7 +167,7 @@ export function VmsPrivacyPanel() {
       )}
 
       {eraseResult && (
-        <div role="status" className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-900">
+        <div role="status" className="bg-admin-ok-soft border border-green-200 rounded-admin p-4 text-sm text-green-900">
           <p className="flex items-center gap-2 font-medium">
             <CheckCircle className="h-4 w-4" aria-hidden /> Erased. Request {eraseResult.requestId}
           </p>

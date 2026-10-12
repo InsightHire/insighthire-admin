@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Bot, Mail, MessageSquare, Phone, ShieldCheck } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
-import { PageHeader } from '@/components/admin/page-header';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { buttonClass, checkboxClass, inputClass } from '@/components/admin/controls';
 
 type StringKey =
   | 'aiDisclosureEmail'
@@ -21,12 +25,14 @@ type Copy = Record<StringKey, string> & Record<BoolKey, boolean>;
 
 const SECTIONS: Array<{
   title: string;
+  icon: React.ReactNode;
   description: string;
   fields: Array<{ key: StringKey; label: string; help: string; rows?: number; mono?: boolean }>;
   toggles?: Array<{ key: BoolKey; label: string; help: string }>;
 }> = [
   {
     title: 'Outbound message footers',
+    icon: <Mail />,
     description:
       'Appended to messages the platform writes on a recruiter’s behalf. {{orgName}} becomes the tenant’s name.',
     fields: [
@@ -41,6 +47,7 @@ const SECTIONS: Array<{
   },
   {
     title: 'SMS consent and carrier keywords',
+    icon: <MessageSquare />,
     description:
       'The opt-in language is shown wherever a candidate gives a mobile number. HELP and STOP replies must match the Twilio Messaging Service opt-out settings and the registered 10DLC campaign.',
     fields: [
@@ -51,6 +58,7 @@ const SECTIONS: Array<{
   },
   {
     title: 'Phone screens',
+    icon: <Phone />,
     description: 'Spoken by the AI phone screener and pre-filled when a recruiter records consent.',
     fields: [
       { key: 'phoneRecordingDisclosure', label: 'Recording disclosure (spoken)', help: 'Said in the intro, right before “Is now still a good time?”', rows: 3 },
@@ -59,6 +67,7 @@ const SECTIONS: Array<{
   },
   {
     title: 'Candidate-facing AI notice',
+    icon: <Bot />,
     description: 'Shown under the “Ask about this role” assistant on careers pages.',
     fields: [{ key: 'candidateAiNotice', label: 'Notice', help: 'Plain language. One or two sentences.', rows: 3 }],
   },
@@ -88,30 +97,32 @@ export default function ComplianceCopySettingsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <PageHeader
-          eyebrow="Platform"
-          title="Compliance copy"
-          description="The human keyword and disclosure switches used across every tenant. The disclosure and consent text itself is versioned in Licenses & Disclosures."
-        />
-
+      <AdminPageChrome
+        width="narrow"
+        icon={<ShieldCheck />}
+        breadcrumbs={[{ label: 'Platform' }, { label: 'Compliance copy' }]}
+        title="Compliance copy"
+        description="The human keyword and disclosure switches used across every tenant. The disclosure and consent text itself is versioned in Licenses & Disclosures."
+      >
         {isLoading || !copy ? (
           <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
         ) : (
           <div className="space-y-6">
             {SECTIONS.map((section) => (
-              <section key={section.title} className="admin-panel space-y-5 p-6">
-                <div>
-                  <h2 className="text-base font-semibold text-admin-ink">{section.title}</h2>
-                  <p className="mt-1 text-xs text-admin-muted">{section.description}</p>
-                </div>
+              <SectionCard
+                key={section.title}
+                icon={section.icon}
+                title={section.title}
+                description={section.description}
+                bodyClassName="space-y-5"
+              >
                 {section.toggles?.map((t) => (
-                  <label key={t.key} className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-slate-50">
+                  <label key={t.key} className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
                     <input
                       type="checkbox"
                       checked={copy[t.key]}
                       onChange={(e) => toggle(t.key, e.target.checked)}
-                      className="mt-1 h-4 w-4 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                      className={`${checkboxClass} mt-1`}
                     />
                     <div>
                       <span className="text-sm font-semibold text-admin-ink">{t.label}</span>
@@ -126,11 +137,11 @@ export default function ComplianceCopySettingsPage() {
                       <div key={f.key}>
                         <div className="mb-1 flex items-baseline justify-between gap-3">
                           <span className="text-sm font-semibold text-admin-ink">{f.label}</span>
-                          <Link href={`/legal/${legalSlug}`} className="shrink-0 text-xs font-medium text-admin-accent hover:underline">
+                          <Link href={`/legal/${legalSlug}`} className="shrink-0 text-xs font-medium text-admin-accent-ink hover:underline">
                             Edit in Licenses &amp; Disclosures →
                           </Link>
                         </div>
-                        <p className="whitespace-pre-wrap rounded-admin-sm border border-admin-border bg-slate-50 px-3 py-2 text-sm text-admin-ink">
+                        <p className="whitespace-pre-wrap rounded-admin-sm border border-admin-border bg-admin-bg/60 px-3 py-2 text-sm text-admin-ink">
                           {copy[f.key] || <span className="text-admin-muted">(blank)</span>}
                         </p>
                         <p className="mt-1 text-xs text-admin-muted">{f.help} Versioned: each change is kept with who published it and when.</p>
@@ -146,7 +157,7 @@ export default function ComplianceCopySettingsPage() {
                         onChange={(e) => set(f.key, e.target.value)}
                         rows={f.rows}
                         maxLength={1000}
-                        className="mt-1 block w-full rounded-admin-sm border border-admin-border bg-white px-3 py-2 text-sm text-admin-ink shadow-sm focus:border-admin-accent focus:outline-none focus:ring-1 focus:ring-admin-accent"
+                        className={`${inputClass} mt-1`}
                       />
                     ) : (
                       <input
@@ -155,7 +166,7 @@ export default function ComplianceCopySettingsPage() {
                         onChange={(e) => set(f.key, e.target.value)}
                         maxLength={32}
                         spellCheck={false}
-                        className={`mt-1 block w-full max-w-xs rounded-admin-sm border border-admin-border bg-white px-3 py-2 text-sm text-admin-ink shadow-sm focus:border-admin-accent focus:outline-none focus:ring-1 focus:ring-admin-accent ${f.mono ? 'font-mono' : ''}`}
+                        className={`${inputClass} mt-1 max-w-xs ${f.mono ? 'font-mono' : ''}`}
                       />
                     )}
                     <div className="mt-1 flex items-start justify-between gap-3 text-xs text-admin-muted">
@@ -169,11 +180,11 @@ export default function ComplianceCopySettingsPage() {
                   </div>
                   );
                 })}
-              </section>
+              </SectionCard>
             ))}
 
             {updateMutation.error ? (
-              <p className="text-sm text-red-600">{(updateMutation.error as { message?: string }).message ?? 'Save failed'}</p>
+              <p className="text-sm text-admin-danger">{(updateMutation.error as { message?: string }).message ?? 'Save failed'}</p>
             ) : null}
 
             <div className="flex items-center gap-3 border-t border-admin-border pt-4">
@@ -181,15 +192,15 @@ export default function ComplianceCopySettingsPage() {
                 type="button"
                 onClick={() => updateMutation.mutate(copy)}
                 disabled={updateMutation.isPending}
-                className="inline-flex items-center rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-              {saved ? <span className="text-sm font-medium text-emerald-600">Saved</span> : null}
+              {saved ? <StatusPill tone="success">Saved</StatusPill> : null}
             </div>
           </div>
         )}
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

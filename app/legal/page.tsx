@@ -3,7 +3,12 @@
 import Link from 'next/link';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
-import { PageHeader } from '@/components/admin/page-header';
+import { FileText, Scale } from 'lucide-react';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { DataTableEl, Td, Th } from '@/components/admin/data-table';
 
 type VersionMeta = { version: number; publishedAt: string | null; publishedByEmail: string | null };
 type DocRow = {
@@ -34,68 +39,69 @@ export default function LegalDocumentsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <PageHeader
-          eyebrow="Content"
-          title="Licenses & disclosures"
-          description="The legal text customers and candidates see. Publishing a new version makes it live right away; every earlier version is kept."
-        />
-
-        {error ? <p className="mb-4 text-sm text-red-600">{error.message}</p> : null}
+      <AdminPageChrome
+        icon={<Scale />}
+        breadcrumbs={[{ label: 'Content' }, { label: 'Licenses & disclosures' }]}
+        title="Licenses & disclosures"
+        description="The legal text customers and candidates see. Publishing a new version makes it live right away; every earlier version is kept."
+      >
+        {error ? <p className="mb-4 text-sm text-admin-danger">{error.message}</p> : null}
 
         {isLoading ? (
           <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
         ) : (
-          <div className="admin-panel overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-admin-border text-left text-xs uppercase tracking-wide text-admin-muted">
-                  <th className="px-4 py-3 font-semibold">Document</th>
-                  <th className="px-4 py-3 font-semibold">Live version</th>
-                  <th className="px-4 py-3 font-semibold">Last published</th>
-                  <th className="px-4 py-3 font-semibold">By</th>
-                </tr>
-              </thead>
-              <tbody>
-                {docs.map((d) => (
-                  <tr key={d.id} className="border-b border-admin-border last:border-0 hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/legal/${d.slug}`} className="font-semibold text-admin-ink hover:underline">
-                        {d.title}
-                      </Link>
-                      <div className="mt-0.5 text-xs text-admin-muted">
-                        {CATEGORY_LABEL[d.category] ?? d.category}
-                        {d.usedAt ? <> · <span className="font-mono">{d.usedAt}</span></> : null}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {d.live ? (
-                        <span className="font-medium text-admin-ink">v{d.live.version}</span>
-                      ) : (
-                        <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-admin-muted">Not live</span>
-                      )}
-                      {d.draft ? (
-                        <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                          Draft v{d.draft.version}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-admin-muted">{formatDate(d.live?.publishedAt)}</td>
-                    <td className="px-4 py-3 text-admin-muted">{d.live?.publishedByEmail ?? '—'}</td>
-                  </tr>
-                ))}
-                {docs.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-admin-muted">
-                      No documents yet.
-                    </td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
+          <SectionCard
+            padded={false}
+            icon={<FileText />}
+            title="Documents"
+            description="Open a document to edit a draft, publish, or see earlier versions"
+          >
+            {docs.length === 0 ? (
+              <EmptyState compact className="border-0 shadow-none" icon={<FileText />} title="No documents yet." />
+            ) : (
+              <div className="overflow-x-auto">
+                <DataTableEl>
+                  <thead>
+                    <tr>
+                      <Th>Document</Th>
+                      <Th>Live version</Th>
+                      <Th>Last published</Th>
+                      <Th>By</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {docs.map((d) => (
+                      <tr key={d.id}>
+                        <Td>
+                          <Link href={`/legal/${d.slug}`} className="font-semibold text-admin-ink hover:text-admin-accent-ink hover:underline">
+                            {d.title}
+                          </Link>
+                          <div className="mt-0.5 text-xs text-admin-muted">
+                            {CATEGORY_LABEL[d.category] ?? d.category}
+                            {d.usedAt ? <> · <span className="font-mono">{d.usedAt}</span></> : null}
+                          </div>
+                        </Td>
+                        <Td>
+                          <span className="flex flex-wrap items-center gap-2">
+                            {d.live ? (
+                              <StatusPill tone="success">v{d.live.version}</StatusPill>
+                            ) : (
+                              <StatusPill tone="neutral">Not live</StatusPill>
+                            )}
+                            {d.draft ? <StatusPill tone="warn">Draft v{d.draft.version}</StatusPill> : null}
+                          </span>
+                        </Td>
+                        <Td className="text-admin-muted">{formatDate(d.live?.publishedAt)}</Td>
+                        <Td className="text-admin-muted">{d.live?.publishedByEmail ?? '—'}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTableEl>
+              </div>
+            )}
+          </SectionCard>
         )}
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

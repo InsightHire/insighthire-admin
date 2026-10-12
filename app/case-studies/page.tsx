@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { BookOpen, Trophy } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
-import { PageHeader } from '@/components/admin/page-header';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { buttonClass, checkboxClass } from '@/components/admin/controls';
 
 type StudyRow = {
   slug: string;
@@ -39,21 +44,29 @@ export default function CaseStudyApprovalsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <PageHeader
-          eyebrow="Content"
-          title="Case studies"
-          description="Named stories stay off www.insighthire.com until you approve them. Anonymous pilot results stay on the case studies page."
-        />
-
+      <AdminPageChrome
+        width="narrow"
+        icon={<Trophy />}
+        breadcrumbs={[{ label: 'Content' }, { label: 'Case studies' }]}
+        title="Case studies"
+        description="Named stories stay off www.insighthire.com until you approve them. Anonymous pilot results stay on the case studies page."
+      >
         {isLoading ? (
           <div className="admin-panel py-16 text-center text-sm text-admin-muted">Loading…</div>
         ) : (
-          <div className="admin-panel space-y-4 p-6">
+          <SectionCard
+            icon={<BookOpen />}
+            title="Named stories"
+            description="Check a story to publish it on the marketing site"
+            bodyClassName="space-y-4"
+          >
+            {rows.length === 0 ? (
+              <EmptyState compact className="border-dashed shadow-none" icon={<BookOpen />} title="No case studies yet" />
+            ) : null}
             {rows.map((row) => (
               <label
                 key={row.slug}
-                className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-4 hover:bg-slate-50"
+                className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-4 hover:bg-admin-bg/70"
               >
                 <input
                   type="checkbox"
@@ -65,17 +78,18 @@ export default function CaseStudyApprovalsPage() {
                       ),
                     )
                   }
-                  className="mt-1 h-4 w-4 rounded border-admin-border text-admin-accent focus:ring-admin-accent"
+                  className={`${checkboxClass} mt-1`}
                 />
-                <div>
+                <div className="min-w-0 flex-1">
                   <span className="text-sm font-semibold text-admin-ink">{row.company}</span>
                   <p className="mt-1 text-xs text-admin-muted">{row.headline}</p>
                 </div>
+                <StatusPill tone={row.approved ? 'success' : 'neutral'}>{row.approved ? 'Approved' : 'Hidden'}</StatusPill>
               </label>
             ))}
 
             {updateMutation.error ? (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-admin-danger">
                 {(updateMutation.error as { message?: string }).message ?? 'Save failed'}
               </p>
             ) : null}
@@ -85,15 +99,15 @@ export default function CaseStudyApprovalsPage() {
                 type="button"
                 onClick={handleSave}
                 disabled={updateMutation.isPending || rows.length === 0}
-                className="inline-flex items-center rounded-admin-sm bg-admin-ink px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                className={buttonClass.primary}
               >
                 {updateMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-              {saved ? <span className="text-sm font-medium text-emerald-600">Saved</span> : null}
+              {saved ? <StatusPill tone="success">Saved</StatusPill> : null}
             </div>
-          </div>
+          </SectionCard>
         )}
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }

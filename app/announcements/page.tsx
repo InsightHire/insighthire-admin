@@ -6,21 +6,29 @@ export const dynamic = 'force-dynamic';
  * tenant dashboard (maintenance windows, incidents, product notices).
  */
 import { useState } from 'react';
+import { History, Megaphone, PenSquare } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { useAdminAuth } from '@/lib/use-admin-auth';
 import { useIsSuperAdmin } from '@/lib/use-super-admin';
 import { AuthenticatedLayout } from '@/components/layout/authenticated-layout';
+import { AdminPageChrome } from '@/components/admin/page-chrome';
+import { SectionCard } from '@/components/admin/section-card';
+import { StatusPill, type StatusTone } from '@/components/admin/status-pill';
+import { EmptyState } from '@/components/admin/empty-state';
+import { Segmented } from '@/components/admin/segmented';
+import { cn } from '@/lib/cn';
+import { buttonClass, inputClass } from '@/components/admin/controls';
 
 const SEVERITIES = [
-  ['info', 'Info', 'bg-blue-100 text-blue-800'],
-  ['maintenance', 'Maintenance', 'bg-amber-100 text-amber-800'],
-  ['incident', 'Incident', 'bg-red-100 text-red-800'],
+  ['info', 'Info'],
+  ['maintenance', 'Maintenance'],
+  ['incident', 'Incident'],
 ] as const;
 
-const SEVERITY_STYLE: Record<string, string> = {
-  info: 'bg-blue-100 text-blue-800',
-  maintenance: 'bg-amber-100 text-amber-800',
-  incident: 'bg-red-100 text-red-800',
+const SEVERITY_TONE: Record<string, StatusTone> = {
+  info: 'info',
+  maintenance: 'warn',
+  incident: 'danger',
 };
 
 export default function AnnouncementsPage() {
@@ -57,124 +65,117 @@ export default function AnnouncementsPage() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
-          <p className="text-sm text-gray-500">
-            Active announcements appear as a banner in every tenant dashboard.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-900">New announcement</h2>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title (e.g. Scheduled maintenance Saturday 02:00–04:00 UTC)"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Details shown under the title…"
-            rows={3}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-          />
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex gap-1">
-              {SEVERITIES.map(([value, label, style]) => (
-                <button
-                  key={value}
-                  onClick={() => setSeverity(value)}
-                  className={`px-2.5 py-1 text-xs rounded-full font-medium ${
-                    severity === value ? style : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <label className="flex items-center gap-2 text-sm text-gray-600">
-              Ends
+      <AdminPageChrome
+        width="narrow"
+        icon={<Megaphone />}
+        breadcrumbs={[{ label: 'System' }, { label: 'Announcements' }]}
+        title="Announcements"
+        description="Active announcements appear as a banner in every tenant dashboard."
+      >
+        <div className="space-y-6">
+          <SectionCard icon={<PenSquare />} title="New announcement" description="Published immediately to every tenant">
+            <div className="space-y-4">
               <input
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-                className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Title (e.g. Scheduled maintenance Saturday 02:00–04:00 UTC)"
+                className={inputClass}
               />
-              <span className="text-xs text-gray-400">(empty = until deactivated)</span>
-            </label>
-            <button
-              onClick={() => create.mutate({
-                title, body, severity,
-                endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
-              })}
-              disabled={create.isPending || !title.trim() || !body.trim()}
-              className="ml-auto px-4 py-2 text-sm font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-            >
-              {create.isPending ? 'Publishing…' : 'Publish to all tenants'}
-            </button>
-          </div>
-          {error && (
-            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
-          )}
-        </div>
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Details shown under the title…"
+                rows={3}
+                className={inputClass}
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <Segmented
+                  size="sm"
+                  ariaLabel="Severity"
+                  options={SEVERITIES.map(([value, label]) => ({ value, label }))}
+                  value={severity}
+                  onChange={setSeverity}
+                />
+                <label className="flex items-center gap-2 text-sm text-admin-secondary">
+                  Ends
+                  <input
+                    type="datetime-local"
+                    value={endsAt}
+                    onChange={(e) => setEndsAt(e.target.value)}
+                    className={cn(inputClass, 'w-auto py-1.5')}
+                  />
+                  <span className="text-xs text-admin-muted">(empty = until deactivated)</span>
+                </label>
+                <button
+                  onClick={() => create.mutate({
+                    title, body, severity,
+                    endsAt: endsAt ? new Date(endsAt).toISOString() : undefined,
+                  })}
+                  disabled={create.isPending || !title.trim() || !body.trim()}
+                  className={`${buttonClass.primary} ml-auto`}
+                >
+                  {create.isPending ? 'Publishing…' : 'Publish to all tenants'}
+                </button>
+              </div>
+              {error && (
+                <p className="rounded-admin-sm border border-admin-danger/20 bg-admin-danger-soft px-3 py-2 text-sm text-red-700">{error}</p>
+              )}
+            </div>
+          </SectionCard>
 
-        <div className="bg-white rounded-lg shadow divide-y divide-gray-50">
-          <div className="px-4 py-3">
-            <h2 className="text-sm font-semibold text-gray-900">History</h2>
-          </div>
-          {list.isLoading ? (
-            <p className="px-4 py-6 text-sm text-gray-400">Loading…</p>
-          ) : rows.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-gray-400">No announcements yet.</p>
-          ) : (
-            rows.map((a) => {
-              const live = a.active
-                && new Date(a.startsAt).getTime() <= now
-                && (!a.endsAt || new Date(a.endsAt).getTime() > now);
-              return (
-                <div key={a.id} className="px-4 py-3 flex flex-wrap items-start gap-3">
-                  <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 ${SEVERITY_STYLE[a.severity] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {a.severity}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {a.title}
-                      {live && (
-                        <span className="ml-2 px-1.5 py-0.5 text-xs rounded bg-green-100 text-green-800">live</span>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-600 whitespace-pre-wrap">{a.body}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(a.startsAt).toLocaleString()}
-                      {a.endsAt ? ` → ${new Date(a.endsAt).toLocaleString()}` : ' → until deactivated'}
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => update.mutate({ id: a.id, active: !a.active })}
-                      disabled={update.isPending}
-                      className="px-2.5 py-1 text-xs rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    >
-                      {a.active ? 'Deactivate' : 'Reactivate'}
-                    </button>
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => remove.mutate({ id: a.id })}
-                        disabled={remove.isPending}
-                        className="px-2.5 py-1 text-xs rounded-lg border border-red-200 text-red-700 hover:bg-red-50"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
+          <SectionCard icon={<History />} title="History" description="Every announcement, newest first" padded={false}>
+            {list.isLoading ? (
+              <p className="px-5 py-6 text-sm text-admin-muted">Loading…</p>
+            ) : rows.length === 0 ? (
+              <EmptyState compact className="border-0 shadow-none" icon={<Megaphone />} title="No announcements yet." />
+            ) : (
+              <div className="divide-y divide-admin-border">
+                {rows.map((a) => {
+                  const live = a.active
+                    && new Date(a.startsAt).getTime() <= now
+                    && (!a.endsAt || new Date(a.endsAt).getTime() > now);
+                  return (
+                    <div key={a.id} className="flex flex-wrap items-start gap-3 px-5 py-4">
+                      <StatusPill tone={SEVERITY_TONE[a.severity] ?? 'neutral'} dot={false} className="shrink-0">
+                        {a.severity}
+                      </StatusPill>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-admin-ink">
+                          {a.title}
+                          {live && <StatusPill tone="success" className="ml-2">live</StatusPill>}
+                        </p>
+                        <p className="mt-0.5 whitespace-pre-wrap text-sm text-admin-secondary">{a.body}</p>
+                        <p className="mt-1 text-xs text-admin-muted">
+                          {new Date(a.startsAt).toLocaleString()}
+                          {a.endsAt ? ` → ${new Date(a.endsAt).toLocaleString()}` : ' → until deactivated'}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <button
+                          onClick={() => update.mutate({ id: a.id, active: !a.active })}
+                          disabled={update.isPending}
+                          className={buttonClass.small}
+                        >
+                          {a.active ? 'Deactivate' : 'Reactivate'}
+                        </button>
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => remove.mutate({ id: a.id })}
+                            disabled={remove.isPending}
+                            className={cn(buttonClass.small, 'border-red-200 text-red-700 hover:border-red-300 hover:bg-red-50')}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </SectionCard>
         </div>
-      </div>
+      </AdminPageChrome>
     </AuthenticatedLayout>
   );
 }
