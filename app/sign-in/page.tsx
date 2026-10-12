@@ -6,7 +6,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { auth } from '@/lib/authio/session';
-import { InsighthireAuthLogo, AuthPageLayout } from '@/components/auth/auth-shell';
+import { StaffSignIn } from '@/components/auth/staff-sign-in';
 import { SIGN_IN_PATH } from '@/lib/authio/config';
 import { AUTH_LOGIN_ERROR_COOKIE, authErrorMessage } from '@/lib/authio/auth-errors';
 
@@ -33,37 +33,5 @@ export default async function AdminSignInPage({
   const signInHref =
     next === '/' ? SIGN_IN_PATH : `${SIGN_IN_PATH}?next=${encodeURIComponent(next)}`;
 
-  return (
-    <AuthPageLayout>
-      <InsighthireAuthLogo />
-
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Sign in</h1>
-      </div>
-
-      <div className="bg-zinc-900 rounded-2xl shadow-2xl p-8 border border-zinc-800">
-        {errorMessage && (
-          <div className="mb-6 bg-red-950/60 border border-red-800/80 text-red-200 px-4 py-3 rounded-lg text-sm">
-            {errorMessage}
-          </div>
-        )}
-
-        <a
-          href={signInHref}
-          className="block w-full text-center bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 px-6 rounded-lg font-medium hover:from-indigo-500 hover:to-violet-500 transition-colors shadow-lg shadow-indigo-900/20"
-        >
-          Login
-        </a>
-
-        <p className="mt-6 pt-6 border-t border-zinc-800 text-center text-xs text-zinc-500">
-          Secure access · Authorized users only
-        </p>
-      </div>
-
-      <div className="mt-6 rounded-xl border border-amber-900/40 bg-amber-950/25 text-amber-100/90 px-4 py-3 text-xs leading-relaxed">
-        <strong className="text-amber-200">Security notice:</strong> This portal is for
-        authorized InsightHire operators only. Access and actions are logged.
-      </div>
-    </AuthPageLayout>
-  );
+  return <StaffSignIn signInHref={signInHref} errorMessage={errorMessage} />;
 }
