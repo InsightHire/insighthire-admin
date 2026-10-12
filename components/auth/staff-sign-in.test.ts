@@ -26,6 +26,7 @@ describe('StaffSignIn', () => {
     expect(heading).toBeGreaterThan(logo);
     expect(html.slice(logo, heading)).not.toMatch(/<p[ >]/);
     expect(html).toContain('Staff sign in');
+    expect(html).toMatch(/<img [^>]*class="block h-8 w-auto lg:h-10"/);
   });
 
   it('keeps the screen clean: no eyebrow, subtext, access note or sample cards', () => {

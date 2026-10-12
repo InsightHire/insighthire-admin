@@ -87,7 +87,7 @@ export function StaffSignIn({ signInHref, errorMessage }: { signInHref: string; 
       <div className="flex min-h-screen flex-col px-6 py-8 sm:px-12 lg:px-16 xl:px-24">
         <main className="flex flex-1 items-center justify-center py-10">
           <div className="auth-rise w-full max-w-sm">
-            <img src="/brand/insighthire-logo-light.png" alt="InsightHire" width={163} height={32} className="h-8 w-auto" />
+            <img src="/brand/insighthire-logo-light.png" alt="InsightHire" width={163} height={32} className="block h-8 w-auto lg:h-10" />
             <h1 className="mt-8 text-3xl font-semibold tracking-tight text-gray-900">Staff sign in</h1>
 
             {errorMessage && (
