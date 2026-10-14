@@ -440,6 +440,12 @@ export default function OrganizationDetailPage() {
               onSaved={refetch}
             />
 
+            <OrgCrmOnlySection
+              organizationId={orgId}
+              settings={(data.organization.settings as Record<string, unknown> | null) || null}
+              onSaved={refetch}
+            />
+
             {/* Per-org language settings */}
             <OrgI18nSettingsSection organizationId={orgId} onSaved={refetch} />
 
@@ -1729,6 +1735,62 @@ function OrgDashboardSettingsSection({
           {setDashboardSettings.error && (
             <p id="support-chatbot-error" role="alert" className="text-xs text-red-600 mt-1">
               {setDashboardSettings.error.message}
+            </p>
+          )}
+        </div>
+      </label>
+    </SectionCard>
+  );
+}
+
+function OrgCrmOnlySection({
+  organizationId,
+  settings,
+  onSaved,
+}: {
+  organizationId: string;
+  settings: Record<string, unknown> | null;
+  onSaved: () => void;
+}) {
+  const utils = (trpc as any).useUtils();
+  const enabled = settings?.crmOnly === true;
+
+  const setCrmOnly = (trpc as any).platformAdmin.setOrgCrmOnly.useMutation({
+    onSuccess: () => {
+      utils.platformAdmin.getOrganization.invalidate({ id: organizationId });
+      onSaved();
+    },
+  });
+
+  return (
+    <SectionCard
+      icon={<Users />}
+      title="InsightCRM"
+      description="How this tenant manages its people in InsightCRM."
+    >
+      <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
+        <input
+          type="checkbox"
+          checked={enabled}
+          disabled={setCrmOnly.isLoading}
+          aria-invalid={Boolean(setCrmOnly.error)}
+          aria-describedby="crm-only-help crm-only-error"
+          onChange={(e) => setCrmOnly.mutate({ organizationId, crmOnly: e.target.checked })}
+          className={`${checkboxClass} mt-1`}
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-admin-ink">CRM-only organization</span>
+            {setCrmOnly.isLoading && <span className="text-xs text-admin-muted">Saving…</span>}
+          </div>
+          <p id="crm-only-help" className="text-xs text-admin-secondary mt-1">
+            Turn on when this company uses InsightCRM but not InsightHire hiring. Their CRM admins then invite,
+            change roles and remove people in CRM Settings → Team. Leave off for tenants that use InsightHire;
+            they keep managing people in InsightHire.
+          </p>
+          {setCrmOnly.error && (
+            <p id="crm-only-error" role="alert" className="text-xs text-red-600 mt-1">
+              {setCrmOnly.error.message}
             </p>
           )}
         </div>
