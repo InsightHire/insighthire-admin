@@ -16,12 +16,14 @@ export default function MarketingAnalyticsSettingsPage() {
 
   const [enabled, setEnabled] = useState(true);
   const [googleAdsId, setGoogleAdsId] = useState('');
+  const [xPixelId, setXPixelId] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!data?.config) return;
     setEnabled(data.config.enabled);
     setGoogleAdsId(data.config.googleAdsId ?? '');
+    setXPixelId(data.config.xPixelId ?? '');
   }, [data?.config]);
 
   const updateMutation = trpc.marketingAnalytics.updateConfig.useMutation({
@@ -36,6 +38,7 @@ export default function MarketingAnalyticsSettingsPage() {
     updateMutation.mutate({
       enabled,
       googleAdsId: googleAdsId.trim(),
+      xPixelId: xPixelId.trim(),
     });
   };
 
@@ -72,7 +75,7 @@ export default function MarketingAnalyticsSettingsPage() {
               <div>
                 <span className="text-sm font-semibold text-admin-ink">Enable marketing tags</span>
                 <p className="mt-1 text-xs text-admin-muted">
-                  Master switch. When off, no Google Ads (or other) tags load on marketing pages.
+                  Master switch. When off, no Google Ads, X (or other) tags load on marketing pages.
                 </p>
               </div>
             </label>
@@ -93,6 +96,24 @@ export default function MarketingAnalyticsSettingsPage() {
                 From Google Ads → Tools → Google tag. Format{' '}
                 <code className="admin-mono rounded bg-admin-bg px-1">AW-…</code>. Leave blank to disable
                 Google only.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-admin-ink">
+                X pixel ID
+              </label>
+              <input
+                type="text"
+                value={xPixelId}
+                onChange={(e) => setXPixelId(e.target.value)}
+                placeholder="rhek7"
+                spellCheck={false}
+                className={`${inputClass} mt-1 max-w-md font-mono`}
+              />
+              <p className="mt-1 text-xs text-admin-muted">
+                From X Ads → Tools → Events manager. Loads the X conversion tracking base code.
+                Leave blank to disable X only.
               </p>
             </div>
 
