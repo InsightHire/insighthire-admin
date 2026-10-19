@@ -242,6 +242,7 @@ export default function OnboardingPage() {
                   className={`${selectClass} w-full`}
                 >
                   <option value="TRIAL">Trial</option>
+                  <option value="PILOT">1-Role Pilot</option>
                   <option value="STARTER">Starter</option>
                   <option value="PROFESSIONAL">Professional</option>
                   <option value="ENTERPRISE">Enterprise</option>

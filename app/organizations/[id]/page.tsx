@@ -385,21 +385,54 @@ export default function OrganizationDetailPage() {
 
             {/* Payment History */}
             {data.paymentHistory && data.paymentHistory.length > 0 && (
-              <SectionCard icon={<Receipt />} title="Payment History">
+              <SectionCard icon={<Receipt />} title="Payment History & Receipts">
                 <div className="space-y-3">
-                  {data.paymentHistory.map((payment) => (
+                  {data.paymentHistory.map((payment: any) => (
                     <div key={payment.id} className="flex justify-between items-center py-2 border-b border-admin-border">
                       <div>
                         <p className="font-medium text-admin-ink">
                           ${payment.amount.toFixed(2)} {payment.currency.toUpperCase()}
+                          {payment.number ? <span className="ml-2 text-xs text-admin-muted font-mono">#{payment.number}</span> : null}
                         </p>
                         <p className="text-sm text-admin-muted">
                           {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : 'Pending'}
                         </p>
                       </div>
-                      <StatusPill tone={payment.status === 'paid' ? 'success' : 'warn'}>
-                        {payment.status}
-                      </StatusPill>
+                      <div className="flex items-center gap-3">
+                        {payment.invoiceUrl && (
+                          <a
+                            href={payment.invoiceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-admin-accent-ink hover:underline"
+                          >
+                            Invoice
+                          </a>
+                        )}
+                        {payment.invoicePdf && (
+                          <a
+                            href={payment.invoicePdf}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-admin-accent-ink hover:underline"
+                          >
+                            PDF
+                          </a>
+                        )}
+                        {payment.receiptUrl && (
+                          <a
+                            href={payment.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-medium text-admin-accent-ink hover:underline"
+                          >
+                            Receipt
+                          </a>
+                        )}
+                        <StatusPill tone={payment.status === 'paid' ? 'success' : 'warn'}>
+                          {payment.status}
+                        </StatusPill>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -489,6 +522,7 @@ export default function OrganizationDetailPage() {
                       className={`${selectClass} w-full`}
                     >
                       <option value="TRIAL">Trial</option>
+                      <option value="PILOT">1-Role Pilot</option>
                       <option value="STARTER">Starter</option>
                       <option value="PROFESSIONAL">Professional</option>
                       <option value="ENTERPRISE">Enterprise</option>

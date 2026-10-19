@@ -120,6 +120,7 @@ function OrganizationsPageInner() {
           options={[
             { value: '', label: 'All' },
             { value: 'TRIAL', label: 'Trial' },
+            { value: 'PILOT', label: '1-Role Pilot' },
             { value: 'STARTER', label: 'Starter' },
             { value: 'PROFESSIONAL', label: 'Professional' },
             { value: 'ENTERPRISE', label: 'Enterprise' },

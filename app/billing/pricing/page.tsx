@@ -14,8 +14,12 @@ type Plan = {
   annualPriceId?: string;
   contactSales?: boolean;
   candidatesLimit: number;
+  activePositionsLimit?: number;
+  durationDays?: number | null;
+  defaultGrantSlugs?: string[];
   featuresIncluded?: string[];
   featuresExcluded?: string[];
+  isActive?: boolean;
 };
 
 export default function BillingPricingPage() {
@@ -27,9 +31,13 @@ export default function BillingPricingPage() {
     price: 0,
     stripePriceId: '',
     stripeAnnualPriceId: '',
-    candidatesLimit: 50,
+    candidatesLimit: -1,
+    activePositionsLimit: -1,
+    durationDays: '',
+    defaultGrantSlugs: '',
     featuresIncluded: '',
     featuresExcluded: '',
+    isActive: true,
   });
 
   const queryEnabled = !authLoading && isAuthenticated;
@@ -85,23 +93,32 @@ export default function BillingPricingPage() {
       stripePriceId: plan.priceId || '',
       stripeAnnualPriceId: plan.annualPriceId || '',
       candidatesLimit: plan.candidatesLimit,
+      activePositionsLimit: plan.activePositionsLimit ?? -1,
+      durationDays: plan.durationDays != null ? String(plan.durationDays) : '',
+      defaultGrantSlugs: (plan.defaultGrantSlugs || []).join(', '),
       featuresIncluded: (plan.featuresIncluded || []).join('\n'),
       featuresExcluded: (plan.featuresExcluded || []).join('\n'),
+      isActive: plan.isActive ?? true,
     });
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingPlan) return;
+    const parsedDuration = form.durationDays.trim() ? parseInt(form.durationDays, 10) : null;
     updateMutation.mutate({
-      planId: editingPlan.id as 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE',
+      planId: editingPlan.id as 'PILOT' | 'STARTER' | 'PROFESSIONAL' | 'ENTERPRISE',
       name: form.name,
       price: form.price,
       stripePriceId: form.stripePriceId || undefined,
       stripeAnnualPriceId: form.stripeAnnualPriceId || undefined,
       candidatesLimit: form.candidatesLimit,
+      activePositionsLimit: form.activePositionsLimit,
+      durationDays: parsedDuration && parsedDuration > 0 ? parsedDuration : null,
+      defaultGrantSlugs: form.defaultGrantSlugs.split(',').map((s) => s.trim()).filter(Boolean),
       featuresIncluded: form.featuresIncluded.split('\n').map((s) => s.trim()).filter(Boolean),
       featuresExcluded: form.featuresExcluded.split('\n').map((s) => s.trim()).filter(Boolean),
+      isActive: form.isActive,
     });
   };
 
@@ -251,7 +268,7 @@ export default function BillingPricingPage() {
           <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans?.map((plan) => {
             const featuresIncluded = plan.featuresIncluded ?? [];
             const featuresExcluded = plan.featuresExcluded ?? [];
@@ -278,6 +295,11 @@ export default function BillingPricingPage() {
                     Most Popular
                   </span>
                 )}
+                {plan.id === 'PILOT' && (
+                  <span className="inline-block px-3 py-1 text-xs font-medium bg-emerald-600 text-white rounded-full mb-4">
+                    Fast-Start Pilot
+                  </span>
+                )}
                 <h3 className="text-xl font-bold text-gray-900 pr-10">{plan.name}</h3>
                 <div className="mt-2 flex items-baseline gap-1">
                   {plan.contactSales || plan.price <= 0 ? (
@@ -285,11 +307,13 @@ export default function BillingPricingPage() {
                   ) : (
                     <>
                       <span className="text-3xl font-bold text-gray-900">${plan.price.toLocaleString()}</span>
-                      <span className="text-gray-500">/month</span>
+                      <span className="text-gray-500">
+                        {plan.durationDays ? `/${plan.durationDays} days` : '/month'}
+                      </span>
                     </>
                   )}
                 </div>
-                {plan.annualPrice != null && plan.annualPrice > 0 && (
+                {plan.annualPrice != null && plan.annualPrice > 0 && !plan.durationDays && (
                   <p className="text-sm text-gray-600 mt-1">
                     ${plan.annualPrice.toLocaleString()}/year (save 17%)
                   </p>
@@ -299,6 +323,16 @@ export default function BillingPricingPage() {
                 )}
                 {plan.candidatesLimit === -1 && (
                   <p className="text-sm text-gray-500 mt-1">Unlimited candidates</p>
+                )}
+                {plan.activePositionsLimit != null && plan.activePositionsLimit > 0 && (
+                  <p className="text-sm text-indigo-700 font-medium mt-1">
+                    {plan.activePositionsLimit} active {plan.activePositionsLimit === 1 ? 'position' : 'positions'} cap
+                  </p>
+                )}
+                {plan.defaultGrantSlugs && plan.defaultGrantSlugs.length > 0 && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    Auto-grants: <span className="font-mono">{plan.defaultGrantSlugs.join(', ')}</span>
+                  </p>
                 )}
                 {plan.priceId && (
                   <p className="text-xs text-gray-500 mt-2 font-mono break-all" title={plan.priceId}>
@@ -388,6 +422,53 @@ export default function BillingPricingPage() {
                     />
                     <p className="text-xs text-gray-500 mt-1">Use -1 for unlimited</p>
                   </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Active positions limit</label>
+                    <input
+                      type="number"
+                      min={-1}
+                      value={form.activePositionsLimit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          activePositionsLimit: Number.isNaN(parseInt(e.target.value, 10))
+                            ? -1
+                            : parseInt(e.target.value, 10),
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">1 for 1-Role Pilot, -1 for unlimited</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (days, optional)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="e.g. 30"
+                      value={form.durationDays}
+                      onChange={(e) => setForm((f) => ({ ...f, durationDays: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Leave blank for ongoing monthly/annual</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Auto-granted module slugs (comma-separated)
+                  </label>
+                  <input
+                    type="text"
+                    value={form.defaultGrantSlugs}
+                    onChange={(e) => setForm((f) => ({ ...f, defaultGrantSlugs: e.target.value }))}
+                    placeholder="reference_checks, agency_partners"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Automatically turned on in org_feature_grants when an org subscribes to this plan.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Stripe Price ID (optional override)</label>
