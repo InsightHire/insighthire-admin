@@ -1,111 +1,276 @@
 'use client';
 
-import { useState } from 'react';
-import { trpc } from '@/lib/trpc';
-import { 
-  BuildingOfficeIcon, 
-  UserPlusIcon, 
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowPathIcon,
+  BuildingOfficeIcon,
   CheckCircleIcon,
   ClipboardDocumentIcon,
-  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  PlusIcon,
+  PuzzlePieceIcon,
+  RocketLaunchIcon,
+  TrashIcon,
+  UserPlusIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { trpc } from '@/lib/trpc';
 import { AdminPageChrome } from '@/components/admin/page-chrome';
-import { SectionCard, DetailList } from '@/components/admin/section-card';
-import { buttonClass, inputClass, selectClass } from '@/components/admin/controls';
+import { SectionCard } from '@/components/admin/section-card';
+import { buttonClass, checkboxClass, inputClass, selectClass } from '@/components/admin/controls';
+import {
+  emptyAdmin,
+  filledAdmins,
+  groupFeatures,
+  isAlreadyMemberError,
+  isCrmFeature,
+  newRequestId,
+  onboardingProblems,
+  selectedFeatureSlugs,
+  type AdminRole,
+  type AdminRow,
+  type CatalogFeature,
+  type InviteState,
+  type Products,
+} from '@/lib/tenant-onboarding';
 
-type Step = 'create-org' | 'invite-admin' | 'complete';
-
+const STORAGE_KEY = 'ih-admin-onboarding-v1';
 const labelClass = 'block text-sm font-medium text-admin-secondary mb-1';
 
-export default function OnboardingPage() {
-  const [step, setStep] = useState<Step>('create-org');
-  const [createdOrg, setCreatedOrg] = useState<any>(null);
-  const [invitedUser, setInvitedUser] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
+const INDUSTRIES = [
+  ['TECHNOLOGY', 'Technology'], ['HEALTHCARE', 'Healthcare'], ['FINANCE', 'Finance'], ['EDUCATION', 'Education'],
+  ['RETAIL', 'Retail'], ['MANUFACTURING', 'Manufacturing'], ['CONSULTING', 'Consulting'], ['MARKETING', 'Marketing'],
+  ['SALES', 'Sales'], ['HUMAN_RESOURCES', 'Human Resources'], ['LEGAL', 'Legal'], ['REAL_ESTATE', 'Real Estate'],
+  ['HOSPITALITY', 'Hospitality'], ['TRANSPORTATION', 'Transportation'], ['ENERGY', 'Energy'], ['MEDIA', 'Media'],
+  ['NONPROFIT', 'Nonprofit'], ['GOVERNMENT', 'Government'], ['OTHER', 'Other'],
+] as const;
 
-  // Form states
-  const [orgForm, setOrgForm] = useState({
-    name: '',
-    domain: '',
-    industry: 'TECHNOLOGY',
-    size: 'SMALL',
-    subscriptionPlan: 'TRIAL',
-    trialDays: 14,
-  });
+const PLANS = [
+  ['TRIAL', 'Trial'], ['PILOT', '1-Role Pilot'], ['STARTER', 'Starter'], ['PROFESSIONAL', 'Professional'],
+  ['ENTERPRISE', 'Enterprise'], ['ENTERPRISE_PLUS', 'Enterprise Plus'],
+] as const;
 
-  const [adminForm, setAdminForm] = useState({
-    email: '',
-    firstName: '',
-    lastName: '',
-    role: 'ADMIN',
-  });
+const CATEGORY_LABELS: Record<string, string> = {
+  hiring_intelligence: 'Hiring',
+  meetings: 'Meetings & scheduling',
+  communication: 'Communication',
+  integrations: 'Integrations',
+  talent: 'Talent',
+  ats: 'ATS',
+  vouch: 'Vouch',
+  crm: 'CRM modules',
+};
 
-  const createOrgMutation = trpc.platformAdmin.createOrganization.useMutation({
-    onSuccess: (data) => {
-      setCreatedOrg(data.organization);
-      setStep('invite-admin');
-    },
-  });
+type Form = {
+  name: string;
+  domain: string;
+  industry: string;
+  size: string;
+  subscriptionPlan: string;
+  trialDays: number;
+  products: Products;
+  admins: AdminRow[];
+  allowDuplicateName: boolean;
+};
 
-  const inviteAdminMutation = trpc.platformAdmin.inviteOrgAdmin.useMutation({
-    onSuccess: (data) => {
-      setInvitedUser(data);
-      setStep('complete');
-    },
-  });
+type ProvisionResult = {
+  created: boolean;
+  organization: { id: string; name: string; subscriptionPlan: string };
+  grantedSlugs: string[];
+  steps: Array<{ key: string; label: string; status: 'ok' | 'warn'; detail?: string }>;
+};
 
-  const handleCreateOrg = (e: React.FormEvent) => {
-    e.preventDefault();
-    createOrgMutation.mutate({
-      name: orgForm.name,
-      domain: orgForm.domain || undefined,
-      industry: orgForm.industry as any,
-      size: orgForm.size as any,
-      subscriptionPlan: orgForm.subscriptionPlan as any,
-      trialDays: orgForm.trialDays,
-    });
-  };
+type Saved = {
+  requestId: string;
+  form: Form;
+  selected: string[];
+  planDefaultsFor: string | null;
+  result: ProvisionResult | null;
+  invites: Record<string, InviteState>;
+};
 
-  const handleInviteAdmin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createdOrg) return;
-    
-    inviteAdminMutation.mutate({
-      organizationId: createdOrg.id,
-      email: adminForm.email,
-      firstName: adminForm.firstName,
-      lastName: adminForm.lastName,
-      role: adminForm.role as any,
-    });
-  };
+const freshForm = (): Form => ({
+  name: '',
+  domain: '',
+  industry: 'TECHNOLOGY',
+  size: 'SMALL',
+  subscriptionPlan: 'TRIAL',
+  trialDays: 14,
+  products: { hire: true, crm: false },
+  admins: [emptyAdmin()],
+  allowDuplicateName: false,
+});
 
-  const copyInviteUrl = () => {
-    if (invitedUser?.invitation?.acceptUrl) {
-      navigator.clipboard.writeText(invitedUser.invitation.acceptUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+const fresh = (): Saved => ({ requestId: newRequestId(), form: freshForm(), selected: [], planDefaultsFor: null, result: null, invites: {} });
+
+function loadSaved(): Saved {
+  if (typeof window === 'undefined') return fresh();
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return fresh();
+    const saved = JSON.parse(raw) as Saved;
+    // A reload mid-send leaves "sending" behind; let it be retried.
+    for (const [email, s] of Object.entries(saved.invites ?? {})) {
+      if (s.status === 'sending') saved.invites[email] = { status: 'failed', error: 'Interrupted. Retry to finish.' };
     }
-  };
+    return saved;
+  } catch {
+    return fresh();
+  }
+}
 
-  const startOver = () => {
-    setStep('create-org');
-    setCreatedOrg(null);
-    setInvitedUser(null);
-    setOrgForm({
-      name: '',
-      domain: '',
-      industry: 'TECHNOLOGY',
-      size: 'SMALL',
-      subscriptionPlan: 'TRIAL',
-      trialDays: 14,
+const errorMessage = (err: unknown) => (err as { message?: string })?.message || 'Something went wrong.';
+
+export default function OnboardingPage() {
+  const [state, setState] = useState<Saved>(fresh);
+  const [loaded, setLoaded] = useState(false);
+  const [search, setSearch] = useState('');
+  const [problems, setProblems] = useState<string[]>([]);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [nameConflict, setNameConflict] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    setState(loadSaved());
+    setLoaded(true);
+  }, []);
+  useEffect(() => {
+    if (loaded) window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }, [state, loaded]);
+
+  const { form, selected, result, invites } = state;
+  const locked = !!result || running;
+  const setForm = (patch: Partial<Form>) => setState((s) => ({ ...s, form: { ...s.form, ...patch } }));
+
+  const catalogQuery = (trpc as any).platformAdmin.provisioningCatalog.useQuery(
+    { plan: form.subscriptionPlan },
+    { retry: 1, staleTime: 60_000, enabled: loaded },
+  );
+  const catalog: CatalogFeature[] = useMemo(() => catalogQuery.data?.features ?? [], [catalogQuery.data]);
+  const provision = (trpc as any).platformAdmin.provisionTenant.useMutation();
+  const invite = (trpc as any).platformAdmin.inviteOrgAdmin.useMutation();
+
+  // Pre-tick the plan's included features once per plan choice; later unticks stick.
+  useEffect(() => {
+    if (!catalogQuery.data || locked || state.planDefaultsFor === catalogQuery.data.plan) return;
+    const included = catalog.filter((f) => f.includedInPlan).map((f) => f.slug);
+    setState((s) => ({ ...s, planDefaultsFor: catalogQuery.data.plan, selected: [...new Set([...s.selected, ...included])] }));
+  }, [catalogQuery.data, catalog, locked, state.planDefaultsFor]);
+
+  const groups = useMemo(() => groupFeatures(catalog, search), [catalog, search]);
+  const featureSlugs = useMemo(() => selectedFeatureSlugs(selected, catalog, form.products), [selected, catalog, form.products]);
+  const selectedSet = useMemo(() => new Set(featureSlugs), [featureSlugs]);
+
+  const toggleFeature = (slug: string) =>
+    setState((s) => ({ ...s, selected: s.selected.includes(slug) ? s.selected.filter((x) => x !== slug) : [...s.selected, slug] }));
+  const setCategory = (rows: CatalogFeature[], on: boolean) =>
+    setState((s) => {
+      const slugs = rows.map((r) => r.slug);
+      return { ...s, selected: on ? [...new Set([...s.selected, ...slugs])] : s.selected.filter((x) => !slugs.includes(x)) };
     });
-    setAdminForm({
-      email: '',
-      firstName: '',
-      lastName: '',
-      role: 'ADMIN',
-    });
-  };
+
+  const setAdmin = (i: number, patch: Partial<AdminRow>) =>
+    setForm({ admins: form.admins.map((a, j) => (j === i ? { ...a, ...patch } : a)) });
+
+  async function sendInvites(organizationId: string, admins: AdminRow[]) {
+    const done: Record<string, InviteState> = { ...state.invites };
+    for (const admin of admins) {
+      const email = admin.email.trim().toLowerCase();
+      if (done[email]?.status === 'done') continue;
+      setState((s) => ({ ...s, invites: { ...s.invites, [email]: { status: 'sending' } } }));
+      let next: InviteState;
+      try {
+        const res = await invite.mutateAsync({
+          organizationId,
+          email,
+          firstName: admin.firstName.trim(),
+          lastName: admin.lastName.trim(),
+          role: admin.role,
+        });
+        next = { status: 'done', acceptUrl: res?.invitation?.acceptUrl ?? null };
+      } catch (err) {
+        const msg = errorMessage(err);
+        next = isAlreadyMemberError(msg) ? { status: 'done', acceptUrl: null, note: 'Already added' } : { status: 'failed', error: msg };
+      }
+      done[email] = next;
+      setState((s) => ({ ...s, invites: { ...s.invites, [email]: next } }));
+    }
+  }
+
+  async function onProvision(e: React.FormEvent) {
+    e.preventDefault();
+    if (running) return;
+    const found = onboardingProblems(form);
+    setProblems(found);
+    setServerError(null);
+    if (found.length) return;
+
+    const admins = filledAdmins(form.admins);
+    setRunning(true);
+    try {
+      let res: ProvisionResult | null = result;
+      if (!res) {
+        res = (await provision.mutateAsync({
+          requestId: state.requestId,
+          name: form.name.trim(),
+          domain: form.domain.trim() || undefined,
+          industry: form.industry,
+          size: form.size,
+          subscriptionPlan: form.subscriptionPlan,
+          trialDays: form.trialDays,
+          products: form.products,
+          features: featureSlugs,
+          admins: admins.map((a) => ({ ...a, email: a.email.trim().toLowerCase() })),
+          allowDuplicateName: form.allowDuplicateName || undefined,
+        })) as ProvisionResult;
+        const saved = res;
+        setState((s) => ({ ...s, result: saved }));
+      }
+      await sendInvites(res.organization.id, admins);
+    } catch (err) {
+      const msg = errorMessage(err);
+      setServerError(msg);
+      if (/already exists/i.test(msg)) setNameConflict(true);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function retryInvites() {
+    if (!result || running) return;
+    const found = onboardingProblems(form);
+    setProblems(found);
+    if (found.length) return;
+    setRunning(true);
+    try {
+      await sendInvites(result.organization.id, filledAdmins(form.admins));
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  function startOver() {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    setState(fresh());
+    setProblems([]);
+    setServerError(null);
+    setNameConflict(false);
+  }
+
+  function copy(text: string) {
+    void navigator.clipboard.writeText(text);
+    setCopied(text);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  const admins = filledAdmins(form.admins);
+  const unsentInvites = admins.filter((a) => invites[a.email.trim().toLowerCase()]?.status !== 'done');
+  const allInvited = !!result && admins.every((a) => invites[a.email.trim().toLowerCase()]?.status === 'done');
+  const crmOnly = form.products.crm && !form.products.hire;
+  const roleOptions: Array<[AdminRole, string]> = crmOnly
+    ? [['ORGANIZATION_ADMIN', 'CRM admin'], ['RECRUITER', 'CRM member']]
+    : [['ORGANIZATION_ADMIN', 'Admin (full access)'], ['RECRUITER', 'Recruiter'], ['HIRING_MANAGER', 'Hiring manager']];
 
   return (
     <AdminPageChrome
@@ -113,117 +278,37 @@ export default function OnboardingPage() {
       icon={<BuildingOfficeIcon />}
       breadcrumbs={[{ label: 'Tenants', href: '/organizations' }, { label: 'Onboard customer' }]}
       title="Onboard New Customer"
-      description="Create a new organization and invite their admin"
+      description="Create the tenant, turn on its products and features, and invite its admins in one go. Safe to retry."
     >
-      {/* Progress Steps */}
-      <div className="admin-panel mb-6 px-5 py-4">
-        <div className="flex items-center text-sm">
-          <div className={`flex items-center ${step === 'create-org' ? 'text-admin-accent-ink' : 'text-admin-ok'}`}>
-            <div className={`w-9 h-9 rounded-full border flex items-center justify-center ${
-              step === 'create-org' ? 'bg-admin-accent-soft border-admin-accent-border' : 'bg-admin-ok-soft border-admin-ok/20'
-            }`}>
-              {step !== 'create-org' ? (
-                <CheckCircleIcon className="w-5 h-5" />
-              ) : (
-                <BuildingOfficeIcon className="w-4 h-4" />
-              )}
-            </div>
-            <span className="ml-2 font-medium">Create Organization</span>
-          </div>
-          
-          <div className={`flex-1 h-0.5 mx-4 rounded-full ${step !== 'create-org' ? 'bg-admin-ok/40' : 'bg-admin-border'}`} />
-          
-          <div className={`flex items-center ${
-            step === 'invite-admin' ? 'text-admin-accent-ink' : step === 'complete' ? 'text-admin-ok' : 'text-admin-muted'
-          }`}>
-            <div className={`w-9 h-9 rounded-full border flex items-center justify-center ${
-              step === 'invite-admin' ? 'bg-admin-accent-soft border-admin-accent-border' : step === 'complete' ? 'bg-admin-ok-soft border-admin-ok/20' : 'bg-admin-bg border-admin-border'
-            }`}>
-              {step === 'complete' ? (
-                <CheckCircleIcon className="w-5 h-5" />
-              ) : (
-                <UserPlusIcon className="w-4 h-4" />
-              )}
-            </div>
-            <span className="ml-2 font-medium">Invite Admin</span>
-          </div>
-          
-          <div className={`flex-1 h-0.5 mx-4 rounded-full ${step === 'complete' ? 'bg-admin-ok/40' : 'bg-admin-border'}`} />
-          
-          <div className={`flex items-center ${step === 'complete' ? 'text-admin-ok' : 'text-admin-muted'}`}>
-            <div className={`w-9 h-9 rounded-full border flex items-center justify-center ${
-              step === 'complete' ? 'bg-admin-ok-soft border-admin-ok/20' : 'bg-admin-bg border-admin-border'
-            }`}>
-              <CheckCircleIcon className="w-4 h-4" />
-            </div>
-            <span className="ml-2 font-medium">Complete</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Step 1: Create Organization */}
-      {step === 'create-org' && (
-        <SectionCard icon={<BuildingOfficeIcon />} title="Organization Details">
-          <form onSubmit={handleCreateOrg} className="space-y-4">
-            <div>
-              <label className={labelClass}>
-                Organization Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={orgForm.name}
-                onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })}
-                className={inputClass}
-                placeholder="Acme Corp"
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>
-                Domain (optional)
-              </label>
-              <input
-                type="text"
-                value={orgForm.domain}
-                onChange={(e) => setOrgForm({ ...orgForm, domain: e.target.value })}
-                className={inputClass}
-                placeholder="acme.com"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={onProvision} className="space-y-6">
+        <SectionCard icon={<BuildingOfficeIcon />} title="Customer">
+          <fieldset disabled={locked} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
+                <label className={labelClass}>Organization name *</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => { setForm({ name: e.target.value, allowDuplicateName: false }); setNameConflict(false); }}
+                  className={inputClass}
+                  placeholder="Acme Corp"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Domain</label>
+                <input value={form.domain} onChange={(e) => setForm({ domain: e.target.value })} className={inputClass} placeholder="acme.com" />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div className="sm:col-span-2">
                 <label className={labelClass}>Industry</label>
-                <select
-                  value={orgForm.industry}
-                  onChange={(e) => setOrgForm({ ...orgForm, industry: e.target.value })}
-                  className={`${selectClass} w-full`}
-                >
-                  <option value="TECHNOLOGY">Technology</option>
-                  <option value="HEALTHCARE">Healthcare</option>
-                  <option value="FINANCE">Finance</option>
-                  <option value="EDUCATION">Education</option>
-                  <option value="RETAIL">Retail</option>
-                  <option value="MANUFACTURING">Manufacturing</option>
-                  <option value="CONSULTING">Consulting</option>
-                  <option value="MARKETING">Marketing</option>
-                  <option value="SALES">Sales</option>
-                  <option value="HUMAN_RESOURCES">Human Resources</option>
-                  <option value="LEGAL">Legal</option>
-                  <option value="REAL_ESTATE">Real Estate</option>
-                  <option value="HOSPITALITY">Hospitality</option>
-                  <option value="OTHER">Other</option>
+                <select value={form.industry} onChange={(e) => setForm({ industry: e.target.value })} className={`${selectClass} w-full`}>
+                  {INDUSTRIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
-
-              <div>
-                <label className={labelClass}>Company Size</label>
-                <select
-                  value={orgForm.size}
-                  onChange={(e) => setOrgForm({ ...orgForm, size: e.target.value })}
-                  className={`${selectClass} w-full`}
-                >
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Company size</label>
+                <select value={form.size} onChange={(e) => setForm({ size: e.target.value })} className={`${selectClass} w-full`}>
                   <option value="STARTUP">Startup (1-10)</option>
                   <option value="SMALL">Small (11-50)</option>
                   <option value="MEDIUM">Medium (51-200)</option>
@@ -231,238 +316,266 @@ export default function OnboardingPage() {
                   <option value="ENTERPRISE">Enterprise (1000+)</option>
                 </select>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Subscription Plan</label>
-                <select
-                  value={orgForm.subscriptionPlan}
-                  onChange={(e) => setOrgForm({ ...orgForm, subscriptionPlan: e.target.value })}
-                  className={`${selectClass} w-full`}
-                >
-                  <option value="TRIAL">Trial</option>
-                  <option value="PILOT">1-Role Pilot</option>
-                  <option value="STARTER">Starter</option>
-                  <option value="PROFESSIONAL">Professional</option>
-                  <option value="ENTERPRISE">Enterprise</option>
-                  <option value="ENTERPRISE_PLUS">Enterprise Plus</option>
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Plan</label>
+                <select value={form.subscriptionPlan} onChange={(e) => setForm({ subscriptionPlan: e.target.value })} className={`${selectClass} w-full`}>
+                  {PLANS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
-
-              {orgForm.subscriptionPlan === 'TRIAL' && (
-                <div>
-                  <label className={labelClass}>Trial Days</label>
+              {form.subscriptionPlan === 'TRIAL' && (
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Trial days</label>
                   <input
                     type="number"
                     min={1}
                     max={90}
-                    value={orgForm.trialDays}
-                    onChange={(e) => setOrgForm({ ...orgForm, trialDays: parseInt(e.target.value) || 14 })}
+                    value={form.trialDays}
+                    onChange={(e) => setForm({ trialDays: Math.min(90, Math.max(1, parseInt(e.target.value) || 14)) })}
                     className={inputClass}
                   />
                 </div>
               )}
             </div>
-
-            {createOrgMutation.error && (
-              <div className="p-3 bg-admin-danger-soft border border-admin-danger/30 rounded-admin-sm text-admin-danger text-sm">
-                {createOrgMutation.error.message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={createOrgMutation.isPending}
-              className={`${buttonClass.primary} w-full py-2.5`}
-            >
-              {createOrgMutation.isPending ? (
-                <>
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <BuildingOfficeIcon className="w-4 h-4" />
-                  Create Organization
-                </>
-              )}
-            </button>
-          </form>
+          </fieldset>
         </SectionCard>
-      )}
 
-      {/* Step 2: Invite Admin */}
-      {step === 'invite-admin' && createdOrg && (
-        <SectionCard icon={<UserPlusIcon />} title="Invite Organization Admin">
-          <div className="mb-4 p-3 bg-admin-ok-soft border border-admin-ok/20 rounded-admin-sm">
-            <div className="flex items-center gap-2 text-emerald-800">
-              <CheckCircleIcon className="w-5 h-5" />
-              <span className="font-medium">Organization created: {createdOrg.name}</span>
-            </div>
-            <p className="text-sm text-emerald-700 mt-1">ID: <span className="font-mono text-xs">{createdOrg.id}</span></p>
-          </div>
-
-          <form onSubmit={handleInviteAdmin} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>First Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={adminForm.firstName}
-                  onChange={(e) => setAdminForm({ ...adminForm, firstName: e.target.value })}
-                  className={inputClass}
-                  placeholder="John"
-                />
-              </div>
-              <div>
-                <label className={labelClass}>Last Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={adminForm.lastName}
-                  onChange={(e) => setAdminForm({ ...adminForm, lastName: e.target.value })}
-                  className={inputClass}
-                  placeholder="Smith"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className={labelClass}>Email Address *</label>
-              <input
-                type="email"
-                required
-                value={adminForm.email}
-                onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })}
-                className={inputClass}
-                placeholder="john@acme.com"
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Role</label>
-              <select
-                value={adminForm.role}
-                onChange={(e) => setAdminForm({ ...adminForm, role: e.target.value })}
-                className={`${selectClass} w-full`}
-              >
-                <option value="ADMIN">Admin (Full access)</option>
-                <option value="RECRUITER">Recruiter</option>
-                <option value="HIRING_MANAGER">Hiring Manager</option>
-              </select>
-            </div>
-
-            {inviteAdminMutation.error && (
-              <div className="p-3 bg-admin-danger-soft border border-admin-danger/30 rounded-admin-sm text-admin-danger text-sm">
-                {inviteAdminMutation.error.message}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={inviteAdminMutation.isPending}
-              className={`${buttonClass.primary} w-full py-2.5`}
-            >
-              {inviteAdminMutation.isPending ? (
-                <>
-                  <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                  Sending Invite...
-                </>
-              ) : (
-                <>
-                  <UserPlusIcon className="w-4 h-4" />
-                  Send Invitation
-                </>
-              )}
-            </button>
-          </form>
-        </SectionCard>
-      )}
-
-      {/* Step 3: Complete */}
-      {step === 'complete' && createdOrg && invitedUser && (
-        <SectionCard>
-          <div className="text-center mb-6">
-            <div className="w-14 h-14 bg-admin-ok-soft border border-admin-ok/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircleIcon className="w-8 h-8 text-admin-ok" />
-            </div>
-            <h2 className="text-xl font-semibold text-admin-ink">Onboarding Complete!</h2>
-            <p className="text-admin-muted mt-1">The organization has been created and the admin has been invited.</p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="p-4 rounded-admin-sm border border-admin-border bg-admin-bg/50">
-                <h3 className="text-sm font-semibold text-admin-ink mb-3">Organization Details</h3>
-                <DetailList
-                  cols={2}
-                  items={[
-                    { label: 'Name', value: createdOrg.name },
-                    { label: 'Plan', value: createdOrg.subscriptionPlan },
-                    { label: 'ID', value: <span className="font-mono text-xs break-all">{createdOrg.id}</span> },
-                  ]}
-                />
-              </div>
-
-              <div className="p-4 rounded-admin-sm border border-admin-border bg-admin-bg/50">
-                <h3 className="text-sm font-semibold text-admin-ink mb-3">Admin User</h3>
-                <DetailList
-                  cols={2}
-                  items={[
-                    { label: 'Name', value: `${invitedUser.user.firstName} ${invitedUser.user.lastName}` },
-                    { label: 'Role', value: invitedUser.user.role },
-                    { label: 'Email', value: <span className="break-all">{invitedUser.user.email}</span> },
-                  ]}
-                />
-              </div>
-            </div>
-
-            {invitedUser.invitation && (
-              <div className="p-4 bg-admin-accent-soft border border-admin-accent-border rounded-admin-sm">
-                <h3 className="text-sm font-semibold text-admin-accent-ink mb-2">Invitation Link</h3>
-                <p className="text-sm text-admin-secondary mb-3">
-                  The admin will receive an email with this link. You can also share it directly:
-                </p>
-                <div className="flex gap-2">
+        <SectionCard icon={<PuzzlePieceIcon />} title="Products & features" description={`${featureSlugs.length + (form.products.crm ? 1 : 0)} will be turned on`}>
+          <fieldset disabled={locked} className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                ['hire', 'InsightHire', 'Hiring: jobs, candidates, journeys, interviews.'],
+                ['crm', 'InsightCRM', 'The CRM at crm.insighthire.com. Admins below become CRM admins.'],
+              ] as const).map(([key, title, blurb]) => (
+                <label
+                  key={key}
+                  className={`flex cursor-pointer items-start gap-3 rounded-admin-sm border p-3 ${form.products[key] ? 'border-admin-accent-border bg-admin-accent-soft' : 'border-admin-border'}`}
+                >
                   <input
-                    type="text"
-                    readOnly
-                    value={invitedUser.invitation.acceptUrl}
-                    className={`${inputClass} flex-1 font-mono`}
+                    type="checkbox"
+                    className={`${checkboxClass} mt-0.5`}
+                    checked={form.products[key]}
+                    onChange={(e) => setForm({ products: { ...form.products, [key]: e.target.checked } })}
                   />
-                  <button
-                    onClick={copyInviteUrl}
-                    className={buttonClass.primary}
-                  >
-                    <ClipboardDocumentIcon className="w-4 h-4" />
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-                <p className="text-xs text-admin-muted mt-2">
-                  Expires: {new Date(invitedUser.invitation.expiresAt).toLocaleDateString()}
-                </p>
+                  <span>
+                    <span className="block text-sm font-semibold text-admin-ink">{title}</span>
+                    <span className="block text-xs text-admin-muted">{blurb}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {crmOnly && <p className="text-xs text-admin-muted">CRM only: this tenant won't see hiring, and its CRM admins manage their own team.</p>}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search features" className={`${inputClass} flex-1 min-w-[12rem]`} />
+              <button
+                type="button"
+                className={buttonClass.small}
+                onClick={() => setState((s) => ({ ...s, selected: catalog.filter((f) => f.includedInPlan).map((f) => f.slug) }))}
+              >
+                Plan defaults only
+              </button>
+              <button type="button" className={buttonClass.small} onClick={() => setState((s) => ({ ...s, selected: [] }))}>
+                Clear
+              </button>
+            </div>
+
+            {catalogQuery.isLoading ? (
+              <p className="py-6 text-center text-sm text-admin-muted">Loading features…</p>
+            ) : catalogQuery.error ? (
+              <p className="py-6 text-center text-sm text-admin-danger">Couldn't load features: {errorMessage(catalogQuery.error)}</p>
+            ) : (
+              <div className="max-h-[28rem] space-y-4 overflow-y-auto pr-1">
+                {groups.map(([category, rows]) => {
+                  const off = category === 'crm' && !form.products.crm;
+                  const allOn = rows.every((r) => selectedSet.has(r.slug));
+                  return (
+                    <div key={category} className={off ? 'opacity-50' : undefined}>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-muted">
+                          {CATEGORY_LABELS[category] || category}
+                          {off && <span className="ml-2 normal-case tracking-normal">· needs InsightCRM</span>}
+                        </h3>
+                        {!off && (
+                          <button type="button" className="text-xs text-admin-accent-ink hover:underline" onClick={() => setCategory(rows, !allOn)}>
+                            {allOn ? 'None' : 'All'}
+                          </button>
+                        )}
+                      </div>
+                      <div className="divide-y divide-admin-border rounded-admin-sm border border-admin-border">
+                        {rows.map((f) => (
+                          <label key={f.slug} className="flex cursor-pointer items-start gap-3 px-3 py-2 hover:bg-admin-bg">
+                            <input
+                              type="checkbox"
+                              className={`${checkboxClass} mt-0.5`}
+                              disabled={off || (isCrmFeature(f) && !form.products.crm)}
+                              checked={selectedSet.has(f.slug)}
+                              onChange={() => toggleFeature(f.slug)}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-admin-ink">
+                                {f.name}
+                                {f.includedInPlan && <span className="rounded-full bg-admin-ok-soft px-1.5 py-0.5 text-[11px] text-admin-ok">In plan</span>}
+                                {!f.planOk && (
+                                  <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">
+                                    Needs {f.minPlan === 'ENTERPRISE' ? 'Enterprise' : 'Hire'} plan to go live
+                                  </span>
+                                )}
+                                {!f.platformEnabled && (
+                                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-800">Platform switch off · turns on</span>
+                                )}
+                              </span>
+                              <span className="block text-xs text-admin-muted">{f.description}</span>
+                              {f.caution && <span className="block text-xs text-amber-800">{f.caution}</span>}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-          </div>
+          </fieldset>
+        </SectionCard>
 
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={startOver}
-              className={`${buttonClass.primary} flex-1 py-2.5`}
-            >
-              Onboard Another Customer
-            </button>
-            <a
-              href={`/organizations/${createdOrg.id}`}
-              className={`${buttonClass.secondary} flex-1 py-2.5`}
-            >
-              View Organization
-            </a>
+        <SectionCard icon={<UserPlusIcon />} title="Admins" description="Each gets an invite email. Add as many as you need.">
+          <div className="space-y-3">
+            {form.admins.map((a, i) => {
+              const email = a.email.trim().toLowerCase();
+              const s = invites[email];
+              const rowLocked = running || s?.status === 'done';
+              return (
+                <div key={i} className="rounded-admin-sm border border-admin-border p-3">
+                  <fieldset disabled={rowLocked} className="grid gap-2 sm:grid-cols-12">
+                    <input className={`${inputClass} sm:col-span-4`} type="email" placeholder="email@company.com" value={a.email} onChange={(e) => setAdmin(i, { email: e.target.value })} />
+                    <input className={`${inputClass} sm:col-span-2`} placeholder="First" value={a.firstName} onChange={(e) => setAdmin(i, { firstName: e.target.value })} />
+                    <input className={`${inputClass} sm:col-span-2`} placeholder="Last" value={a.lastName} onChange={(e) => setAdmin(i, { lastName: e.target.value })} />
+                    <select className={`${selectClass} sm:col-span-3`} value={a.role} onChange={(e) => setAdmin(i, { role: e.target.value as AdminRole })}>
+                      {roleOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      className={`${buttonClass.ghost} sm:col-span-1`}
+                      aria-label="Remove admin"
+                      disabled={form.admins.length === 1}
+                      onClick={() => setForm({ admins: form.admins.filter((_, j) => j !== i) })}
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </fieldset>
+                  {s && <InviteStatus state={s} copied={copied} onCopy={copy} />}
+                </div>
+              );
+            })}
+            {!running && (
+              <button type="button" className={buttonClass.secondary} onClick={() => setForm({ admins: [...form.admins, emptyAdmin()] })}>
+                <PlusIcon className="h-4 w-4" /> Add admin
+              </button>
+            )}
           </div>
         </SectionCard>
-      )}
+
+        {(problems.length > 0 || serverError) && (
+          <div className="rounded-admin-sm border border-admin-danger/30 bg-admin-danger-soft p-3 text-sm text-admin-danger">
+            {problems.length > 0 ? (
+              <ul className="list-disc pl-5">{problems.map((p) => <li key={p}>{p}</li>)}</ul>
+            ) : (
+              <p>{serverError}</p>
+            )}
+            {nameConflict && !result && (
+              <label className="mt-2 flex items-center gap-2 text-admin-ink">
+                <input type="checkbox" className={checkboxClass} checked={form.allowDuplicateName} onChange={(e) => setForm({ allowDuplicateName: e.target.checked })} />
+                Create anyway (it's a different customer)
+              </label>
+            )}
+          </div>
+        )}
+
+        {result && (
+          <SectionCard icon={<RocketLaunchIcon />} title={allInvited ? 'Tenant is ready' : 'Provisioning'}>
+            <ul className="space-y-1.5 text-sm">
+              {result.steps.length === 0 && (
+                <StepLine status="ok" label="Tenant was already created by an earlier attempt" />
+              )}
+              {result.steps.map((s) => (
+                <StepLine key={s.key} status={s.status} label={s.label} detail={s.detail} />
+              ))}
+              {admins.map((a) => {
+                const email = a.email.trim().toLowerCase();
+                const s = invites[email];
+                return (
+                  <StepLine
+                    key={email}
+                    status={s?.status === 'done' ? 'ok' : s?.status === 'failed' ? 'failed' : s?.status === 'sending' ? 'busy' : 'todo'}
+                    label={`Invite ${email}`}
+                    detail={s?.status === 'failed' ? s.error : undefined}
+                  />
+                );
+              })}
+            </ul>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {unsentInvites.length > 0 && (
+                <button type="button" className={buttonClass.primary} disabled={running} onClick={retryInvites}>
+                  <ArrowPathIcon className={`h-4 w-4 ${running ? 'animate-spin' : ''}`} /> Send {unsentInvites.length} invite{unsentInvites.length > 1 ? 's' : ''}
+                </button>
+              )}
+              <a href={`/organizations/${result.organization.id}`} className={buttonClass.secondary}>Open tenant</a>
+              <button type="button" className={buttonClass.secondary} onClick={startOver} disabled={running}>Onboard another customer</button>
+            </div>
+          </SectionCard>
+        )}
+
+        {!result && (
+          <button type="submit" disabled={running} className={`${buttonClass.primary} w-full py-2.5`}>
+            {running ? (
+              <><ArrowPathIcon className="h-4 w-4 animate-spin" /> Provisioning…</>
+            ) : (
+              <><RocketLaunchIcon className="h-4 w-4" /> Provision tenant and invite {admins.length || ''} admin{admins.length === 1 ? '' : 's'}</>
+            )}
+          </button>
+        )}
+      </form>
     </AdminPageChrome>
   );
+}
+
+function StepLine({ status, label, detail }: { status: 'ok' | 'warn' | 'failed' | 'busy' | 'todo'; label: string; detail?: string }) {
+  const icon = 'mt-0.5 h-4 w-4 flex-shrink-0';
+  return (
+    <li className="flex items-start gap-2">
+      {status === 'ok' ? (
+        <CheckCircleIcon className={`${icon} text-admin-ok`} />
+      ) : status === 'busy' ? (
+        <ArrowPathIcon className={`${icon} animate-spin text-admin-muted`} />
+      ) : status === 'warn' ? (
+        <ExclamationTriangleIcon className={`${icon} text-amber-600`} />
+      ) : status === 'failed' ? (
+        <XCircleIcon className={`${icon} text-admin-danger`} />
+      ) : (
+        <span className={`${icon} rounded-full border border-admin-border`} />
+      )}
+      <span>
+        <span className="text-admin-ink">{label}</span>
+        {detail && <span className="block text-xs text-admin-muted">{detail}</span>}
+      </span>
+    </li>
+  );
+}
+
+function InviteStatus({ state, copied, onCopy }: { state: InviteState; copied: string | null; onCopy: (t: string) => void }) {
+  if (state.status === 'done') {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-admin-ok">
+        <CheckCircleIcon className="h-4 w-4" /> {state.note ?? 'Invite sent'}
+        {state.acceptUrl && (
+          <button type="button" className={buttonClass.small} onClick={() => onCopy(state.acceptUrl!)}>
+            <ClipboardDocumentIcon className="h-3.5 w-3.5" /> {copied === state.acceptUrl ? 'Copied' : 'Copy invite link'}
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (state.status === 'failed') return <p className="mt-2 text-xs text-admin-danger">Invite failed: {state.error}</p>;
+  if (state.status === 'sending') return <p className="mt-2 text-xs text-admin-muted">Sending invite…</p>;
+  return null;
 }
