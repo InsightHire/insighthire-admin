@@ -328,7 +328,7 @@ export default function OnboardingPage() {
       title="Onboard New Customer"
       description="Create the tenant, turn on its products and features, and invite its admins in one go. Safe to retry."
     >
-      <form onSubmit={onProvision} className="space-y-6">
+      <form onSubmit={onProvision} className="space-y-6" autoComplete="off">
         {!locked && (
           <SectionCard
             icon={<DocumentDuplicateIcon />}
@@ -394,12 +394,16 @@ export default function OnboardingPage() {
                   onChange={(e) => { setForm({ name: e.target.value, allowDuplicateName: false }); setNameConflict(false); }}
                   className={inputClass}
                   placeholder="Acme Corp"
+                  name="ih-new-tenant-name"
+                  autoComplete="off"
+                  data-1p-ignore
+                  data-lpignore="true"
                   autoFocus
                 />
               </div>
               <div>
                 <label className={labelClass}>Domain</label>
-                <input value={form.domain} onChange={(e) => setForm({ domain: e.target.value })} className={inputClass} placeholder="acme.com" />
+                <input value={form.domain} onChange={(e) => setForm({ domain: e.target.value })} className={inputClass} placeholder="acme.com" name="ih-new-tenant-domain" autoComplete="off" data-1p-ignore data-lpignore="true" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-4">
@@ -550,9 +554,9 @@ export default function OnboardingPage() {
               return (
                 <div key={i} className="rounded-admin-sm border border-admin-border p-3">
                   <fieldset disabled={rowLocked} className="grid gap-2 sm:grid-cols-12">
-                    <input className={`${inputClass} sm:col-span-4`} type="email" placeholder="email@company.com" value={a.email} onChange={(e) => setAdmin(i, { email: e.target.value })} />
-                    <input className={`${inputClass} sm:col-span-2`} placeholder="First" value={a.firstName} onChange={(e) => setAdmin(i, { firstName: e.target.value })} />
-                    <input className={`${inputClass} sm:col-span-2`} placeholder="Last" value={a.lastName} onChange={(e) => setAdmin(i, { lastName: e.target.value })} />
+                    <input className={`${inputClass} sm:col-span-4`} type="email" placeholder="email@company.com" name={`ih-admin-email-${i}`} autoComplete="off" data-1p-ignore data-lpignore="true" value={a.email} onChange={(e) => setAdmin(i, { email: e.target.value })} />
+                    <input className={`${inputClass} sm:col-span-2`} placeholder="First" name={`ih-admin-first-${i}`} autoComplete="off" data-1p-ignore data-lpignore="true" value={a.firstName} onChange={(e) => setAdmin(i, { firstName: e.target.value })} />
+                    <input className={`${inputClass} sm:col-span-2`} placeholder="Last" name={`ih-admin-last-${i}`} autoComplete="off" data-1p-ignore data-lpignore="true" value={a.lastName} onChange={(e) => setAdmin(i, { lastName: e.target.value })} />
                     <select className={`${selectClass} sm:col-span-3`} value={a.role} onChange={(e) => setAdmin(i, { role: e.target.value as AdminRole })}>
                       {roleOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
@@ -633,7 +637,7 @@ export default function OnboardingPage() {
             {running ? (
               <><ArrowPathIcon className="h-4 w-4 animate-spin" /> Provisioning…</>
             ) : (
-              <><RocketLaunchIcon className="h-4 w-4" /> Provision tenant and invite {admins.length || ''} admin{admins.length === 1 ? '' : 's'}</>
+              <><RocketLaunchIcon className="h-4 w-4" /> Provision {form.name.trim() ? `“${form.name.trim()}”` : 'tenant'} and invite {admins.length || ''} admin{admins.length === 1 ? '' : 's'}</>
             )}
           </button>
         )}

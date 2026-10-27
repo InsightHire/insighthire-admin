@@ -171,9 +171,12 @@ export default function OrganizationUsersPage() {
                         <p className="font-medium">{[user.firstName, user.lastName].filter(Boolean).join(' ')}</p>
                       )}
                       <p className={user.firstName || user.lastName ? 'text-xs text-admin-muted' : ''}>{user.email}</p>
+                      {user.viaMembership && (
+                        <p className="text-xs text-admin-muted">Account lives in another org; added here as a member</p>
+                      )}
                     </Td>
                     <Td>
-                      {isSuperAdmin ? (
+                      {isSuperAdmin && !user.viaMembership ? (
                         <select
                           value={EDITABLE_ROLES.includes(user.role) ? user.role : ''}
                           onChange={(e) => updateUserRole.mutate({ userId: user.id, role: e.target.value })}
@@ -198,6 +201,9 @@ export default function OrganizationUsersPage() {
                       {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never'}
                     </Td>
                     <Td className="space-x-3 whitespace-nowrap">
+                      {user.viaMembership ? (
+                        <span className="text-xs text-admin-muted">Manage from their home org</span>
+                      ) : (<>
                       {isSuperAdmin && (
                         <button
                           onClick={() => openEdit(user)}
@@ -241,6 +247,7 @@ export default function OrganizationUsersPage() {
                           Delete
                         </button>
                       )}
+                      </>)}
                     </Td>
                   </tr>
                 ))}
