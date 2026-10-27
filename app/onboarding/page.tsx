@@ -6,6 +6,7 @@ import {
   BuildingOfficeIcon,
   CheckCircleIcon,
   ClipboardDocumentIcon,
+  DocumentDuplicateIcon,
   ExclamationTriangleIcon,
   PlusIcon,
   PuzzlePieceIcon,
@@ -87,6 +88,17 @@ type Saved = {
   planDefaultsFor: string | null;
   result: ProvisionResult | null;
   invites: Record<string, InviteState>;
+  copiedFrom?: { id: string; name: string; features: number } | null;
+};
+
+type Template = {
+  sourceId: string;
+  sourceName: string;
+  industry: string | null;
+  size: string | null;
+  subscriptionPlan: string;
+  products: Products;
+  features: string[];
 };
 
 const freshForm = (): Form => ({
@@ -130,6 +142,10 @@ export default function OnboardingPage() {
   const [nameConflict, setNameConflict] = useState(false);
   const [running, setRunning] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [copySearch, setCopySearch] = useState('');
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [copying, setCopying] = useState<string | null>(null);
+  const utils = (trpc as any).useUtils();
 
   useEffect(() => {
     setState(loadSaved());
@@ -149,6 +165,38 @@ export default function OnboardingPage() {
   );
   const catalog: CatalogFeature[] = useMemo(() => catalogQuery.data?.features ?? [], [catalogQuery.data]);
   const provision = (trpc as any).platformAdmin.provisionTenant.useMutation();
+  const tenantSearch = (trpc as any).platformAdmin.listOrganizations.useQuery(
+    { search: copySearch.trim(), limit: 8 },
+    { enabled: loaded && !locked && copySearch.trim().length >= 2, staleTime: 30_000 },
+  );
+  const tenantMatches: Array<{ id: string; name: string | null; domain: string | null; subscriptionPlan: string }> =
+    copySearch.trim().length >= 2 ? tenantSearch.data?.organizations ?? [] : [];
+
+  async function copyFrom(organizationId: string) {
+    setCopyError(null);
+    setCopying(organizationId);
+    try {
+      const t = (await utils.platformAdmin.provisioningTemplate.fetch({ organizationId })) as Template;
+      setState((s) => ({
+        ...s,
+        form: {
+          ...s.form,
+          industry: t.industry || s.form.industry,
+          size: t.size || s.form.size,
+          subscriptionPlan: t.subscriptionPlan,
+          products: t.products,
+        },
+        selected: t.features,
+        planDefaultsFor: t.subscriptionPlan,
+        copiedFrom: { id: t.sourceId, name: t.sourceName, features: t.features.length },
+      }));
+      setCopySearch('');
+    } catch (err) {
+      setCopyError(errorMessage(err));
+    } finally {
+      setCopying(null);
+    }
+  }
   const invite = (trpc as any).platformAdmin.inviteOrgAdmin.useMutation();
 
   // Pre-tick the plan's included features once per plan choice; later unticks stick.
@@ -281,6 +329,61 @@ export default function OnboardingPage() {
       description="Create the tenant, turn on its products and features, and invite its admins in one go. Safe to retry."
     >
       <form onSubmit={onProvision} className="space-y-6">
+        {!locked && (
+          <SectionCard
+            icon={<DocumentDuplicateIcon />}
+            title="Start from an existing tenant"
+            description="Copies plan, industry, size, products and live features. Name, domain and admins stay blank."
+          >
+            {state.copiedFrom ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-admin-sm border border-admin-ok/20 bg-admin-ok-soft px-3 py-2 text-sm text-admin-ink">
+                <span>
+                  <CheckCircleIcon className="mr-1 inline h-4 w-4 text-admin-ok" />
+                  Copied from <strong>{state.copiedFrom.name}</strong> · {state.copiedFrom.features} features. Adjust anything below.
+                </span>
+                <button type="button" className={buttonClass.small} onClick={() => setState((s) => ({ ...s, copiedFrom: null }))}>
+                  Copy a different one
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  value={copySearch}
+                  onChange={(e) => setCopySearch(e.target.value)}
+                  placeholder="Search tenants by name or domain"
+                  className={inputClass}
+                />
+                {copySearch.trim().length >= 2 && (
+                  <div className="mt-2 divide-y divide-admin-border rounded-admin-sm border border-admin-border">
+                    {tenantSearch.isLoading ? (
+                      <p className="px-3 py-2 text-sm text-admin-muted">Searching…</p>
+                    ) : tenantMatches.length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-admin-muted">No tenants match.</p>
+                    ) : (
+                      tenantMatches.map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          disabled={!!copying}
+                          onClick={() => copyFrom(o.id)}
+                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-admin-bg disabled:opacity-50"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-admin-ink">{o.name || o.id}</span>
+                            {o.domain && <span className="block truncate text-xs text-admin-muted">{o.domain}</span>}
+                          </span>
+                          <span className="text-xs text-admin-muted">{copying === o.id ? 'Copying…' : o.subscriptionPlan}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                {copyError && <p className="mt-2 text-sm text-admin-danger">{copyError}</p>}
+              </div>
+            )}
+          </SectionCard>
+        )}
+
         <SectionCard icon={<BuildingOfficeIcon />} title="Customer">
           <fieldset disabled={locked} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
