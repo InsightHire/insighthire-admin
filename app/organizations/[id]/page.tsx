@@ -18,7 +18,7 @@ import {
   PaperClipIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
-import { OrgFeatureGrantsSection } from '@/components/platform-admin/org-feature-grants';
+import { OrgProductsSection } from '@/components/platform-admin/org-feature-grants';
 import { DemoTenantPanel } from '@/components/platform-admin/demo-tenant-panel';
 import { DemoTenantBadge, DemoTenantToggle } from '@/components/platform-admin/demo-tenant-toggle';
 import { SandboxBadge, SandboxOrgPanel } from '@/components/platform-admin/sandbox-org-panel';
@@ -37,7 +37,6 @@ import {
   Gauge,
   Info,
   Languages,
-  LayoutDashboard,
   ListChecks,
   Receipt,
   Route,
@@ -45,7 +44,6 @@ import {
   Users,
   Briefcase,
   History,
-  PenSquare,
   Zap,
 } from 'lucide-react';
 import { AdminPage } from '@/components/admin/page-chrome';
@@ -357,6 +355,18 @@ export default function OrganizationDetailPage() {
               </StatGrid>
             </SectionCard>
 
+            <OrgProductsSection
+              organizationId={orgId}
+              crmOnly={settings.crmOnly === true}
+              onSaved={refetch}
+              hireSettings={
+                <>
+                  <OrgAuthoringSettingsSection organizationId={orgId} settings={settings} onSaved={refetch} />
+                  <OrgDashboardSettingsSection organizationId={orgId} settings={settings} onSaved={refetch} />
+                </>
+              }
+            />
+
             <DemoTenantToggle
               organizationId={orgId}
               organizationName={organization.name || ''}
@@ -372,8 +382,6 @@ export default function OrganizationDetailPage() {
               isSandbox={isSandbox}
               canEdit={isSuperAdmin && !isArchived && !isSandbox}
             />
-
-            <OrgFeatureGrantsSection organizationId={orgId} />
 
             <SupportActionsSection organizationId={orgId} />
 
@@ -459,25 +467,6 @@ export default function OrganizationDetailPage() {
                 </div>
               </SectionCard>
             )}
-
-            {/* Authoring settings (PR — admin alignment) */}
-            <OrgAuthoringSettingsSection
-              organizationId={orgId}
-              settings={(data.organization.settings as Record<string, unknown> | null) || null}
-              onSaved={refetch}
-            />
-
-            <OrgDashboardSettingsSection
-              organizationId={orgId}
-              settings={(data.organization.settings as Record<string, unknown> | null) || null}
-              onSaved={refetch}
-            />
-
-            <OrgCrmOnlySection
-              organizationId={orgId}
-              settings={(data.organization.settings as Record<string, unknown> | null) || null}
-              onSaved={refetch}
-            />
 
             {/* Per-org language settings */}
             <OrgI18nSettingsSection organizationId={orgId} onSaved={refetch} />
@@ -1689,11 +1678,6 @@ function OrgAuthoringSettingsSection({
   });
 
   return (
-    <SectionCard
-      icon={<PenSquare />}
-      title="Authoring settings"
-      description="Same toggles that the org admin sees in their settings, exposed here for support."
-    >
       <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
         <input
           type="checkbox"
@@ -1716,7 +1700,6 @@ function OrgAuthoringSettingsSection({
           </p>
         </div>
       </label>
-    </SectionCard>
   );
 }
 
@@ -1740,11 +1723,6 @@ function OrgDashboardSettingsSection({
   });
 
   return (
-    <SectionCard
-      icon={<LayoutDashboard />}
-      title="Dashboard settings"
-      description="Tenant-specific controls for the recruiter dashboard."
-    >
       <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
         <input
           type="checkbox"
@@ -1773,63 +1751,6 @@ function OrgDashboardSettingsSection({
           )}
         </div>
       </label>
-    </SectionCard>
-  );
-}
-
-function OrgCrmOnlySection({
-  organizationId,
-  settings,
-  onSaved,
-}: {
-  organizationId: string;
-  settings: Record<string, unknown> | null;
-  onSaved: () => void;
-}) {
-  const utils = (trpc as any).useUtils();
-  const enabled = settings?.crmOnly === true;
-
-  const setCrmOnly = (trpc as any).platformAdmin.setOrgCrmOnly.useMutation({
-    onSuccess: () => {
-      utils.platformAdmin.getOrganization.invalidate({ id: organizationId });
-      onSaved();
-    },
-  });
-
-  return (
-    <SectionCard
-      icon={<Users />}
-      title="InsightCRM"
-      description="How this tenant manages its people in InsightCRM."
-    >
-      <label className="flex cursor-pointer items-start gap-3 rounded-admin-sm border border-admin-border p-3 hover:bg-admin-bg/70">
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={setCrmOnly.isLoading}
-          aria-invalid={Boolean(setCrmOnly.error)}
-          aria-describedby="crm-only-help crm-only-error"
-          onChange={(e) => setCrmOnly.mutate({ organizationId, crmOnly: e.target.checked })}
-          className={`${checkboxClass} mt-1`}
-        />
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-admin-ink">CRM-only organization</span>
-            {setCrmOnly.isLoading && <span className="text-xs text-admin-muted">Saving…</span>}
-          </div>
-          <p id="crm-only-help" className="text-xs text-admin-secondary mt-1">
-            Turn on when this company uses InsightCRM but not InsightHire hiring. Their CRM admins then invite,
-            change roles and remove people in CRM Settings → Team. Leave off for tenants that use InsightHire;
-            they keep managing people in InsightHire.
-          </p>
-          {setCrmOnly.error && (
-            <p id="crm-only-error" role="alert" className="text-xs text-red-600 mt-1">
-              {setCrmOnly.error.message}
-            </p>
-          )}
-        </div>
-      </label>
-    </SectionCard>
   );
 }
 
