@@ -51,6 +51,7 @@ export default function AlertsPage() {
   const drift = (trpc as any).platformAdmin.getScoringDrift.useQuery(undefined, { refetchOnWindowFocus: false });
   const clientErrors = (trpc as any).platformAdmin.listClientErrors.useQuery({ days: 1 }, { refetchOnWindowFocus: false });
   const activation = (trpc as any).platformAdmin.getActivationFunnel.useQuery(undefined, { refetchOnWindowFocus: false });
+  const indeed = (trpc as any).platformAdmin.indeedListFailures.useQuery(undefined, { refetchOnWindowFocus: false });
   const acks = (trpc as any).platformAdmin.listAlertAcks.useQuery(undefined, { refetchOnWindowFocus: false });
 
   const invalidateAcks = () => (utils as any).platformAdmin.listAlertAcks.invalidate();
@@ -114,8 +115,18 @@ export default function AlertsPage() {
         });
       }
     }
+    for (const f of (indeed.data as any[]) ?? []) {
+      out.push({
+        key: `indeed:${f.positionId}`,
+        severity: 'danger',
+        category: 'Indeed',
+        title: `${f.organizationName}: Indeed pull failed on "${f.positionTitle}"`,
+        detail: f.reason,
+        href: `/indeed?positionId=${f.positionId}`,
+      });
+    }
     return out.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'danger' ? -1 : 1));
-  }, [health.data, billing.data, drift.data, clientErrors.data, activation.data]);
+  }, [health.data, billing.data, drift.data, clientErrors.data, activation.data, indeed.data]);
 
   const ackedKeys = useMemo(
     () => new Set(((acks.data as any[]) ?? []).map((a) => a.alertKey)),

@@ -15,6 +15,7 @@ const PREVIOUS_HREFS = [
   '/',
   '/alerts',
   '/attention',
+  '/indeed',
   '/releases',
   '/incidents',
   '/status-page',
