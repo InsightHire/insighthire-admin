@@ -24,6 +24,7 @@ const STAGE_LABELS: Record<string, string> = {
   needs_person: 'Needs a person',
   pull: 'Pull failed',
   resume: 'Resume download failed',
+  email: 'Email lookup failed',
 };
 
 const PULL_RUNNING = ['logging_in', 'scraping', 'importing'];
@@ -107,6 +108,10 @@ function FixPanel({ positionId }: { positionId: string }) {
     onError,
   });
   const dismiss = (trpc as any).platformAdmin.indeedDismissFailure.useMutation({ onSuccess: refresh });
+  const refetchEmails = (trpc as any).platformAdmin.indeedRefetchEmails.useMutation({
+    onSuccess: () => setNotice('Looking up missing candidate emails on Indeed. This takes a few minutes; nothing is sent.'),
+    onError,
+  });
 
   if (pos.isLoading) return <p className="text-sm text-admin-muted">Loading job…</p>;
   if (pos.error) return <p className="text-sm text-red-700">{pos.error.message}</p>;
@@ -184,6 +189,13 @@ function FixPanel({ positionId }: { positionId: string }) {
             >
               <RefreshCw className={`h-4 w-4 ${pullRunning ? 'animate-spin' : ''}`} />
               {pullRunning ? 'Pulling…' : 'Retry pull'}
+            </button>
+            <button
+              className={buttonClass.secondary}
+              disabled={refetchEmails.isPending || pullRunning}
+              onClick={() => refetchEmails.mutate({ positionId })}
+            >
+              Re-fetch missing emails
             </button>
             <button className={buttonClass.ghost} disabled={dismiss.isPending} onClick={() => dismiss.mutate({ positionId })}>
               Dismiss alert
