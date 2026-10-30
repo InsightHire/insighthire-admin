@@ -71,10 +71,12 @@ function FixPanel({ positionId }: { positionId: string }) {
   );
   const p = pos.data as any;
   const active = p?.active ?? null;
+  const [importOpenedAt, setImportOpenedAt] = useState<number | null>(null);
+  const [cookieText, setCookieText] = useState('');
 
   const codes = (trpc as any).platformAdmin.indeedGetEmailCodes.useQuery(
-    { positionId, sinceMs: Math.max(1, (active?.startedAt ?? 0) - 60_000) },
-    { enabled: !!active, refetchInterval: 4000 },
+    { positionId, sinceMs: Math.max(1, (active?.startedAt ?? importOpenedAt ?? 0) - 60_000) },
+    { enabled: !!active || importOpenedAt !== null, refetchInterval: 4000 },
   );
   const pull = (trpc as any).platformAdmin.indeedPullStatus.useQuery(
     { sessionId: pullSessionId ?? '' },
@@ -103,6 +105,17 @@ function FixPanel({ positionId }: { positionId: string }) {
     onSuccess: (res: any) => {
       setPullSessionId(res.sessionId);
       setNotice(res.message);
+      refresh();
+    },
+    onError,
+  });
+  const importCookies = (trpc as any).platformAdmin.indeedImportCookies.useMutation({
+    onSuccess: (res: any) => {
+      setNotice(res.message);
+      if (res.saved) {
+        setCookieText('');
+        setImportOpenedAt(null);
+      }
       refresh();
     },
     onError,
@@ -202,6 +215,66 @@ function FixPanel({ positionId }: { positionId: string }) {
             </button>
           </div>
         )}
+
+        {!active &&
+          (importOpenedAt === null ? (
+            <button type="button" className={buttonClass.ghost} onClick={() => setImportOpenedAt(Date.now())}>
+              Import session from your browser
+            </button>
+          ) : (
+            <div className="space-y-3 rounded-md border border-admin-border p-4">
+              <p className="text-sm font-medium text-admin-ink">Import session from your browser</p>
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-admin-secondary">
+                <li>
+                  In a Chrome incognito window, open employers.indeed.com and sign in as{' '}
+                  <span className="font-mono">{p.email}</span>. The code Indeed emails shows up below.
+                </li>
+                <li>
+                  Once you see the dashboard, open DevTools → Network, reload, click the first request, and copy the
+                  value of the <span className="font-mono">cookie</span> request header. A JSON export from a cookie
+                  extension also works.
+                </li>
+                <li>Paste it here and import. Then close the incognito window without signing out.</li>
+              </ol>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-admin-secondary">Codes Indeed emailed:</span>
+                {((codes.data as any[]) ?? []).slice(0, 3).map((c) => (
+                  <button key={`${c.code}-${c.at}`} type="button" onClick={() => copy(c.code)} className={buttonClass.small} title={c.subject}>
+                    <span className="font-mono">{c.code}</span>
+                    <ClipboardCopy className="h-3 w-3" />
+                  </button>
+                ))}
+                {!((codes.data as any[]) ?? []).length && <span className="text-admin-muted">waiting…</span>}
+              </div>
+              <textarea
+                value={cookieText}
+                onChange={(e) => setCookieText(e.target.value)}
+                rows={5}
+                spellCheck={false}
+                autoComplete="off"
+                placeholder="Paste the cookie header or JSON export"
+                className="w-full rounded-md border border-admin-border p-2 font-mono text-xs"
+              />
+              <div className="flex gap-2">
+                <button
+                  className={buttonClass.primary}
+                  disabled={importCookies.isPending || cookieText.trim().length < 10}
+                  onClick={() => importCookies.mutate({ positionId, cookies: cookieText })}
+                >
+                  {importCookies.isPending ? 'Checking with Indeed…' : 'Import and verify'}
+                </button>
+                <button
+                  className={buttonClass.secondary}
+                  onClick={() => {
+                    setImportOpenedAt(null);
+                    setCookieText('');
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ))}
 
         {(pull.data as any)?.message && <p className="text-sm text-admin-secondary">{(pull.data as any).message}</p>}
         {notice && <p className="text-sm text-admin-secondary">{notice}</p>}
